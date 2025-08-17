@@ -22,7 +22,7 @@ pub trait Plugin: Send + Sync {
     fn version(&self) -> &str;
     fn initialize(&mut self) -> Result<(), AppError>;
     fn register_note_format(&self) -> Option<NoteFormat>;
-    
+
     // Optional methods
     fn description(&self) -> Option<&str> { None }
     fn author(&self) -> Option<&str> { None }
@@ -72,32 +72,32 @@ impl Plugin for MyPlugin {
     fn name(&self) -> &str {
         &self.name
     }
-    
+
     fn version(&self) -> &str {
         &self.version
     }
-    
+
     fn initialize(&mut self) -> Result<(), AppError> {
         if self.initialized {
             return Ok(());
         }
-        
+
         // Your initialization logic here
         println!("Initializing {} v{}", self.name, self.version);
-        
+
         self.initialized = true;
         Ok(())
     }
-    
+
     fn register_note_format(&self) -> Option<NoteFormat> {
         // Return None if no custom format, or Some(format) if providing one
         None
     }
-    
+
     fn description(&self) -> Option<&str> {
         Some("Description of what your plugin does")
     }
-    
+
     fn author(&self) -> Option<&str> {
         Some("Your Name")
     }
@@ -115,11 +115,11 @@ fn register_builtin_plugins(&mut self) -> Result<(), AppError> {
     // Register existing plugins
     let hello_plugin = Box::new(HelloWorldPlugin::new());
     self.register_plugin(hello_plugin)?;
-    
+
     // Register your plugin
     let my_plugin = Box::new(MyPlugin::new());
     self.register_plugin(my_plugin)?;
-    
+
     Ok(())
 }
 ```
@@ -136,10 +136,10 @@ fn initialize(&mut self) -> Result<(), AppError> {
             message: "Specific error description".to_string(),
         });
     }
-    
+
     // For IO errors (automatically converted)
     std::fs::create_dir_all("/some/path")?;
-    
+
     Ok(())
 }
 ```
@@ -152,14 +152,14 @@ Include tests for your plugin:
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_plugin_creation() {
         let plugin = MyPlugin::new();
         assert_eq!(plugin.name(), "My Plugin");
         assert_eq!(plugin.version(), "1.0.0");
     }
-    
+
     #[test]
     fn test_plugin_initialization() {
         let mut plugin = MyPlugin::new();
@@ -179,7 +179,7 @@ fn register_note_format(&self) -> Option<NoteFormat> {
     // Currently supported formats:
     Some(NoteFormat::PlainText)  // or
     Some(NoteFormat::Markdown)
-    
+
     // Future: Custom formats will be supported
     // Some(NoteFormat::Custom("json".to_string()))
 }
@@ -204,7 +204,7 @@ fn initialize(&mut self) -> Result<(), AppError> {
 
 ## Plugin Directory Structure
 
-```
+```console
 plugins/
 ├── README.md                      # This file
 ├── examples/                      # Example plugin implementations
@@ -218,26 +218,32 @@ plugins/
 ## Example Plugins
 
 ### Hello World Plugin
+
 **File**: `examples/hello_world_plugin.rs`
 **Purpose**: Demonstrates basic plugin architecture
-**Features**: 
+**Features**:
+
 - Simple initialization
 - Plugin metadata
 - Basic error handling
 
 ### Text Processor Plugin
+
 **File**: `examples/text_processor_plugin.rs`
 **Purpose**: Shows how to process note content without adding new formats
 **Features**:
+
 - Text analysis (word count, character count, reading time)
 - Text transformations (case changes, formatting)
 - Statistics tracking
 - Performance optimization
 
 ### Markdown Enhancer Plugin
+
 **File**: `examples/markdown_enhancer_plugin.rs`
 **Purpose**: Demonstrates format enhancement and registration
 **Features**:
+
 - Markdown syntax rule processing
 - Document structure analysis
 - Extension detection (tables, task lists, etc.)
@@ -270,26 +276,31 @@ Future versions will provide:
 ## Best Practices
 
 ### 1. Error Handling
+
 - Always handle errors gracefully
 - Use descriptive error messages
 - Don't panic in plugin code
 
 ### 2. Initialization
+
 - Keep initialization fast and lightweight
 - Handle multiple initialization calls safely
 - Log initialization status for debugging
 
 ### 3. Resource Management
+
 - Clean up resources properly
 - Don't block the main thread
 - Use async operations when appropriate
 
 ### 4. Versioning
+
 - Use semantic versioning (MAJOR.MINOR.PATCH)
 - Document breaking changes
 - Maintain backward compatibility when possible
 
 ### 5. Testing
+
 - Write comprehensive tests
 - Test error conditions
 - Include integration tests
@@ -300,7 +311,7 @@ Future versions will provide:
 
 Check the application logs for plugin-related messages:
 
-```
+```console
 Loaded 1 plugins
 🔌 Initializing Hello World Plugin v1.0.0
 ✅ Hello World Plugin initialized successfully
@@ -315,17 +326,20 @@ Loaded 1 plugins
 ## Future Roadmap
 
 ### Dynamic Plugin Loading
+
 - Load plugins from compiled shared libraries (.so, .dll, .dylib)
 - Hot-reload plugins without restarting the application
 - Plugin marketplace and distribution
 
 ### Enhanced API
+
 - Database access for plugins
 - Event system for note lifecycle events
 - UI extension points
 - Configuration management
 
 ### Security
+
 - Plugin sandboxing
 - Permission system
 - Code signing and verification
@@ -342,11 +356,13 @@ To contribute a plugin:
 ## Documentation
 
 ### Complete Documentation
+
 - **[Plugin API Reference](../docs/PLUGIN_API.md)** - Complete API specification and reference
 - **[Plugin Development Guide](../docs/PLUGIN_DEVELOPMENT_GUIDE.md)** - Step-by-step development guide
 - **[Plugin System Overview](../PLUGIN_SYSTEM.md)** - Architecture and implementation details
 
 ### Quick References
+
 - **Plugin Trait**: All plugins must implement the `Plugin` trait
 - **Error Handling**: Use `AppError::Plugin` for plugin-specific errors
 - **Thread Safety**: Plugins must be `Send + Sync`

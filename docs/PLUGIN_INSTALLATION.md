@@ -29,21 +29,21 @@ You can check which plugins are loaded through the frontend API:
 
 ```typescript
 // In the application frontend
-const pluginInfo = await invoke('get_plugin_info');
-console.log('Loaded plugins:', pluginInfo);
+const pluginInfo = await invoke("get_plugin_info");
+console.log("Loaded plugins:", pluginInfo);
 
-const pluginCount = await invoke('get_plugin_count');
-console.log('Total plugins:', pluginCount);
+const pluginCount = await invoke("get_plugin_count");
+console.log("Total plugins:", pluginCount);
 
-const noteFormats = await invoke('get_available_note_formats');
-console.log('Available formats:', noteFormats);
+const noteFormats = await invoke("get_available_note_formats");
+console.log("Available formats:", noteFormats);
 ```
 
 ### Plugin Status
 
 Check the application logs to see plugin loading status:
 
-```
+```console
 Loaded 3 plugins
 🔌 Initializing Hello World Plugin v1.0.0
 ✅ Hello World Plugin initialized successfully
@@ -60,6 +60,7 @@ Loaded 3 plugins
 Currently available through IPC commands:
 
 #### Get Plugin Information
+
 ```rust
 // Backend command
 #[tauri::command]
@@ -68,15 +69,16 @@ async fn get_plugin_info(state: State<'_, AppState>) -> Result<Vec<PluginInfo>, 
 
 ```typescript
 // Frontend usage
-const plugins = await invoke('get_plugin_info');
-plugins.forEach(plugin => {
-    console.log(`${plugin.name} v${plugin.version}`);
-    console.log(`Description: ${plugin.description}`);
-    console.log(`Author: ${plugin.author}`);
+const plugins = await invoke("get_plugin_info");
+plugins.forEach((plugin) => {
+  console.log(`${plugin.name} v${plugin.version}`);
+  console.log(`Description: ${plugin.description}`);
+  console.log(`Author: ${plugin.author}`);
 });
 ```
 
 #### Get Plugin Count
+
 ```rust
 // Backend command
 #[tauri::command]
@@ -85,11 +87,12 @@ async fn get_plugin_count(state: State<'_, AppState>) -> Result<usize, ApiError>
 
 ```typescript
 // Frontend usage
-const count = await invoke('get_plugin_count');
+const count = await invoke("get_plugin_count");
 console.log(`${count} plugins loaded`);
 ```
 
 #### Get Available Note Formats
+
 ```rust
 // Backend command
 #[tauri::command]
@@ -98,13 +101,13 @@ async fn get_available_note_formats(state: State<'_, AppState>) -> Result<Vec<St
 
 ```typescript
 // Frontend usage
-const formats = await invoke('get_available_note_formats');
-console.log('Supported formats:', formats);
+const formats = await invoke("get_available_note_formats");
+console.log("Supported formats:", formats);
 ```
 
 ### Plugin Directory Structure
 
-```
+```console
 scratch-pad/
 ├── plugins/
 │   ├── README.md                      # Plugin documentation
@@ -132,6 +135,7 @@ scratch-pad/
 **Author**: Scratch Pad Team
 
 **Features**:
+
 - Basic plugin initialization
 - Metadata demonstration
 - Simple error handling example
@@ -145,6 +149,7 @@ scratch-pad/
 **Author**: Scratch Pad Community
 
 **Features**:
+
 - **Text Analysis**:
   - Word, character, and line counting
   - Paragraph detection
@@ -166,6 +171,7 @@ scratch-pad/
 **Note Format**: None (processes existing formats)
 
 **Usage Example**:
+
 ```rust
 let mut processor = TextProcessorPlugin::new();
 processor.initialize()?;
@@ -175,7 +181,7 @@ println!("Word count: {}", analysis.word_count);
 println!("Reading time: {} minutes", analysis.reading_time_minutes);
 
 let transformed = processor.transform_text(
-    "hello world", 
+    "hello world",
     TextTransformation::TitleCase
 );
 // Result: "Hello World"
@@ -188,6 +194,7 @@ let transformed = processor.transform_text(
 **Author**: Markdown Team
 
 **Features**:
+
 - **Syntax Processing**:
   - Bold, italic, code formatting
   - Strikethrough support
@@ -216,6 +223,7 @@ let transformed = processor.transform_text(
 **Note Format**: Markdown (registers enhanced markdown support)
 
 **Usage Example**:
+
 ```rust
 let mut enhancer = MarkdownEnhancerPlugin::new();
 enhancer.initialize()?;
@@ -237,12 +245,15 @@ if !validation.is_valid {
 #### Plugin Not Loading
 
 **Symptoms**:
+
 - Plugin doesn't appear in plugin list
 - Expected functionality is missing
 - No initialization messages in logs
 
 **Solutions**:
+
 1. **Check Application Logs**:
+
    ```bash
    # Look for plugin loading messages
    grep -i "plugin" application.log
@@ -253,6 +264,7 @@ if !validation.is_valid {
    - Check for compilation errors
 
 3. **Test Plugin Isolation**:
+
    ```rust
    #[test]
    fn test_plugin_standalone() {
@@ -264,13 +276,16 @@ if !validation.is_valid {
 #### Initialization Failures
 
 **Symptoms**:
+
 - Plugin appears in list but shows as failed
 - Error messages during startup
 - Plugin functionality unavailable
 
 **Solutions**:
+
 1. **Check Error Messages**:
-   ```
+
+   ```console
    🔌 Initializing My Plugin v1.0.0
    ❌ Plugin initialization failed: Configuration file not found
    ```
@@ -281,16 +296,17 @@ if !validation.is_valid {
    - Validate configuration files
 
 3. **Debug Initialization**:
+
    ```rust
    fn initialize(&mut self) -> Result<(), AppError> {
        println!("DEBUG: Starting initialization");
-       
+
        // Add debug prints for each step
        self.load_config().map_err(|e| {
            println!("ERROR: Config loading failed: {}", e);
            e
        })?;
-       
+
        println!("DEBUG: Initialization complete");
        Ok(())
    }
@@ -299,17 +315,20 @@ if !validation.is_valid {
 #### Runtime Errors
 
 **Symptoms**:
+
 - Plugin works initially but fails during use
 - Intermittent errors
 - Performance degradation
 
 **Solutions**:
+
 1. **Check Resource Usage**:
    - Monitor memory consumption
    - Check for file handle leaks
    - Verify thread safety
 
 2. **Add Error Context**:
+
    ```rust
    pub fn process_data(&mut self, data: &str) -> Result<String, AppError> {
        self.internal_process(data).map_err(|e| AppError::Plugin {
@@ -319,19 +338,20 @@ if !validation.is_valid {
    ```
 
 3. **Test Edge Cases**:
+
    ```rust
    #[test]
    fn test_edge_cases() {
        let mut plugin = MyPlugin::new();
        plugin.initialize().unwrap();
-       
+
        // Test empty input
        assert!(plugin.process_data("").is_err());
-       
+
        // Test large input
        let large_input = "x".repeat(1_000_000);
        assert!(plugin.process_data(&large_input).is_ok());
-       
+
        // Test special characters
        assert!(plugin.process_data("🚀 Unicode test").is_ok());
    }
@@ -340,23 +360,25 @@ if !validation.is_valid {
 ### Diagnostic Commands
 
 #### Check Plugin Status
+
 ```typescript
 // Get detailed plugin information
-const plugins = await invoke('get_plugin_info');
-plugins.forEach(plugin => {
-    console.log(`Plugin: ${plugin.name}`);
-    console.log(`Status: ${plugin.initialized ? 'Initialized' : 'Failed'}`);
-    console.log(`Version: ${plugin.version}`);
-    console.log(`Description: ${plugin.description || 'None'}`);
-    console.log('---');
+const plugins = await invoke("get_plugin_info");
+plugins.forEach((plugin) => {
+  console.log(`Plugin: ${plugin.name}`);
+  console.log(`Status: ${plugin.initialized ? "Initialized" : "Failed"}`);
+  console.log(`Version: ${plugin.version}`);
+  console.log(`Description: ${plugin.description || "None"}`);
+  console.log("---");
 });
 ```
 
 #### Test Plugin Functionality
+
 ```typescript
 // Test note format availability
-const formats = await invoke('get_available_note_formats');
-console.log('Available formats:', formats);
+const formats = await invoke("get_available_note_formats");
+console.log("Available formats:", formats);
 
 // Expected formats with plugins:
 // - "plaintext" (built-in)
@@ -364,20 +386,21 @@ console.log('Available formats:', formats);
 ```
 
 #### Monitor Performance
+
 ```rust
 // Add performance monitoring to plugins
 use std::time::Instant;
 
 pub fn process_data(&mut self, data: &str) -> Result<String, AppError> {
     let start = Instant::now();
-    
+
     let result = self.internal_process(data)?;
-    
+
     let duration = start.elapsed();
     if duration.as_millis() > 100 {
         println!("WARNING: Slow processing: {:?}", duration);
     }
-    
+
     Ok(result)
 }
 ```
@@ -385,18 +408,20 @@ pub fn process_data(&mut self, data: &str) -> Result<String, AppError> {
 ### Log Analysis
 
 #### Plugin Loading Logs
-```
+
+```console
 INFO: Starting plugin system initialization
 DEBUG: Creating plugin directory: ./plugins
 DEBUG: Loading built-in plugins
 INFO: Registering Hello World Plugin
-INFO: Registering Text Processor Plugin  
+INFO: Registering Text Processor Plugin
 INFO: Registering Markdown Enhancer Plugin
 INFO: Loaded 3 plugins successfully
 ```
 
 #### Error Logs
-```
+
+```console
 ERROR: Plugin initialization failed: Text Processor Plugin
 ERROR: Cause: Configuration file not readable
 ERROR: Path: ./plugins/config/text_processor.json
@@ -404,7 +429,8 @@ ERROR: Permission denied (os error 13)
 ```
 
 #### Performance Logs
-```
+
+```console
 DEBUG: Plugin processing time: Hello World Plugin: 0ms
 DEBUG: Plugin processing time: Text Processor Plugin: 15ms
 DEBUG: Plugin processing time: Markdown Enhancer Plugin: 8ms
@@ -418,6 +444,7 @@ WARNING: Total plugin processing time: 23ms (threshold: 20ms)
 When dynamic plugin loading is implemented, the following features will be available:
 
 #### Dynamic Loading
+
 ```bash
 # Install a plugin
 scratch-pad --install-plugin /path/to/plugin.so
@@ -433,6 +460,7 @@ scratch-pad --reload-plugins
 ```
 
 #### Plugin Marketplace
+
 ```bash
 # Search for plugins
 scratch-pad --search-plugins "markdown"
@@ -445,15 +473,16 @@ scratch-pad --update-plugins
 ```
 
 #### Hot Reload
+
 ```typescript
 // Reload plugins without restarting
-await invoke('reload_plugins');
+await invoke("reload_plugins");
 
 // Install new plugin at runtime
-await invoke('install_plugin', { path: '/path/to/plugin.so' });
+await invoke("install_plugin", { path: "/path/to/plugin.so" });
 
 // Uninstall plugin at runtime
-await invoke('uninstall_plugin', { name: 'plugin-name' });
+await invoke("uninstall_plugin", { name: "plugin-name" });
 ```
 
 ### Migration Path

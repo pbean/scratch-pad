@@ -113,3 +113,5 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .vscode/
+src-tauri/Cargo.lock
+pnpm-lock.yaml

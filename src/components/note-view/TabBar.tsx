@@ -23,10 +23,10 @@ export function TabBar() {
         <div
           key={note.id}
           className={`
-            flex items-center gap-2 px-4 py-2 cursor-pointer border-r border-border min-w-0 max-w-48
+            flex items-center gap-2 px-4 py-2 cursor-pointer border-r border-border min-w-0 max-w-48 smooth-transition
             ${note.id === activeNoteId 
-              ? "bg-background text-foreground" 
-              : "bg-muted/50 text-muted-foreground hover:bg-muted"
+              ? "bg-background text-foreground shadow-sm"
+              : "bg-muted/50 text-muted-foreground hover:bg-muted hover-lift"
             }
           `}
           onClick={() => setActiveNote(note.id)}
@@ -35,7 +35,7 @@ export function TabBar() {
           {notes.length > 1 && (
             <button
               onClick={(e) => handleCloseTab(e, note.id)}
-              className="p-1 hover:bg-muted-foreground/20 rounded"
+              className="p-1 hover:bg-muted-foreground/20 rounded smooth-transition opacity-60 hover:opacity-100"
             >
               <X size={12} />
             </button>

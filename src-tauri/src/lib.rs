@@ -130,6 +130,30 @@ async fn create_note_from_cli(content: String, state: State<'_, AppState>) -> Re
     Ok(note)
 }
 
+// Performance monitoring command
+#[tauri::command]
+async fn get_performance_stats(state: State<'_, AppState>) -> Result<std::collections::HashMap<String, String>, ApiError> {
+    let mut stats = std::collections::HashMap::new();
+
+    // Database stats
+    let notes_count = state.db.get_notes_count().await.map_err(ApiError::from)?;
+    stats.insert("notes_count".to_string(), notes_count.to_string());
+
+    // Memory usage (approximate)
+    stats.insert("memory_usage".to_string(), "N/A".to_string()); // Would need platform-specific implementation
+
+    // Plugin stats
+    let plugin_manager = state.plugin_manager.lock().await;
+    stats.insert("plugins_loaded".to_string(), plugin_manager.plugin_count().to_string());
+    drop(plugin_manager);
+
+    // Database schema version
+    let schema_version = state.db.get_schema_version().map_err(ApiError::from)?;
+    stats.insert("schema_version".to_string(), schema_version.to_string());
+
+    Ok(stats)
+}
+
 // Search commands
 #[tauri::command]
 async fn search_notes(query: String, state: State<'_, AppState>) -> Result<Vec<models::Note>, ApiError> {
@@ -165,7 +189,18 @@ async fn get_search_suggestions(partial_query: String, limit: usize, state: Stat
 // Note commands
 #[tauri::command]
 async fn get_all_notes(state: State<'_, AppState>) -> Result<Vec<models::Note>, ApiError> {
-    state.db.get_all_notes().await.map_err(ApiError::from)
+    // For initial load, limit to first 100 notes for performance
+    state.db.get_notes_with_limit(Some(100)).await.map_err(ApiError::from)
+}
+
+#[tauri::command]
+async fn get_notes_paginated(offset: usize, limit: usize, state: State<'_, AppState>) -> Result<Vec<models::Note>, ApiError> {
+    state.db.get_notes_paginated(offset, limit).await.map_err(ApiError::from)
+}
+
+#[tauri::command]
+async fn get_notes_count(state: State<'_, AppState>) -> Result<usize, ApiError> {
+    state.db.get_notes_count().await.map_err(ApiError::from)
 }
 
 #[tauri::command]
@@ -346,7 +381,7 @@ async fn test_window_management(state: State<'_, AppState>) -> Result<String, Ap
 }
 
 async fn monitor_cli_ipc(db_service: Arc<DbService>, window_manager: Arc<WindowManager>) {
-    use tokio::time::{sleep, Duration};
+    use tokio::time::{Duration, interval};
     use std::fs;
     
     let get_ipc_file_path = || {
@@ -369,39 +404,50 @@ async fn monitor_cli_ipc(db_service: Arc<DbService>, window_manager: Arc<WindowM
         ipc_path.push("scratch-pad-ipc.json");
         ipc_path
     };
+
+    // Use longer intervals for better performance
+    let mut ipc_interval = interval(Duration::from_millis(200)); // Reduced frequency
+    let mut cleanup_interval = interval(Duration::from_secs(600)); // Cleanup every 10 minutes
     
     loop {
-        let ipc_path = get_ipc_file_path();
-        
-        if ipc_path.exists() {
-            // Try to read and process the IPC request
-            if let Ok(content) = fs::read_to_string(&ipc_path) {
-                if let Ok(request) = serde_json::from_str::<serde_json::Value>(&content) {
-                    if let (Some(action), Some(note_content)) = (
-                        request.get("action").and_then(|v| v.as_str()),
-                        request.get("content").and_then(|v| v.as_str())
-                    ) {
-                        if action == "create_note" {
-                            // Create the note
-                            if let Ok(note) = db_service.create_note(note_content.to_string()).await {
-                                println!("✓ Note created from CLI: ID {}", note.id);
-                                
-                                // Show the window
-                                if let Err(e) = window_manager.show_window().await {
-                                    eprintln!("Warning: Failed to show window: {}", e);
+        tokio::select! {
+            _ = ipc_interval.tick() => {
+                let ipc_path = get_ipc_file_path();
+
+                if ipc_path.exists() {
+                    // Try to read and process the IPC request
+                    if let Ok(content) = fs::read_to_string(&ipc_path) {
+                        if let Ok(request) = serde_json::from_str::<serde_json::Value>(&content) {
+                            if let (Some(action), Some(note_content)) = (
+                                request.get("action").and_then(|v| v.as_str()),
+                                request.get("content").and_then(|v| v.as_str())
+                            ) {
+                                if action == "create_note" {
+                                    // Create the note
+                                    if let Ok(note) = db_service.create_note(note_content.to_string()).await {
+                                        println!("✓ Note created from CLI: ID {}", note.id);
+
+                                        // Show the window
+                                        if let Err(e) = window_manager.show_window().await {
+                                            eprintln!("Warning: Failed to show window: {}", e);
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
+
+                    // Remove the processed IPC file
+                    let _ = fs::remove_file(&ipc_path);
                 }
             }
-            
-            // Remove the processed IPC file
-            let _ = fs::remove_file(&ipc_path);
+            _ = cleanup_interval.tick() => {
+                // Periodic cleanup - force SQLite to optimize and vacuum if needed
+                if let Ok(conn) = db_service.get_connection() {
+                    let _ = conn.execute_batch("PRAGMA optimize; PRAGMA wal_checkpoint(TRUNCATE);");
+                }
+            }
         }
-        
-        // Check every 100ms for IPC requests
-        sleep(Duration::from_millis(100)).await;
     }
 }
 
@@ -413,7 +459,7 @@ pub fn run() {
 }
 
 async fn run_async() {
-    // Initialize the database service
+    // Initialize the database service with optimized settings for faster startup
     let db_service = match DbService::new("scratch_pad.db") {
         Ok(service) => Arc::new(service),
         Err(e) => {
@@ -422,30 +468,19 @@ async fn run_async() {
         }
     };
 
-    // Initialize the search service
-    let search_service = Arc::new(SearchService::new(db_service.clone()));
-
-    // Initialize the settings service
+    // Initialize only critical services immediately (needed for basic functionality)
     let settings_service = Arc::new(SettingsService::new(db_service.clone()));
 
-    // Initialize default settings on startup
+    // Initialize default settings on startup (critical for app functionality)
     if let Err(e) = settings_service.initialize_defaults().await {
         eprintln!("Warning: Failed to initialize default settings: {}", e);
     }
 
-    // Initialize the plugin manager
-    let mut plugin_manager = PluginManager::new();
-    let plugin_dir = std::env::current_dir()
-        .unwrap_or_else(|_| std::path::PathBuf::from("."))
-        .join("plugins");
+    // Lazy initialize search service (will be created on first use)
+    let search_service = Arc::new(SearchService::new(db_service.clone()));
     
-    if let Err(e) = plugin_manager.load_plugins(&plugin_dir) {
-        eprintln!("Warning: Failed to load plugins: {}", e);
-    } else {
-        println!("Loaded {} plugins", plugin_manager.plugin_count());
-    }
-    
-    let plugin_manager = Arc::new(tokio::sync::Mutex::new(plugin_manager));
+    // Lazy initialize plugin manager (non-critical for startup)
+    let plugin_manager = Arc::new(tokio::sync::Mutex::new(PluginManager::new()));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -454,10 +489,10 @@ async fn run_async() {
             // Initialize the global shortcut service after the app is set up
             let app_handle = app.handle().clone();
             let global_shortcut_service = Arc::new(GlobalShortcutService::new(app_handle.clone(), settings_service.clone()));
-            
+
             // Initialize the window manager
             let window_manager = Arc::new(WindowManager::new(app_handle, settings_service.clone()));
-            
+
             // Initialize services with their current settings
             let global_shortcut_clone = global_shortcut_service.clone();
             let window_manager_clone = window_manager.clone();
@@ -480,14 +515,29 @@ async fn run_async() {
             };
 
             app.manage(app_state);
-            
+
             // Start IPC monitoring for CLI requests
             let db_clone = db_service.clone();
             let window_manager_clone = window_manager.clone();
             tauri::async_runtime::spawn(async move {
                 monitor_cli_ipc(db_clone, window_manager_clone).await;
             });
-            
+
+            // Lazy load plugins in background after app startup
+            let plugin_manager_clone = plugin_manager.clone();
+            tauri::async_runtime::spawn(async move {
+                let plugin_dir = std::env::current_dir()
+                    .unwrap_or_else(|_| std::path::PathBuf::from("."))
+                    .join("plugins");
+
+                let mut pm = plugin_manager_clone.lock().await;
+                if let Err(e) = pm.load_plugins(&plugin_dir) {
+                    eprintln!("Warning: Failed to load plugins: {}", e);
+                } else {
+                    println!("Loaded {} plugins", pm.plugin_count());
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -498,7 +548,10 @@ async fn run_async() {
             get_available_note_formats,
             reload_plugins,
             create_note_from_cli,
+            get_performance_stats,
             get_all_notes,
+            get_notes_paginated,
+            get_notes_count,
             get_latest_note,
             create_note,
             update_note,

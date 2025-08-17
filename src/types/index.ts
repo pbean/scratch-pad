@@ -27,6 +27,7 @@ export interface Command {
   icon?: React.ReactNode
   shortcut?: string
   action: () => void
+  disabled?: boolean
 }
 
 export interface GlobalShortcutInfo {

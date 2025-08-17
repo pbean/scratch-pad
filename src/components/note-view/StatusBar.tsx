@@ -1,6 +1,9 @@
+import { LoadingSpinner } from "../ui/loading"
+
 interface StatusBarProps {
   lastSaved: Date | null
   isAutoSaving: boolean
+  saveStatus: "idle" | "saving" | "saved" | "error"
   wordCount: number
   charCount: number
   lineCount: number
@@ -9,7 +12,8 @@ interface StatusBarProps {
 
 export function StatusBar({ 
   lastSaved, 
-  isAutoSaving, 
+  isAutoSaving: _isAutoSaving,
+  saveStatus,
   wordCount, 
   charCount, 
   lineCount,
@@ -33,8 +37,12 @@ export function StatusBar({
     <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-muted/30 text-xs text-muted-foreground">
       <div className="flex items-center gap-4">
         <span className="font-medium truncate max-w-48">{noteTitle}</span>
-        <span>
-          {isAutoSaving ? "Saving..." : lastSaved ? `Saved ${formatLastSaved(lastSaved)}` : "Not saved"}
+        <span className={`flex items-center gap-1 ${saveStatus === "saving" ? "status-pulse" : ""}`}>
+          {saveStatus === "saving" && <LoadingSpinner size="sm" className="w-3 h-3" />}
+          {saveStatus === "saving" && "Saving..."}
+          {saveStatus === "saved" && "✓ Saved"}
+          {saveStatus === "error" && "⚠ Save failed"}
+          {saveStatus === "idle" && (lastSaved ? `Saved ${formatLastSaved(lastSaved)}` : "Not saved")}
         </span>
       </div>
       

@@ -10,6 +10,7 @@ export function NoteView() {
     activeNoteId,
     getActiveNote,
     saveNote,
+    saveNoteDebounced,
     setActiveNote,
     setCommandPaletteOpen,
     createNote,
@@ -22,6 +23,7 @@ export function NoteView() {
   const [content, setContent] = useState(note?.content || "")
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [isAutoSaving, setIsAutoSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
 
   // Auto-focus the textarea when component mounts or note changes
   useEffect(() => {
@@ -35,26 +37,48 @@ export function NoteView() {
     setContent(note?.content || "")
   }, [note?.content])
 
-  // Auto-save functionality
+  // Auto-save functionality with debouncing
   const autoSave = useCallback(async () => {
     if (content !== note?.content && note) {
       setIsAutoSaving(true)
+      setSaveStatus("saving")
       try {
         await saveNote(content)
         setLastSaved(new Date())
+        setSaveStatus("saved")
+
+        // Reset to idle after showing saved status
+        setTimeout(() => setSaveStatus("idle"), 2000)
       } catch (error) {
         console.error("Failed to save note:", error)
+        setSaveStatus("error")
+        setTimeout(() => setSaveStatus("idle"), 3000)
       } finally {
         setIsAutoSaving(false)
       }
     }
   }, [content, note?.content, saveNote, note])
 
-  // Auto-save after 2 seconds of inactivity
+  // Debounced auto-save - uses the optimized debounced version from store
   useEffect(() => {
-    const timer = setTimeout(autoSave, 2000)
-    return () => clearTimeout(timer)
-  }, [content, autoSave])
+    if (content !== note?.content && note) {
+      setIsAutoSaving(true)
+      setSaveStatus("saving")
+      saveNoteDebounced(content)
+
+      // Update UI state after debounce delay
+      const timer = setTimeout(() => {
+        setLastSaved(new Date())
+        setIsAutoSaving(false)
+        setSaveStatus("saved")
+
+        // Reset to idle after showing saved status
+        setTimeout(() => setSaveStatus("idle"), 2000)
+      }, 1000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [content, note?.content, saveNoteDebounced, note])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -183,7 +207,7 @@ export function NoteView() {
           ref={textareaRef}
           value={content}
           onChange={handleContentChange}
-          className="flex-1 w-full p-6 font-mono text-sm leading-relaxed resize-none border-none outline-none focus:ring-0"
+          className="flex-1 w-full p-6 font-mono text-sm leading-relaxed resize-none border-none outline-none focus-glow smooth-transition fade-in"
           style={{
             backgroundColor: 'hsl(var(--background))',
             color: 'hsl(var(--foreground))'
@@ -200,6 +224,7 @@ export function NoteView() {
       <StatusBar
         lastSaved={lastSaved}
         isAutoSaving={isAutoSaving}
+        saveStatus={saveStatus}
         wordCount={content.split(/\s+/).filter(Boolean).length}
         charCount={content.length}
         lineCount={content.split("\n").length}

@@ -1,0 +1,144 @@
+name: Cross-Platform Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run tests daily at 6 AM UTC
+    - cron: '0 6 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test-matrix:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.0-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            pkg-config
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Run frontend tests
+        run: pnpm test --run
+
+      - name: Run frontend type check
+        run: pnpm type-check
+
+      - name: Run frontend linting
+        run: pnpm lint
+
+      - name: Run backend unit tests
+        run: cd src-tauri && cargo test
+
+      - name: Run backend integration tests
+        shell: bash
+        run: |
+          cd src-tauri
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            # Windows-specific test execution
+            powershell -ExecutionPolicy Bypass -File test_integration.ps1
+          else
+            # Unix-like systems
+            chmod +x test_integration.sh
+            ./test_integration.sh
+          fi
+
+      - name: Build test (no bundle)
+        run: |
+          pnpm build
+          cd src-tauri && cargo build --release
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.0-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            pkg-config
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Run frontend tests with coverage
+        run: pnpm test --run --coverage
+
+      - name: Run backend tests with coverage
+        run: cd src-tauri && cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info,./src-tauri/lcov.info
+          fail_ci_if_error: false

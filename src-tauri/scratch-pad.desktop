@@ -1,0 +1,18 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Scratch Pad
+Comment=Quick note-taking scratch pad application
+Exec=scratch-pad %U
+Icon=scratch-pad
+Terminal=false
+Categories=Office;TextEditor;Utility;
+Keywords=notes;text;editor;scratch;pad;quick;
+StartupNotify=true
+StartupWMClass=scratch-pad
+MimeType=text/plain;text/markdown;
+Actions=new-note;
+
+[Desktop Action new-note]
+Name=New Note
+Exec=scratch-pad --new-note

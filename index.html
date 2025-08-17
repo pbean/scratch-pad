@@ -4,7 +4,19 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri + React + Typescript</title>
+    <title>ScratchPad - Quick Note Taking</title>
+
+    <!-- Preload critical resources for better performance -->
+    <link rel="preload" href="/src/main.tsx" as="script" crossorigin />
+    <link rel="preload" href="/src/App.css" as="style" />
+
+    <!-- Optimize font loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Performance hints -->
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="light dark" />
   </head>
 
   <body>

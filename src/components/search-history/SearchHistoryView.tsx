@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react"
-import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, ArrowLeft } from "lucide-react"
+import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, ArrowLeft, Search } from "lucide-react"
+import { LoadingSpinner, InlineLoading, Skeleton } from "../ui/loading"
 import { useScratchPadStore } from "../../lib/store"
+import { VirtualList } from "../ui/virtual-list"
 import type { Note } from "../../types"
 
 interface TreeNode {
@@ -20,7 +22,10 @@ export function SearchHistoryView() {
     setCurrentView, 
     expandedFolders, 
     toggleFolder,
-    searchNotes
+    searchNotes,
+    loadMoreNotes,
+    hasMoreNotes,
+    isLoadingMore
   } = useScratchPadStore()
 
   const [query, setQuery] = useState("")
@@ -28,6 +33,7 @@ export function SearchHistoryView() {
   const [treeData, setTreeData] = useState<TreeNode[]>([])
   const [flattenedItems, setFlattenedItems] = useState<TreeNode[]>([])
   const [searchResults, setSearchResults] = useState<Note[]>([])
+  const [isSearching, setIsSearching] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -116,20 +122,36 @@ export function SearchHistoryView() {
     setFlattenedItems(flattenTree(treeData))
   }, [treeData])
 
-  // Handle search
+  // Handle search with debouncing
   useEffect(() => {
     const performSearch = async () => {
       if (query.trim()) {
-        const results = await searchNotes(query)
-        setSearchResults(results)
+        setIsSearching(true)
+        try {
+          const results = await searchNotes(query)
+          setSearchResults(results)
+        } catch (error) {
+          console.error("Search failed:", error)
+          setSearchResults([])
+        } finally {
+          setIsSearching(false)
+        }
       } else {
         setSearchResults([])
+        setIsSearching(false)
       }
     }
 
     const debounceTimer = setTimeout(performSearch, 300)
     return () => clearTimeout(debounceTimer)
   }, [query, searchNotes])
+
+  // Load more notes when scrolling near bottom
+  const handleLoadMore = () => {
+    if (hasMoreNotes && !isLoadingMore) {
+      loadMoreNotes()
+    }
+  }
 
   // Convert search results to tree nodes
   const searchResultNodes: TreeNode[] = searchResults.map((note) => ({
@@ -258,7 +280,7 @@ export function SearchHistoryView() {
       <div className="flex items-center gap-2 p-4 border-b border-border">
         <button
           onClick={() => setCurrentView("note")}
-          className="p-1 hover:bg-muted rounded"
+          className="p-1 hover:bg-muted rounded smooth-transition hover-lift"
         >
           <ArrowLeft size={16} />
         </button>
@@ -267,32 +289,67 @@ export function SearchHistoryView() {
 
       {/* Search Input */}
       <div className="p-4 border-b border-border">
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search notes..."
-          className="w-full bg-input text-foreground placeholder-muted-foreground px-3 py-2 rounded-md outline-none focus:ring-2 focus:ring-ring text-sm"
-        />
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search notes..."
+            className="w-full bg-input text-foreground placeholder-muted-foreground pl-10 pr-10 py-2 rounded-md outline-none focus-ring smooth-transition text-sm"
+          />
+          {isSearching && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <LoadingSpinner size="sm" variant="gradient" />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Results/Browser */}
       <div className="flex-1 overflow-hidden">
-        <div ref={listRef} className="h-full overflow-y-auto">
-          {displayItems.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              {isSearchMode ? "No notes found" : "No notes available"}
+        {isSearching ? (
+          <div className="p-8 text-center fade-in">
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-4">
+                  <Skeleton width="16px" height="16px" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton width="60%" height="16px" />
+                    <Skeleton width="80%" height="12px" />
+                  </div>
+                  <Skeleton width="40px" height="12px" />
+                </div>
+              ))}
             </div>
-          ) : (
-            displayItems.map((item, index) => (
+          </div>
+        ) : displayItems.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground fade-in">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+              {isSearchMode ? <Search size={24} /> : <FileText size={24} />}
+            </div>
+            <p className="text-lg font-medium mb-2">
+              {isSearchMode ? "No notes found" : "No notes available"}
+            </p>
+            <p className="text-sm">
+              {isSearchMode ? "Try a different search term" : "Create your first note to get started"}
+            </p>
+          </div>
+        ) : (
+          <VirtualList
+            items={displayItems}
+            itemHeight={48}
+            containerHeight={400} // Adjust based on your layout
+            selectedIndex={selectedIndex}
+            onItemClick={handleItemClick}
+            className="h-full"
+            renderItem={(item, _index, isSelected) => (
               <div
-                key={`${item.id}-${index}`}
                 className={`
-                  flex items-center gap-2 px-4 py-2 cursor-pointer transition-colors text-sm
-                  ${index === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-muted"}
+                  flex items-center gap-2 px-4 py-2 cursor-pointer smooth-transition text-sm h-12 button-press
+                  ${isSelected ? "bg-accent text-accent-foreground search-highlight" : "hover:bg-muted hover-lift"}
                 `}
-                onClick={() => handleItemClick(item)}
               >
                 {/* Tree Structure Icons */}
                 {!isSearchMode && (
@@ -339,9 +396,29 @@ export function SearchHistoryView() {
                   </div>
                 )}
               </div>
-            ))
-          )}
-        </div>
+            )}
+          />
+        )}
+
+        {/* Load More Button */}
+        {!isSearchMode && hasMoreNotes && (
+          <div className="p-4 border-t border-border fade-in">
+            <button
+              onClick={handleLoadMore}
+              disabled={isLoadingMore}
+              className="w-full py-3 px-4 text-sm bg-muted hover:bg-muted/80 rounded-md disabled:opacity-50 smooth-transition hover-lift button-press flex items-center justify-center gap-2"
+            >
+              {isLoadingMore ? (
+                <InlineLoading message="Loading more notes" size="sm" />
+              ) : (
+                <>
+                  <FileText size={16} />
+                  Load More Notes
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Footer */}

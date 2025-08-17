@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen, act, fireEvent } from '@testing-library/react'
+// import userEvent from '@testing-library/user-event'
 import { NoteView } from '../NoteView'
 import { useScratchPadStore } from '../../../lib/store'
 import type { Note } from '../../../types'
@@ -44,7 +44,7 @@ const mockNote: Note = {
 }
 
 describe('NoteView', () => {
-  const user = userEvent.setup()
+  // const _user = userEvent.setup()
 
   beforeEach(() => {
     vi.useFakeTimers()

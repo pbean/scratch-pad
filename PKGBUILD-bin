@@ -1,0 +1,32 @@
+# Maintainer: PinkyD <maintainer@example.com>
+pkgname=scratch-pad-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="A floating, keyboard-driven notepad designed for developers (binary release)"
+arch=('x86_64')
+url="https://github.com/pinkydprojects/scratch-pad"
+license=('MIT')
+depends=('webkit2gtk' 'gtk3' 'libayatana-appindicator')
+provides=('scratch-pad')
+conflicts=('scratch-pad' 'scratch-pad-git')
+source=("$pkgname-$pkgver.deb::https://github.com/pinkydprojects/scratch-pad/releases/download/v$pkgver/scratch-pad_${pkgver}_amd64.deb")
+sha256sums=('SKIP')  # Will be updated for each release
+
+prepare() {
+    # Extract the DEB package
+    ar x "$pkgname-$pkgver.deb"
+    tar -xf data.tar.xz
+}
+
+package() {
+    # Copy files from extracted DEB
+    cp -r usr "$pkgdir/"
+    
+    # Ensure correct permissions
+    chmod 755 "$pkgdir/usr/bin/scratch-pad"
+    
+    # Install additional documentation if available
+    if [ -f "usr/share/doc/scratch-pad/README.md" ]; then
+        install -Dm644 "usr/share/doc/scratch-pad/README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
+    fi
+}

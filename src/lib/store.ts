@@ -18,6 +18,11 @@ interface ScratchPadState {
   selectedSearchIndex: number
   searchQuery: string
 
+  // Performance state
+  notesCount: number
+  hasMoreNotes: boolean
+  isLoadingMore: boolean
+
   // Actions
   setCurrentView: (view: View) => void
   setCommandPaletteOpen: (open: boolean) => void
@@ -26,7 +31,9 @@ interface ScratchPadState {
 
   // Note management
   loadNotes: () => Promise<void>
+  loadMoreNotes: () => Promise<void>
   saveNote: (content: string) => Promise<void>
+  saveNoteDebounced: (content: string) => void
   createNote: (content?: string) => Promise<void>
   deleteNote: (noteId: number) => Promise<void>
   updateNote: (note: Note) => Promise<void>
@@ -87,6 +94,9 @@ export const useScratchPadStore = create<ScratchPadState>((set, get) => ({
   expandedFolders: new Set(["recent", "all-notes"]),
   selectedSearchIndex: 0,
   searchQuery: "",
+  notesCount: 0,
+  hasMoreNotes: false,
+  isLoadingMore: false,
 
   // View actions
   setCurrentView: (view) => set({ currentView: view }),
@@ -98,9 +108,15 @@ export const useScratchPadStore = create<ScratchPadState>((set, get) => ({
   loadNotes: async () => {
     set({ isLoading: true, error: null })
     try {
-      const notes = await invoke<Note[]>("get_all_notes")
+      const [notes, totalCount] = await Promise.all([
+        invoke<Note[]>("get_all_notes"),
+        invoke<number>("get_notes_count")
+      ])
+
       set({ 
         notes, 
+        notesCount: totalCount,
+        hasMoreNotes: notes.length < totalCount,
         isLoading: false,
         // Set active note to the latest one if none is selected
         activeNoteId: get().activeNoteId || (notes.length > 0 ? notes[0].id : null)
@@ -108,6 +124,28 @@ export const useScratchPadStore = create<ScratchPadState>((set, get) => ({
     } catch (error) {
       const apiError = error as ApiError
       set({ error: apiError.message, isLoading: false })
+    }
+  },
+
+  loadMoreNotes: async () => {
+    const { notes, isLoadingMore, hasMoreNotes } = get()
+    if (isLoadingMore || !hasMoreNotes) return
+
+    set({ isLoadingMore: true, error: null })
+    try {
+      const moreNotes = await invoke<Note[]>("get_notes_paginated", {
+        offset: notes.length,
+        limit: 50
+      })
+
+      set({
+        notes: [...notes, ...moreNotes],
+        hasMoreNotes: moreNotes.length === 50,
+        isLoadingMore: false
+      })
+    } catch (error) {
+      const apiError = error as ApiError
+      set({ error: apiError.message, isLoadingMore: false })
     }
   },
 
@@ -132,6 +170,20 @@ export const useScratchPadStore = create<ScratchPadState>((set, get) => ({
       set({ error: apiError.message })
     }
   },
+
+  saveNoteDebounced: (() => {
+    let timeoutId: NodeJS.Timeout | null = null
+
+    return (content: string) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+
+      timeoutId = setTimeout(() => {
+        get().saveNote(content)
+      }, 1000) // 1 second debounce
+    }
+  })(),
 
   createNote: async (content = "") => {
     set({ isLoading: true, error: null })

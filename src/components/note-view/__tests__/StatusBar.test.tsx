@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { StatusBar } from '../StatusBar'
 
@@ -14,6 +14,7 @@ describe('StatusBar', () => {
   const defaultProps = {
     lastSaved: null,
     isAutoSaving: false,
+    saveStatus: 'idle' as const,
     wordCount: 10,
     charCount: 50,
     lineCount: 3,

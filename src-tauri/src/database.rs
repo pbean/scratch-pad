@@ -15,11 +15,28 @@ pub struct DbService {
 }
 
 impl DbService {
-    /// Create a new DbService with connection pooling
+    /// Create a new DbService with optimized connection pooling
     pub fn new<P: AsRef<Path>>(database_path: P) -> Result<Self, AppError> {
-        let manager = SqliteConnectionManager::file(database_path);
+        let manager = SqliteConnectionManager::file(database_path)
+            .with_init(|c| {
+                // Optimize SQLite settings for performance and startup speed
+                c.execute_batch("
+                    PRAGMA journal_mode = WAL;
+                    PRAGMA synchronous = NORMAL;
+                    PRAGMA cache_size = 2000;
+                    PRAGMA temp_store = MEMORY;
+                    PRAGMA mmap_size = 268435456;
+                    PRAGMA page_size = 4096;
+                    PRAGMA optimize;
+                ")?;
+                Ok(())
+            });
+
         let pool = Pool::builder()
-            .max_size(10) // Maximum 10 connections in the pool
+            .max_size(3) // Smaller pool for faster startup
+            .min_idle(Some(1)) // Keep at least one connection ready
+            .connection_timeout(std::time::Duration::from_secs(3))
+            .idle_timeout(Some(std::time::Duration::from_secs(300))) // Close idle connections after 5 minutes
             .build(manager)?;
 
         let service = DbService {
@@ -207,14 +224,27 @@ impl DbService {
         }
     }
 
-    /// Get all notes ordered by most recently updated
+    /// Get all notes ordered by most recently updated with limit for performance
     pub async fn get_all_notes(&self) -> Result<Vec<Note>, AppError> {
+        self.get_notes_with_limit(None).await
+    }
+
+    /// Get notes with optional limit for performance optimization
+    pub async fn get_notes_with_limit(&self, limit: Option<usize>) -> Result<Vec<Note>, AppError> {
         let conn = self.get_connection()?;
-        
-        let mut stmt = conn.prepare(
-            "SELECT id, content, format, nickname, path, is_favorite, created_at, updated_at 
-             FROM notes ORDER BY updated_at DESC"
-        )?;
+
+        let query = if let Some(limit) = limit {
+            format!(
+                "SELECT id, content, format, nickname, path, is_favorite, created_at, updated_at
+                 FROM notes ORDER BY updated_at DESC LIMIT {}",
+                limit
+            )
+        } else {
+            "SELECT id, content, format, nickname, path, is_favorite, created_at, updated_at
+             FROM notes ORDER BY updated_at DESC".to_string()
+        };
+
+        let mut stmt = conn.prepare(&query)?;
 
         let note_iter = stmt.query_map([], |row| {
             let format_str: String = row.get(2)?;
@@ -241,6 +271,50 @@ impl DbService {
         }
 
         Ok(notes)
+    }
+
+    /// Get notes with pagination for large collections
+    pub async fn get_notes_paginated(&self, offset: usize, limit: usize) -> Result<Vec<Note>, AppError> {
+        let conn = self.get_connection()?;
+        
+        let mut stmt = conn.prepare(
+            "SELECT id, content, format, nickname, path, is_favorite, created_at, updated_at 
+             FROM notes ORDER BY updated_at DESC LIMIT ?1 OFFSET ?2"
+        )?;
+
+        let note_iter = stmt.query_map(params![limit, offset], |row| {
+            let format_str: String = row.get(2)?;
+            let format = match format_str.as_str() {
+                "markdown" => NoteFormat::Markdown,
+                _ => NoteFormat::PlainText,
+            };
+
+            Ok(Note {
+                id: row.get(0)?,
+                content: row.get(1)?,
+                format,
+                nickname: row.get(3)?,
+                path: row.get(4)?,
+                is_favorite: row.get::<_, i32>(5)? != 0,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+            })
+        })?;
+
+        let mut notes = Vec::new();
+        for note in note_iter {
+            notes.push(note?);
+        }
+
+        Ok(notes)
+    }
+
+    /// Get total count of notes for pagination
+    pub async fn get_notes_count(&self) -> Result<usize, AppError> {
+        let conn = self.get_connection()?;
+        let mut stmt = conn.prepare("SELECT COUNT(*) FROM notes")?;
+        let count: i64 = stmt.query_row([], |row| row.get(0))?;
+        Ok(count as usize)
     }
 
     /// Get the most recently updated note
