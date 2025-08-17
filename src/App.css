@@ -54,10 +54,12 @@
     border-color: hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground font-ui;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'Inter', system-ui, sans-serif;
   }
   
   .editor-font {
-    @apply font-editor;
+    font-family: 'SauceCodePro Nerd Font', 'Consolas', 'Monaco', monospace;
   }
 }
