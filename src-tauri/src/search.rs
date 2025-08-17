@@ -11,6 +11,15 @@ pub struct SearchService {
     fuzzy_matcher: SkimMatcherV2,
 }
 
+impl Clone for SearchService {
+    fn clone(&self) -> Self {
+        Self {
+            db_service: self.db_service.clone(),
+            fuzzy_matcher: SkimMatcherV2::default(),
+        }
+    }
+}
+
 impl SearchService {
     /// Create a new SearchService
     pub fn new(db_service: Arc<DbService>) -> Self {

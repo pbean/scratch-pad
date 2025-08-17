@@ -2,6 +2,12 @@
 
 This directory contains plugins for the scratch-pad application. Plugins extend the functionality of scratch-pad by providing new note formats, processing capabilities, and integrations.
 
+## Quick Start
+
+- **New to plugin development?** Start with the [Plugin Development Guide](../docs/PLUGIN_DEVELOPMENT_GUIDE.md)
+- **Need API reference?** Check the [Plugin API Documentation](../docs/PLUGIN_API.md)
+- **Want examples?** Look at the plugins in the `examples/` directory
+
 ## Plugin Architecture
 
 The scratch-pad plugin system is built around the `Plugin` trait, which provides a standardized interface for extending the application's functionality.
@@ -200,12 +206,42 @@ fn initialize(&mut self) -> Result<(), AppError> {
 
 ```
 plugins/
-├── README.md                 # This file
-├── examples/                 # Example plugin implementations
-│   └── hello_world_plugin.rs # Basic example plugin
-├── community/                # Community-contributed plugins
-└── custom/                   # Your custom plugins
+├── README.md                      # This file
+├── examples/                      # Example plugin implementations
+│   ├── hello_world_plugin.rs     # Basic example plugin
+│   ├── text_processor_plugin.rs  # Text processing example
+│   └── markdown_enhancer_plugin.rs # Format enhancement example
+├── community/                     # Community-contributed plugins
+└── custom/                        # Your custom plugins
 ```
+
+## Example Plugins
+
+### Hello World Plugin
+**File**: `examples/hello_world_plugin.rs`
+**Purpose**: Demonstrates basic plugin architecture
+**Features**: 
+- Simple initialization
+- Plugin metadata
+- Basic error handling
+
+### Text Processor Plugin
+**File**: `examples/text_processor_plugin.rs`
+**Purpose**: Shows how to process note content without adding new formats
+**Features**:
+- Text analysis (word count, character count, reading time)
+- Text transformations (case changes, formatting)
+- Statistics tracking
+- Performance optimization
+
+### Markdown Enhancer Plugin
+**File**: `examples/markdown_enhancer_plugin.rs`
+**Purpose**: Demonstrates format enhancement and registration
+**Features**:
+- Markdown syntax rule processing
+- Document structure analysis
+- Extension detection (tables, task lists, etc.)
+- Validation and error reporting
 
 ## Plugin Lifecycle
 
@@ -303,14 +339,37 @@ To contribute a plugin:
 3. Document your plugin's functionality
 4. Submit a pull request with your plugin in the `community/` directory
 
+## Documentation
+
+### Complete Documentation
+- **[Plugin API Reference](../docs/PLUGIN_API.md)** - Complete API specification and reference
+- **[Plugin Development Guide](../docs/PLUGIN_DEVELOPMENT_GUIDE.md)** - Step-by-step development guide
+- **[Plugin System Overview](../PLUGIN_SYSTEM.md)** - Architecture and implementation details
+
+### Quick References
+- **Plugin Trait**: All plugins must implement the `Plugin` trait
+- **Error Handling**: Use `AppError::Plugin` for plugin-specific errors
+- **Thread Safety**: Plugins must be `Send + Sync`
+- **Testing**: Include comprehensive unit and integration tests
+
 ## Support
 
 For plugin development support:
 
-- Check the example plugins in `examples/`
-- Review the main application source code
-- Open an issue for questions or bug reports
-- Join the community discussions
+- **Documentation**: Start with the guides above
+- **Examples**: Check the example plugins in `examples/`
+- **Source Code**: Review the main application source code
+- **Issues**: Open an issue for questions or bug reports
+- **Community**: Join the community discussions
+
+## Contributing
+
+To contribute a plugin:
+
+1. **Develop**: Follow the [Plugin Development Guide](../docs/PLUGIN_DEVELOPMENT_GUIDE.md)
+2. **Test**: Write comprehensive tests and ensure they pass
+3. **Document**: Include clear documentation and examples
+4. **Submit**: Create a pull request with your plugin in the `community/` directory
 
 ## License
 

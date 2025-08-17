@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Position, Size};
 use tokio::sync::Mutex;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LayoutMode {
     Default,
     Half,
@@ -256,6 +256,7 @@ impl WindowManager {
 mod tests {
     use super::*;
 
+
     #[test]
     fn test_layout_mode_conversion() {
         assert!(matches!(LayoutMode::from_string("default"), LayoutMode::Default));
@@ -267,4 +268,36 @@ mod tests {
         assert_eq!(LayoutMode::Half.to_string(), "half");
         assert_eq!(LayoutMode::Full.to_string(), "full");
     }
+
+    #[test]
+    fn test_layout_mode_clone_and_debug() {
+        let mode = LayoutMode::Half;
+        let cloned = mode.clone();
+        
+        assert!(matches!(cloned, LayoutMode::Half));
+        
+        // Test Debug trait
+        let debug_str = format!("{:?}", mode);
+        assert!(debug_str.contains("Half"));
+    }
+
+    #[test]
+    fn test_layout_mode_case_insensitive() {
+        assert!(matches!(LayoutMode::from_string("DEFAULT"), LayoutMode::Default));
+        assert!(matches!(LayoutMode::from_string("Half"), LayoutMode::Half));
+        assert!(matches!(LayoutMode::from_string("FULL"), LayoutMode::Full));
+        assert!(matches!(LayoutMode::from_string("HaLf"), LayoutMode::Half));
+    }
+
+    #[test]
+    fn test_layout_mode_edge_cases() {
+        assert!(matches!(LayoutMode::from_string(""), LayoutMode::Default));
+        assert!(matches!(LayoutMode::from_string("   "), LayoutMode::Default));
+        assert!(matches!(LayoutMode::from_string("unknown"), LayoutMode::Default));
+        assert!(matches!(LayoutMode::from_string("123"), LayoutMode::Default));
+    }
+
+    // Note: WindowManager tests that require Tauri AppHandle cannot be unit tested
+    // without a full Tauri application context. These would be integration tests.
+    // The core logic (LayoutMode) is tested above.
 }

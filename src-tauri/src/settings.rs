@@ -138,13 +138,56 @@ impl SettingsService {
     pub fn validate_setting(&self, key: &str, value: &str) -> Result<(), AppError> {
         match key {
             "global_shortcut" => {
-                // Basic validation for global shortcut format
+                // Comprehensive validation for global shortcut format
                 if value.is_empty() {
                     return Err(AppError::GlobalShortcut {
                         message: "Global shortcut cannot be empty".to_string(),
                     });
                 }
-                // Additional validation could be added here
+                
+                // Check for valid shortcut format
+                let valid_modifiers = ["Ctrl", "Alt", "Shift", "Cmd", "Super", "Win"];
+                let valid_keys = ["Space", "Enter", "Tab", "Escape", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"];
+                
+                // Split by + and check each part
+                let parts: Vec<&str> = value.split('+').collect();
+                if parts.len() < 2 {
+                    return Err(AppError::GlobalShortcut {
+                        message: "Global shortcut must contain at least one modifier and one key".to_string(),
+                    });
+                }
+                
+                // Check if it starts or ends with +
+                if value.starts_with('+') || value.ends_with('+') || value.contains("++") {
+                    return Err(AppError::GlobalShortcut {
+                        message: "Invalid shortcut format".to_string(),
+                    });
+                }
+                
+                // Validate each part
+                for (i, part) in parts.iter().enumerate() {
+                    if part.is_empty() {
+                        return Err(AppError::GlobalShortcut {
+                            message: "Invalid shortcut format".to_string(),
+                        });
+                    }
+                    
+                    if i == parts.len() - 1 {
+                        // Last part should be a key or valid single character
+                        if !valid_keys.contains(part) && part.len() != 1 {
+                            return Err(AppError::GlobalShortcut {
+                                message: format!("Invalid key: {}", part),
+                            });
+                        }
+                    } else {
+                        // Other parts should be modifiers
+                        if !valid_modifiers.contains(part) {
+                            return Err(AppError::GlobalShortcut {
+                                message: format!("Invalid modifier: {}", part),
+                            });
+                        }
+                    }
+                }
             }
             "layout_mode" => {
                 if !["default", "half", "full"].contains(&value) {

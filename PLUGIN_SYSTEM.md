@@ -173,6 +173,28 @@ const count = await getPluginCount()
 const formats = await getAvailableNoteFormats()
 ```
 
+## Comprehensive Documentation
+
+The plugin system includes extensive documentation:
+
+### 📚 Complete Documentation Suite
+- **[Plugin System Index](docs/PLUGIN_SYSTEM_INDEX.md)** - Central documentation hub
+- **[Plugin API Reference](docs/PLUGIN_API.md)** - Complete API specification
+- **[Plugin Development Guide](docs/PLUGIN_DEVELOPMENT_GUIDE.md)** - Step-by-step development tutorial
+- **[Plugin Installation Guide](docs/PLUGIN_INSTALLATION.md)** - Installation and management guide
+
+### 🔧 Example Plugins
+- **[Hello World Plugin](plugins/examples/hello_world_plugin.rs)** - Basic plugin architecture
+- **[Text Processor Plugin](plugins/examples/text_processor_plugin.rs)** - Advanced text processing
+- **[Markdown Enhancer Plugin](plugins/examples/markdown_enhancer_plugin.rs)** - Format enhancement
+
+### 📖 Quick Start
+For new plugin developers:
+1. Start with the [Plugin System Index](docs/PLUGIN_SYSTEM_INDEX.md)
+2. Follow the [Plugin Development Guide](docs/PLUGIN_DEVELOPMENT_GUIDE.md)
+3. Study the example plugins in `plugins/examples/`
+4. Reference the [Plugin API](docs/PLUGIN_API.md) for technical details
+
 ## Future Enhancements
 
 The current implementation provides a solid foundation for:
@@ -201,4 +223,4 @@ To verify the plugin system is working:
 3. **Test IPC Commands**: Use frontend to query plugin information
 4. **Verify Directory Creation**: Check that `./plugins/` directory is created with documentation
 
-The plugin system is now fully implemented and ready for future extensions!
+The plugin system is now fully implemented with comprehensive documentation and ready for future extensions!
