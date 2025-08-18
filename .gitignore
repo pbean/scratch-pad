@@ -91,6 +91,7 @@ lerna-debug.log*
 .gemini/
 .claude/
 claude.md
+CLAUDE.md
 .roomodes
 .windsurfrules
 .roo/
@@ -113,3 +114,8 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .vscode/
+.mcp.json
+CLAUDE.local.md
+.gitignore
+.gitignore
+.serena/
