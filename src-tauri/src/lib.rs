@@ -38,8 +38,8 @@ pub struct AppState {
     pub shutdown_manager: Arc<ShutdownManager>,
 }
 
-// Import the macro from the commands module
-use crate::commands::generate_command_handler;
+// Import the macro correctly (no re-export needed)
+use crate::generate_command_handler;
 
 pub fn run() {
     tauri::Builder::default()

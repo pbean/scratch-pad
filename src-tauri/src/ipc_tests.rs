@@ -44,7 +44,7 @@ mod tests {
         assert_eq!(created_note.format, models::NoteFormat::PlainText);
 
         // Test get_all_notes
-        let all_notes = db_service.get_all_notes().await
+        let all_notes = db_service.get_all_notes(None, None).await
             .context("Failed to get all notes")?;
         assert_eq!(all_notes.len(), 1);
         assert_eq!(all_notes[0].content, "Test note content");
@@ -75,7 +75,7 @@ mod tests {
         db_service.delete_note(created_note.id).await
             .context("Failed to delete note")?;
         
-        let all_notes_after_delete = db_service.get_all_notes().await
+        let all_notes_after_delete = db_service.get_all_notes(None, None).await
             .context("Failed to get all notes after delete")?;
         assert_eq!(all_notes_after_delete.len(), 0);
         

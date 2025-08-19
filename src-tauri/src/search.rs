@@ -604,14 +604,14 @@ impl SearchService {
     pub async fn search_notes(&self, query: &str) -> Result<Vec<Note>, AppError> {
         if query.trim().is_empty() {
             // Return all notes if query is empty
-            return self.db_service.get_all_notes().await;
+            return self.db_service.get_all_notes(None, None).await;
         }
 
         let conn = self.db_service.get_connection()?;
         
         // Use FTS5 for full-text search
         let mut stmt = conn.prepare_cached(
-            "SELECT n.id, n.content, n.format, n.nickname, n.path, n.is_favorite, n.created_at, n.updated_at 
+            "SELECT n.id, n.content, n.format, n.nickname, n.path, n.is_pinned, n.created_at, n.updated_at 
              FROM notes n
              JOIN notes_fts f ON n.id = f.rowid
              WHERE notes_fts MATCH ?
@@ -628,7 +628,7 @@ impl SearchService {
                 },
                 nickname: row.get(3)?,
                 path: row.get(4)?,
-                is_favorite: row.get(5)?,
+                is_pinned: row.get(5)?,
                 created_at: row.get(6)?,
                 updated_at: row.get(7)?,
             })
@@ -666,11 +666,11 @@ impl SearchService {
         // Get paginated results
         let notes = if query.trim().is_empty() {
             // Return paginated all notes if query is empty
-            self.db_service.get_notes_paginated(offset, page_size).await?
+            self.db_service.get_notes_paginated(offset as i64, page_size as i64).await?
         } else {
             // Use FTS5 with LIMIT and OFFSET for efficient pagination
             let mut stmt = conn.prepare_cached(
-                "SELECT n.id, n.content, n.format, n.nickname, n.path, n.is_favorite, n.created_at, n.updated_at,
+                "SELECT n.id, n.content, n.format, n.nickname, n.path, n.is_pinned, n.created_at, n.updated_at,
                         bm25(notes_fts) as rank
                  FROM notes n
                  JOIN notes_fts f ON n.id = f.rowid
@@ -689,7 +689,7 @@ impl SearchService {
                     },
                     nickname: row.get(3)?,
                     path: row.get(4)?,
-                    is_favorite: row.get(5)?,
+                    is_pinned: row.get(5)?,
                     created_at: row.get(6)?,
                     updated_at: row.get(7)?,
                 })
@@ -768,7 +768,7 @@ impl SearchService {
         
         // Execute paginated search with BM25 ranking
         let mut stmt = conn.prepare_cached(
-            "SELECT n.id, n.content, n.format, n.nickname, n.path, n.is_favorite, n.created_at, n.updated_at,
+            "SELECT n.id, n.content, n.format, n.nickname, n.path, n.is_pinned, n.created_at, n.updated_at,
                     bm25(notes_fts) as rank
              FROM notes n
              JOIN notes_fts f ON n.id = f.rowid
@@ -787,7 +787,7 @@ impl SearchService {
                 },
                 nickname: row.get(3)?,
                 path: row.get(4)?,
-                is_favorite: row.get(5)?,
+                is_pinned: row.get(5)?,
                 created_at: row.get(6)?,
                 updated_at: row.get(7)?,
             })
@@ -804,10 +804,10 @@ impl SearchService {
     /// Search notes using fuzzy matching
     pub async fn fuzzy_search_notes(&self, query: &str) -> Result<Vec<Note>, AppError> {
         if query.trim().is_empty() {
-            return self.db_service.get_all_notes().await;
+            return self.db_service.get_all_notes(None, None).await;
         }
 
-        let all_notes = self.db_service.get_all_notes().await?;
+        let all_notes = self.db_service.get_all_notes(None, None).await?;
         let mut scored_notes = Vec::new();
 
         for note in all_notes {
@@ -834,7 +834,7 @@ impl SearchService {
         let conn = self.db_service.get_connection()?;
         
         let mut stmt = conn.prepare_cached(
-            "SELECT id, content, format, nickname, path, is_favorite, created_at, updated_at 
+            "SELECT id, content, format, nickname, path, is_pinned, created_at, updated_at 
              FROM notes WHERE path LIKE ? ORDER BY path, updated_at DESC"
         )?;
 
@@ -849,7 +849,7 @@ impl SearchService {
                 },
                 nickname: row.get(3)?,
                 path: row.get(4)?,
-                is_favorite: row.get(5)?,
+                is_pinned: row.get(5)?,
                 created_at: row.get(6)?,
                 updated_at: row.get(7)?,
             })
@@ -868,8 +868,8 @@ impl SearchService {
         let conn = self.db_service.get_connection()?;
         
         let mut stmt = conn.prepare_cached(
-            "SELECT id, content, format, nickname, path, is_favorite, created_at, updated_at 
-             FROM notes WHERE is_favorite = 1 ORDER BY updated_at DESC"
+            "SELECT id, content, format, nickname, path, is_pinned, created_at, updated_at 
+             FROM notes WHERE is_pinned = 1 ORDER BY updated_at DESC"
         )?;
 
         let note_iter = stmt.query_map([], |row| {
@@ -882,7 +882,7 @@ impl SearchService {
                 },
                 nickname: row.get(3)?,
                 path: row.get(4)?,
-                is_favorite: row.get(5)?,
+                is_pinned: row.get(5)?,
                 created_at: row.get(6)?,
                 updated_at: row.get(7)?,
             })
@@ -904,7 +904,7 @@ impl SearchService {
         let cutoff_str = cutoff_date.to_rfc3339();
         
         let mut stmt = conn.prepare_cached(
-            "SELECT id, content, format, nickname, path, is_favorite, created_at, updated_at 
+            "SELECT id, content, format, nickname, path, is_pinned, created_at, updated_at 
              FROM notes WHERE updated_at >= ? ORDER BY updated_at DESC"
         )?;
 
@@ -918,7 +918,7 @@ impl SearchService {
                 },
                 nickname: row.get(3)?,
                 path: row.get(4)?,
-                is_favorite: row.get(5)?,
+                is_pinned: row.get(5)?,
                 created_at: row.get(6)?,
                 updated_at: row.get(7)?,
             })
@@ -982,7 +982,7 @@ impl SearchService {
     ) -> Result<Vec<Note>, AppError> {
         let conn = self.db_service.get_connection()?;
         
-        let mut sql = "SELECT id, content, format, nickname, path, is_favorite, created_at, updated_at FROM notes WHERE 1=1".to_string();
+        let mut sql = "SELECT id, content, format, nickname, path, is_pinned, created_at, updated_at FROM notes WHERE 1=1".to_string();
         let mut params: Vec<String> = Vec::new();
 
         // Add FTS search if query is provided
@@ -1001,7 +1001,7 @@ impl SearchService {
 
         // Add favorites filter
         if favorites_only {
-            sql.push_str(" AND is_favorite = 1");
+            sql.push_str(" AND is_pinned = 1");
         }
 
         // Add format filter
@@ -1037,7 +1037,7 @@ impl SearchService {
                 },
                 nickname: row.get(3)?,
                 path: row.get(4)?,
-                is_favorite: row.get(5)?,
+                is_pinned: row.get(5)?,
                 created_at: row.get(6)?,
                 updated_at: row.get(7)?,
             })
@@ -1105,7 +1105,7 @@ mod tests {
         let mut note3 = search_service.db_service.create_note("Database design patterns".to_string()).await
             .context("Failed to create test note 3")?;
         note3.path = "/database/design".to_string();
-        note3.is_favorite = true;
+        note3.is_pinned = true;
         search_service.db_service.update_note(note3).await
             .context("Failed to update test note 3")?;
         
