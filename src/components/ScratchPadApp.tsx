@@ -9,6 +9,16 @@ import { useMemoryCleanup, useDataCleanup } from "../hooks/useMemoryCleanup"
 import { useRenderPerformance, useMemoryMonitor, useStartupPerformance } from "../hooks/usePerformanceMonitor"
 import { invoke } from "@tauri-apps/api/core"
 
+// Error boundary imports
+import { 
+  ApplicationErrorBoundary, 
+  ViewErrorBoundary, 
+  ComponentErrorBoundary,
+  AsyncErrorHandler,
+  TauriErrorBoundary,
+  safeInvoke 
+} from "./error-boundary"
+
 // Lazy load components for better code splitting
 const SettingsView = lazy(() =>
   import("./settings/SettingsView").then(module => ({ default: module.SettingsView }))
@@ -38,6 +48,7 @@ export function ScratchPadApp() {
   const { currentView, loadNotes, error, isCommandPaletteOpen, initializeSettings, notes } = useScratchPadStore()
   const [isInitializing, setIsInitializing] = useState(true)
   const [isAppReady, setIsAppReady] = useState(false)
+  const [tauriConnectionState, setTauriConnectionState] = useState({ isConnected: true })
   const toast = useToast()
 
   // Memory management hooks
@@ -84,7 +95,7 @@ export function ScratchPadApp() {
         // Only hide window if no modal/palette is open
         if (!isCommandPaletteOpen && currentView !== "search-history" && currentView !== "settings") {
           e.preventDefault()
-          invoke("hide_window").catch((error) => {
+          safeInvoke("hide_window").catch((error) => {
             console.error("Failed to hide window:", error)
           })
         }
@@ -131,24 +142,82 @@ export function ScratchPadApp() {
     )
   }
 
-
-
   return (
-    <div
-      className={`h-screen w-screen overflow-hidden ${isAppReady ? 'window-appear' : 'opacity-0'}`}
-      style={appStyle}
-    >
-      <div className="h-full w-full stagger-children">
-        {currentView === "note" && <NoteView />}
-        {currentView === "search-history" && <SearchHistoryView />}
-        {currentView === "settings" && (
-          <Suspense fallback={<SettingsLoadingFallback />}>
-            <SettingsView />
-          </Suspense>
-        )}
-      </div>
-      <CommandPalette />
-      <toast.ToastContainer />
-    </div>
+    <ApplicationErrorBoundary>
+      <AsyncErrorHandler 
+        enableToast={true}
+        enableReporting={true}
+        onError={(error) => {
+          // Handle critical async errors that might affect connection state
+          if (error.type === "tauri_error") {
+            setTauriConnectionState({ isConnected: false })
+          }
+        }}
+      />
+      
+      <TauriErrorBoundary
+        enableHeartbeat={true}
+        heartbeatInterval={5000}
+        maxRetries={3}
+        onConnectionChange={(connected) => {
+          setTauriConnectionState({ isConnected: connected })
+          if (connected) {
+            toast.success("Connected", "Backend connection restored")
+          }
+        }}
+      >
+        <div
+          className={`h-screen w-screen overflow-hidden ${isAppReady ? 'window-appear' : 'opacity-0'}`}
+          style={appStyle}
+        >
+          <div className="h-full w-full stagger-children">
+            {/* Note View with error boundary */}
+            {currentView === "note" && (
+              <ViewErrorBoundary viewName="Note">
+                <NoteView />
+              </ViewErrorBoundary>
+            )}
+            
+            {/* Search History View with error boundary */}
+            {currentView === "search-history" && (
+              <ViewErrorBoundary viewName="SearchHistory">
+                <SearchHistoryView />
+              </ViewErrorBoundary>
+            )}
+            
+            {/* Settings View with error boundary and lazy loading */}
+            {currentView === "settings" && (
+              <ViewErrorBoundary viewName="Settings">
+                <Suspense fallback={<SettingsLoadingFallback />}>
+                  <SettingsView />
+                </Suspense>
+              </ViewErrorBoundary>
+            )}
+          </div>
+          
+          {/* Command Palette with error boundary */}
+          <ComponentErrorBoundary
+            componentName="CommandPalette"
+            onError={(error, errorInfo) => {
+              console.error("Command Palette error:", error, errorInfo)
+              // Could implement fallback command system here
+            }}
+          >
+            <CommandPalette />
+          </ComponentErrorBoundary>
+          
+          {/* Toast Container with error boundary */}
+          <ComponentErrorBoundary
+            componentName="ToastContainer"
+            onError={(error) => {
+              console.error("Toast system error:", error)
+              // Toast errors shouldn't break the app
+            }}
+          >
+            <toast.ToastContainer />
+          </ComponentErrorBoundary>
+        </div>
+      </TauriErrorBoundary>
+    </ApplicationErrorBoundary>
   )
 }

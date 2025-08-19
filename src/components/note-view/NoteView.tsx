@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { TabBar } from "./TabBar"
 import { StatusBar } from "./StatusBar"
 import { useScratchPadStore } from "../../lib/store"
+import { useSmartAutoSave } from "../../hooks/useSmartAutoSave"
 import { invoke } from "@tauri-apps/api/core"
 
 export function NoteView() {
@@ -21,9 +22,27 @@ export function NoteView() {
   const note = getActiveNote()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [content, setContent] = useState(note?.content || "")
-  const [lastSaved, setLastSaved] = useState<Date | null>(null)
-  const [isAutoSaving, setIsAutoSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  
+  // Smart auto-save hook
+  const smartAutoSave = useSmartAutoSave({
+    onSave: async (content: string) => {
+      setSaveStatus("saving")
+      try {
+        await saveNote(content)
+        setSaveStatus("saved")
+        setTimeout(() => setSaveStatus("idle"), 2000)
+      } catch (error) {
+        console.error("Failed to save note:", error)
+        setSaveStatus("error")
+        setTimeout(() => setSaveStatus("idle"), 3000)
+      }
+    },
+    minDelay: 300,    // Quick saves when idle
+    maxDelay: 2000,   // Longer delay when typing fast
+    idleThreshold: 1500,
+    fastTypingThreshold: 5
+  })
 
   // Auto-focus the textarea when component mounts or note changes
   useEffect(() => {
@@ -37,48 +56,23 @@ export function NoteView() {
     setContent(note?.content || "")
   }, [note?.content])
 
-  // Auto-save functionality with debouncing
-  const autoSave = useCallback(async () => {
-    if (content !== note?.content && note) {
-      setIsAutoSaving(true)
-      setSaveStatus("saving")
-      try {
-        await saveNote(content)
-        setLastSaved(new Date())
-        setSaveStatus("saved")
+  // Smart auto-save when content changes
+  useEffect(() => {
+    if (content !== note?.content && note && content.trim()) {
+      smartAutoSave.saveContent(content)
+    }
+  }, [content, note?.content, note, smartAutoSave])
 
-        // Reset to idle after showing saved status
-        setTimeout(() => setSaveStatus("idle"), 2000)
+  // Force save function for manual saves
+  const forceSave = useCallback(async () => {
+    if (content !== note?.content && note) {
+      try {
+        await smartAutoSave.forceSave(content)
       } catch (error) {
-        console.error("Failed to save note:", error)
-        setSaveStatus("error")
-        setTimeout(() => setSaveStatus("idle"), 3000)
-      } finally {
-        setIsAutoSaving(false)
+        console.error("Failed to force save note:", error)
       }
     }
-  }, [content, note?.content, saveNote, note])
-
-  // Debounced auto-save - uses the optimized debounced version from store
-  useEffect(() => {
-    if (content !== note?.content && note) {
-      setIsAutoSaving(true)
-      setSaveStatus("saving")
-      saveNoteDebounced(content)
-
-      // Update UI state after debounce delay
-      const timer = setTimeout(() => {
-        setLastSaved(new Date())
-        setIsAutoSaving(false)
-        setSaveStatus("saved")
-
-        // Reset to idle after showing saved status
-        setTimeout(() => setSaveStatus("idle"), 2000)
-      }, 1000)
-
-      return () => clearTimeout(timer)
-    }
-  }, [content, note?.content, saveNoteDebounced, note])
+  }, [content, note?.content, note, smartAutoSave])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -108,7 +102,7 @@ export function NoteView() {
       // Save (manual save even though auto-save is enabled)
       if (isCtrl && e.key === "s") {
         e.preventDefault()
-        autoSave()
+        forceSave()
         return
       }
 
@@ -180,7 +174,7 @@ export function NoteView() {
 
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [setCommandPaletteOpen, setCurrentView, createNote, autoSave, deleteNote, activeNoteId, notes, setActiveNote])
+  }, [setCommandPaletteOpen, setCurrentView, createNote, forceSave, deleteNote, activeNoteId, notes, setActiveNote])
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value)
@@ -222,8 +216,8 @@ export function NoteView() {
 
       {/* Status Bar */}
       <StatusBar
-        lastSaved={lastSaved}
-        isAutoSaving={isAutoSaving}
+        lastSaved={smartAutoSave.lastSaved}
+        isAutoSaving={smartAutoSave.isSaving}
         saveStatus={saveStatus}
         wordCount={content.split(/\s+/).filter(Boolean).length}
         charCount={content.length}

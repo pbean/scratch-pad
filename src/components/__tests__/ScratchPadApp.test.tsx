@@ -1,14 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '../../test/test-utils'
 import userEvent from '@testing-library/user-event'
 import { ScratchPadApp } from '../ScratchPadApp'
 import { useScratchPadStore } from '../../lib/store'
+import { invoke } from '@tauri-apps/api/core'
 
 // Mock Tauri API
-const mockInvoke = vi.fn()
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: mockInvoke
-}))
+vi.mock('@tauri-apps/api/core')
+const mockInvoke = vi.mocked(invoke)
 
 // Mock child components
 vi.mock('../note-view/NoteView', () => ({
@@ -41,6 +40,7 @@ describe('ScratchPadApp', () => {
     })
     
     mockInvoke.mockClear()
+    mockInvoke.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -48,7 +48,9 @@ describe('ScratchPadApp', () => {
   })
 
   it('should render note view by default', async () => {
-    render(<ScratchPadApp />)
+    await act(async () => {
+      render(<ScratchPadApp />)
+    })
     
     await waitFor(() => {
       expect(screen.getByTestId('note-view')).toBeInTheDocument()
@@ -60,9 +62,10 @@ describe('ScratchPadApp', () => {
   })
 
   it('should render search history view when currentView is search-history', async () => {
-    useScratchPadStore.setState({ currentView: 'search-history' })
-    
-    render(<ScratchPadApp />)
+    await act(async () => {
+      useScratchPadStore.setState({ currentView: 'search-history' })
+      render(<ScratchPadApp />)
+    })
     
     await waitFor(() => {
       expect(screen.getByTestId('search-history-view')).toBeInTheDocument()
@@ -73,9 +76,10 @@ describe('ScratchPadApp', () => {
   })
 
   it('should render settings view when currentView is settings', async () => {
-    useScratchPadStore.setState({ currentView: 'settings' })
-    
-    render(<ScratchPadApp />)
+    await act(async () => {
+      useScratchPadStore.setState({ currentView: 'settings' })
+      render(<ScratchPadApp />)
+    })
     
     await waitFor(() => {
       expect(screen.getByTestId('settings-view')).toBeInTheDocument()
@@ -86,9 +90,10 @@ describe('ScratchPadApp', () => {
   })
 
   it('should display error message when error exists', async () => {
-    useScratchPadStore.setState({ error: 'Test error message' })
-    
-    render(<ScratchPadApp />)
+    await act(async () => {
+      useScratchPadStore.setState({ error: 'Test error message' })
+      render(<ScratchPadApp />)
+    })
     
     await waitFor(() => {
       expect(screen.getByText('Error')).toBeInTheDocument()
@@ -105,12 +110,13 @@ describe('ScratchPadApp', () => {
     const mockLoadNotes = vi.fn()
     const mockInitializeSettings = vi.fn()
     
-    useScratchPadStore.setState({
-      loadNotes: mockLoadNotes,
-      initializeSettings: mockInitializeSettings
+    await act(async () => {
+      useScratchPadStore.setState({
+        loadNotes: mockLoadNotes,
+        initializeSettings: mockInitializeSettings
+      })
+      render(<ScratchPadApp />)
     })
-    
-    render(<ScratchPadApp />)
     
     await waitFor(() => {
       expect(mockInitializeSettings).toHaveBeenCalledOnce()
@@ -121,12 +127,13 @@ describe('ScratchPadApp', () => {
   it('should handle Escape key to hide window when no modals are open', async () => {
     mockInvoke.mockResolvedValue(undefined)
     
-    useScratchPadStore.setState({
-      isCommandPaletteOpen: false,
-      currentView: 'note'
+    await act(async () => {
+      useScratchPadStore.setState({
+        isCommandPaletteOpen: false,
+        currentView: 'note'
+      })
+      render(<ScratchPadApp />)
     })
-    
-    render(<ScratchPadApp />)
     
     await user.keyboard('{Escape}')
     
@@ -138,12 +145,13 @@ describe('ScratchPadApp', () => {
   it('should not hide window on Escape when command palette is open', async () => {
     mockInvoke.mockResolvedValue(undefined)
     
-    useScratchPadStore.setState({
-      isCommandPaletteOpen: true,
-      currentView: 'note'
+    await act(async () => {
+      useScratchPadStore.setState({
+        isCommandPaletteOpen: true,
+        currentView: 'note'
+      })
+      render(<ScratchPadApp />)
     })
-    
-    render(<ScratchPadApp />)
     
     await user.keyboard('{Escape}')
     
@@ -154,12 +162,13 @@ describe('ScratchPadApp', () => {
   it('should not hide window on Escape when in search-history view', async () => {
     mockInvoke.mockResolvedValue(undefined)
     
-    useScratchPadStore.setState({
-      isCommandPaletteOpen: false,
-      currentView: 'search-history'
+    await act(async () => {
+      useScratchPadStore.setState({
+        isCommandPaletteOpen: false,
+        currentView: 'search-history'
+      })
+      render(<ScratchPadApp />)
     })
-    
-    render(<ScratchPadApp />)
     
     await user.keyboard('{Escape}')
     
@@ -170,12 +179,13 @@ describe('ScratchPadApp', () => {
   it('should not hide window on Escape when in settings view', async () => {
     mockInvoke.mockResolvedValue(undefined)
     
-    useScratchPadStore.setState({
-      isCommandPaletteOpen: false,
-      currentView: 'settings'
+    await act(async () => {
+      useScratchPadStore.setState({
+        isCommandPaletteOpen: false,
+        currentView: 'settings'
+      })
+      render(<ScratchPadApp />)
     })
-    
-    render(<ScratchPadApp />)
     
     await user.keyboard('{Escape}')
     
@@ -187,12 +197,13 @@ describe('ScratchPadApp', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockInvoke.mockRejectedValue(new Error('Hide window failed'))
     
-    useScratchPadStore.setState({
-      isCommandPaletteOpen: false,
-      currentView: 'note'
+    await act(async () => {
+      useScratchPadStore.setState({
+        isCommandPaletteOpen: false,
+        currentView: 'note'
+      })
+      render(<ScratchPadApp />)
     })
-    
-    render(<ScratchPadApp />)
     
     await user.keyboard('{Escape}')
     
@@ -204,7 +215,9 @@ describe('ScratchPadApp', () => {
   })
 
   it('should apply correct styling', async () => {
-    render(<ScratchPadApp />)
+    await act(async () => {
+      render(<ScratchPadApp />)
+    })
     
     const appContainer = screen.getByTestId('note-view').parentElement
     
@@ -215,7 +228,9 @@ describe('ScratchPadApp', () => {
     const views = ['note', 'search-history', 'settings'] as const
     
     for (const view of views) {
-      useScratchPadStore.setState({ currentView: view, error: null })
+      await act(async () => {
+        useScratchPadStore.setState({ currentView: view, error: null })
+      })
       
       const { unmount } = render(<ScratchPadApp />)
       
@@ -231,9 +246,11 @@ describe('ScratchPadApp', () => {
     const mockLoadNotes = vi.fn().mockRejectedValue(new Error('Load failed'))
     const mockInitializeSettings = vi.fn().mockRejectedValue(new Error('Init failed'))
     
-    useScratchPadStore.setState({
-      loadNotes: mockLoadNotes,
-      initializeSettings: mockInitializeSettings
+    await act(async () => {
+      useScratchPadStore.setState({
+        loadNotes: mockLoadNotes,
+        initializeSettings: mockInitializeSettings
+      })
     })
     
     // Should not throw error

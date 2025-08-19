@@ -397,4 +397,110 @@
       transform: translateY(0);
     }
   }
+
+  /* Advanced Search Bar Animations - Day 4 Week 2 Implementation */
+  .animate-in {
+    animation: slideInFromTop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .slide-in-from-top-2 {
+    animation: slideInFromTop2 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideInFromTop {
+    0% {
+      opacity: 0;
+      transform: translateY(-16px) scale(0.96);
+    }
+    60% {
+      opacity: 0.8;
+      transform: translateY(-2px) scale(1.01);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes slideInFromTop2 {
+    0% {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Advanced search container styling */
+  .advanced-search-container {
+    position: relative;
+  }
+
+  .advanced-search-container .animate-in {
+    animation: advancedPanelExpand 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  @keyframes advancedPanelExpand {
+    0% {
+      opacity: 0;
+      transform: translateY(-10px) scaleY(0.9);
+      transform-origin: top;
+    }
+    50% {
+      opacity: 0.7;
+      transform: translateY(-2px) scaleY(1.02);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scaleY(1);
+    }
+  }
+
+  /* Performance metrics pulse */
+  .performance-pulse {
+    animation: performancePulse 2s ease-in-out infinite;
+  }
+
+  @keyframes performancePulse {
+    0%, 100% {
+      opacity: 0.7;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  /* Search suggestion hover effects */
+  .suggestion-hover {
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .suggestion-hover:hover {
+    transform: translateX(4px);
+    background-color: hsl(var(--accent));
+  }
+
+  /* Filter checkbox animations */
+  .filter-checkbox {
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .filter-checkbox:checked {
+    transform: scale(1.1);
+  }
+
+  /* Advanced search input focus enhancement */
+  .advanced-search-input {
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .advanced-search-input:focus {
+    transform: scale(1.01);
+    box-shadow: 
+      0 0 0 2px hsl(var(--ring)),
+      0 0 0 4px hsl(var(--ring) / 0.2),
+      0 4px 12px rgba(0, 0, 0, 0.1);
+  }
 }

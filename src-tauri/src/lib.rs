@@ -38,9 +38,6 @@ pub struct AppState {
     pub shutdown_manager: Arc<ShutdownManager>,
 }
 
-// Import the macro correctly (no re-export needed)
-use crate::generate_command_handler;
-
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
@@ -97,7 +94,7 @@ pub fn run() {
             
             Ok(())
         })
-        .invoke_handler(generate_command_handler!())
+        .invoke_handler(crate::generate_command_handler!())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

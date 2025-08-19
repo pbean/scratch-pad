@@ -2,7 +2,15 @@
 
 import { create } from "zustand"
 import { invoke } from "@tauri-apps/api/core"
-import type { Note, View, ApiError, LayoutMode } from "../types"
+import type { 
+  Note, 
+  View, 
+  ApiError, 
+  LayoutMode, 
+  BooleanSearchResult, 
+  QueryComplexity,
+  SearchResult 
+} from "../types"
 
 interface ScratchPadState {
   // Core state
@@ -17,6 +25,17 @@ interface ScratchPadState {
   expandedFolders: Set<string>
   selectedSearchIndex: number
   searchQuery: string
+
+  // Advanced search state
+  searchResults: Note[]
+  searchTotalCount: number
+  currentSearchPage: number
+  searchPageSize: number
+  hasMoreSearchResults: boolean
+  searchQueryTime: number
+  lastQueryComplexity: QueryComplexity | null
+  recentSearches: string[]
+  searchHistory: string[]
 
   // Performance state
   notesCount: number
@@ -42,6 +61,17 @@ interface ScratchPadState {
   setSearchQuery: (query: string) => void
   searchNotes: (query: string) => Promise<Note[]>
   setSelectedSearchIndex: (index: number) => void
+
+  // Advanced Boolean search
+  searchNotesBoolean: (query: string, page?: number, pageSize?: number) => Promise<BooleanSearchResult>
+  searchNotesPaginated: (query: string, page?: number, pageSize?: number) => Promise<SearchResult>
+  validateBooleanQuery: (query: string) => Promise<QueryComplexity>
+  getBooleanSearchExamples: () => Promise<Array<[string, string]>>
+  
+  // Search history management
+  addToSearchHistory: (query: string) => void
+  getRecentSearchSuggestions: (query: string) => string[]
+  clearSearchHistory: () => void
 
   // UI helpers
   toggleFolder: (folderId: string) => void
@@ -94,6 +124,18 @@ export const useScratchPadStore = create<ScratchPadState>((set, get) => ({
   expandedFolders: new Set(["recent", "all-notes"]),
   selectedSearchIndex: 0,
   searchQuery: "",
+  
+  // Advanced search initial state
+  searchResults: [],
+  searchTotalCount: 0,
+  currentSearchPage: 0,
+  searchPageSize: 20,
+  hasMoreSearchResults: false,
+  searchQueryTime: 0,
+  lastQueryComplexity: null,
+  recentSearches: [],
+  searchHistory: [],
+  
   notesCount: 0,
   hasMoreNotes: false,
   isLoadingMore: false,
@@ -239,7 +281,7 @@ export const useScratchPadStore = create<ScratchPadState>((set, get) => ({
 
   searchNotes: async (query: string) => {
     try {
-      const results = await invoke<Note[]>("combined_search_notes", { query })
+      const results = await invoke<Note[]>("search_notes", { query })
       return results
     } catch (error) {
       const apiError = error as ApiError
@@ -249,6 +291,123 @@ export const useScratchPadStore = create<ScratchPadState>((set, get) => ({
   },
 
   setSelectedSearchIndex: (index) => set({ selectedSearchIndex: index }),
+
+  // Advanced Boolean search
+  searchNotesBoolean: async (query: string, page = 0, pageSize = 20) => {
+    set({ isLoading: true, error: null })
+    try {
+      const result = await invoke<BooleanSearchResult>("search_notes_boolean_paginated", {
+        query,
+        page,
+        pageSize
+      })
+      
+      // Update search state
+      set({
+        searchResults: result.notes,
+        searchTotalCount: result.total_count,
+        currentSearchPage: result.page,
+        searchPageSize: result.page_size,
+        hasMoreSearchResults: result.has_more,
+        searchQueryTime: result.query_time_ms,
+        lastQueryComplexity: result.complexity,
+        isLoading: false
+      })
+      
+      // Add to search history if not empty
+      if (query.trim()) {
+        get().addToSearchHistory(query)
+      }
+      
+      return result
+    } catch (error) {
+      const apiError = error as ApiError
+      set({ error: apiError.message, isLoading: false })
+      throw error
+    }
+  },
+
+  searchNotesPaginated: async (query: string, page = 0, pageSize = 20) => {
+    set({ isLoading: true, error: null })
+    try {
+      const result = await invoke<SearchResult>("search_notes_paginated", {
+        query,
+        page,
+        pageSize
+      })
+      
+      // Update search state
+      set({
+        searchResults: result.notes,
+        searchTotalCount: result.total_count,
+        currentSearchPage: result.page,
+        searchPageSize: result.page_size,
+        hasMoreSearchResults: result.has_more,
+        searchQueryTime: result.query_time_ms,
+        isLoading: false
+      })
+      
+      // Add to search history if not empty
+      if (query.trim()) {
+        get().addToSearchHistory(query)
+      }
+      
+      return result
+    } catch (error) {
+      const apiError = error as ApiError
+      set({ error: apiError.message, isLoading: false })
+      throw error
+    }
+  },
+
+  validateBooleanQuery: async (query: string) => {
+    try {
+      const complexity = await invoke<QueryComplexity>("validate_boolean_search_query", { query })
+      set({ lastQueryComplexity: complexity })
+      return complexity
+    } catch (error) {
+      const apiError = error as ApiError
+      set({ error: apiError.message })
+      throw error
+    }
+  },
+
+  getBooleanSearchExamples: async () => {
+    try {
+      return await invoke<Array<[string, string]>>("get_boolean_search_examples")
+    } catch (error) {
+      const apiError = error as ApiError
+      set({ error: apiError.message })
+      throw error
+    }
+  },
+
+  // Search history management
+  addToSearchHistory: (query: string) => {
+    const { searchHistory } = get()
+    const trimmedQuery = query.trim()
+    
+    if (!trimmedQuery || searchHistory.includes(trimmedQuery)) {
+      return
+    }
+    
+    // Add to beginning and limit to 50 recent searches
+    const newHistory = [trimmedQuery, ...searchHistory.filter(q => q !== trimmedQuery)].slice(0, 50)
+    set({ searchHistory: newHistory })
+  },
+
+  getRecentSearchSuggestions: (query: string) => {
+    const { searchHistory } = get()
+    const lowercaseQuery = query.toLowerCase()
+    
+    return searchHistory
+      .filter(search => search.toLowerCase().includes(lowercaseQuery))
+      .slice(0, 10) // Return top 10 suggestions
+  },
+
+  clearSearchHistory: () => {
+    set({ searchHistory: [], recentSearches: [] })
+  },
 
   // UI helpers
   toggleFolder: (folderId) => {

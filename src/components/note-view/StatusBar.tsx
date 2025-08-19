@@ -1,3 +1,4 @@
+import React from "react"
 import { LoadingSpinner } from "../ui/loading"
 
 interface StatusBarProps {
@@ -10,7 +11,7 @@ interface StatusBarProps {
   noteTitle: string
 }
 
-export function StatusBar({ 
+export const StatusBar = React.memo<StatusBarProps>(({ 
   lastSaved, 
   isAutoSaving: _isAutoSaving,
   saveStatus,
@@ -18,7 +19,7 @@ export function StatusBar({
   charCount, 
   lineCount,
   noteTitle 
-}: StatusBarProps) {
+}) => {
   const formatLastSaved = (date: Date) => {
     const now = new Date()
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
@@ -53,4 +54,15 @@ export function StatusBar({
       </div>
     </div>
   )
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function for better memoization
+  return (
+    prevProps.lastSaved?.getTime() === nextProps.lastSaved?.getTime() &&
+    prevProps.isAutoSaving === nextProps.isAutoSaving &&
+    prevProps.saveStatus === nextProps.saveStatus &&
+    prevProps.wordCount === nextProps.wordCount &&
+    prevProps.charCount === nextProps.charCount &&
+    prevProps.lineCount === nextProps.lineCount &&
+    prevProps.noteTitle === nextProps.noteTitle
+  )
+})

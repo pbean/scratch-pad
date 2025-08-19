@@ -1,0 +1,320 @@
+/**
+ * Search Highlighting Styles - Week 2 Day 4
+ * 
+ * Provides comprehensive styling for search result highlighting with:
+ * - Multiple highlight types (primary, secondary, field)
+ * - Accessibility compliance (WCAG 2.1 AA)
+ * - Dark/light theme support
+ * - Animation and transition effects
+ * - Mobile responsiveness
+ */
+
+/* Base highlight styles */
+.search-highlight-primary {
+  background-color: hsl(var(--primary) / 0.2);
+  color: hsl(var(--primary));
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+  font-weight: 500;
+  border: 1px solid hsl(var(--primary) / 0.3);
+  transition: all 0.2s ease-in-out;
+}
+
+.search-highlight-secondary {
+  background-color: hsl(var(--secondary) / 0.2);
+  color: hsl(var(--secondary));
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+  font-weight: 500;
+  border: 1px solid hsl(var(--secondary) / 0.3);
+  transition: all 0.2s ease-in-out;
+}
+
+.search-highlight-field {
+  background-color: hsl(var(--accent) / 0.3);
+  color: hsl(var(--accent-foreground));
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+  font-weight: 500;
+  border: 1px solid hsl(var(--accent) / 0.4);
+  transition: all 0.2s ease-in-out;
+}
+
+/* Hover effects for interactive highlights */
+.search-result-item:hover .search-highlight-primary,
+.highlighted-search-result:hover .search-highlight-primary {
+  background-color: hsl(var(--primary) / 0.3);
+  border-color: hsl(var(--primary) / 0.5);
+  transform: scale(1.02);
+}
+
+.search-result-item:hover .search-highlight-secondary,
+.highlighted-search-result:hover .search-highlight-secondary {
+  background-color: hsl(var(--secondary) / 0.3);
+  border-color: hsl(var(--secondary) / 0.5);
+  transform: scale(1.02);
+}
+
+.search-result-item:hover .search-highlight-field,
+.highlighted-search-result:hover .search-highlight-field {
+  background-color: hsl(var(--accent) / 0.4);
+  border-color: hsl(var(--accent) / 0.6);
+  transform: scale(1.02);
+}
+
+/* Focus states for accessibility */
+.search-highlight-primary:focus,
+.search-highlight-secondary:focus,
+.search-highlight-field:focus {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Selection state highlight enhancement */
+.search-result-item.selected .search-highlight-primary,
+.highlighted-search-result[aria-pressed="true"] .search-highlight-primary {
+  background-color: hsl(var(--primary-foreground) / 0.9);
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+}
+
+/* Search result containers */
+.search-result-item {
+  position: relative;
+  transition: all 0.2s ease-in-out;
+}
+
+.search-result-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: transparent;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.search-result-item.selected::before,
+.search-result-item:hover::before {
+  background: hsl(var(--primary));
+}
+
+.highlighted-search-result {
+  position: relative;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Snippet styling */
+.search-snippet {
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.search-snippet .search-highlight-primary,
+.search-snippet .search-highlight-secondary,
+.search-snippet .search-highlight-field {
+  display: inline;
+  padding: 0.0625rem 0.1875rem;
+  margin: 0 0.0625rem;
+  font-size: 0.875em;
+}
+
+/* Title highlighting */
+.search-result-title .search-highlight-primary,
+.search-result-title .search-highlight-secondary,
+.search-result-title .search-highlight-field {
+  font-weight: 600;
+  font-size: inherit;
+  padding: 0.125rem 0.25rem;
+}
+
+/* Animation for newly highlighted content */
+@keyframes highlight-flash {
+  0% {
+    background-color: hsl(var(--primary) / 0.4);
+    transform: scale(1.05);
+  }
+  50% {
+    background-color: hsl(var(--primary) / 0.3);
+    transform: scale(1.02);
+  }
+  100% {
+    background-color: hsl(var(--primary) / 0.2);
+    transform: scale(1);
+  }
+}
+
+.search-highlight-primary.new-highlight {
+  animation: highlight-flash 0.6s ease-out;
+}
+
+/* Loading state for search highlights */
+.search-highlight-skeleton {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted-foreground) / 0.1) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 0.25rem;
+  height: 1.25rem;
+  display: inline-block;
+  min-width: 3rem;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .search-highlight-primary,
+  .search-highlight-secondary,
+  .search-highlight-field {
+    padding: 0.0625rem 0.125rem;
+    font-size: 0.875rem;
+    margin: 0 0.0625rem;
+  }
+  
+  .search-result-title .search-highlight-primary,
+  .search-result-title .search-highlight-secondary,
+  .search-result-title .search-highlight-field {
+    padding: 0.0625rem 0.1875rem;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .search-highlight-primary {
+    background-color: hsl(var(--primary) / 0.4);
+    border-width: 2px;
+    border-color: hsl(var(--primary));
+  }
+  
+  .search-highlight-secondary {
+    background-color: hsl(var(--secondary) / 0.4);
+    border-width: 2px;
+    border-color: hsl(var(--secondary));
+  }
+  
+  .search-highlight-field {
+    background-color: hsl(var(--accent) / 0.5);
+    border-width: 2px;
+    border-color: hsl(var(--accent));
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .search-highlight-primary,
+  .search-highlight-secondary,
+  .search-highlight-field {
+    transition: none;
+  }
+  
+  .search-highlight-primary.new-highlight {
+    animation: none;
+  }
+  
+  .search-highlight-skeleton {
+    animation: none;
+    background: hsl(var(--muted));
+  }
+}
+
+/* Print styles */
+@media print {
+  .search-highlight-primary,
+  .search-highlight-secondary,
+  .search-highlight-field {
+    background-color: transparent !important;
+    color: #000 !important;
+    border: 1px solid #000 !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Dark theme specific adjustments */
+@media (prefers-color-scheme: dark) {
+  .search-highlight-primary {
+    background-color: hsl(var(--primary) / 0.25);
+    border-color: hsl(var(--primary) / 0.4);
+  }
+  
+  .search-highlight-secondary {
+    background-color: hsl(var(--secondary) / 0.25);
+    border-color: hsl(var(--secondary) / 0.4);
+  }
+  
+  .search-highlight-field {
+    background-color: hsl(var(--accent) / 0.35);
+    border-color: hsl(var(--accent) / 0.5);
+  }
+}
+
+/* Virtualized list specific styles */
+.search-results-container {
+  --scroll-thumb: hsl(var(--border));
+  --scroll-track: hsl(var(--background));
+}
+
+.search-results-list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+.search-results-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.search-results-list::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+
+.search-results-list::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 3px;
+}
+
+.search-results-list::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--border) / 0.8);
+}
+
+/* Performance optimization for large lists */
+.search-result-item,
+.highlighted-search-result {
+  contain: layout style paint;
+  will-change: transform;
+}
+
+/* Ensure accessibility for screen readers */
+.search-highlight-primary::before,
+.search-highlight-secondary::before,
+.search-highlight-field::before {
+  content: " [highlight start] ";
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.search-highlight-primary::after,
+.search-highlight-secondary::after,
+.search-highlight-field::after {
+  content: " [highlight end] ";
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}

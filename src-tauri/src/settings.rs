@@ -38,7 +38,9 @@ impl SettingsService {
         // Get all settings from database
         let all_settings = self.db_service.get_all_settings().await?;
         
-        for (key, value) in all_settings {
+        for setting in all_settings {
+            let key = setting.key;
+            let value = setting.value;
             // Try to parse as JSON, fallback to string
             let json_value = serde_json::from_str::<serde_json::Value>(&value)
                 .unwrap_or_else(|_| serde_json::Value::String(value));

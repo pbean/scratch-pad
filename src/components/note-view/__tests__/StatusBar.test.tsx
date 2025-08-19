@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen } from '../../../test/test-utils'
 import { StatusBar } from '../StatusBar'
 
 describe('StatusBar', () => {
@@ -42,7 +42,7 @@ describe('StatusBar', () => {
   })
 
   it('should show "Saving..." when auto-saving', () => {
-    render(<StatusBar {...defaultProps} isAutoSaving={true} />)
+    render(<StatusBar {...defaultProps} saveStatus="saving" />)
     
     expect(screen.getByText('Saving...')).toBeInTheDocument()
   })
@@ -51,7 +51,7 @@ describe('StatusBar', () => {
     const recentSave = new Date()
     vi.setSystemTime(recentSave.getTime() + 30000) // 30 seconds later
     
-    render(<StatusBar {...defaultProps} lastSaved={recentSave} />)
+    render(<StatusBar {...defaultProps} lastSaved={recentSave} saveStatus="idle" />)
     
     expect(screen.getByText('Saved Just now')).toBeInTheDocument()
   })
@@ -60,7 +60,7 @@ describe('StatusBar', () => {
     const saveTime = new Date()
     vi.setSystemTime(saveTime.getTime() + 5 * 60 * 1000) // 5 minutes later
     
-    render(<StatusBar {...defaultProps} lastSaved={saveTime} />)
+    render(<StatusBar {...defaultProps} lastSaved={saveTime} saveStatus="idle" />)
     
     expect(screen.getByText('Saved 5m ago')).toBeInTheDocument()
   })
@@ -69,7 +69,7 @@ describe('StatusBar', () => {
     const saveTime = new Date('2024-01-01T14:30:00')
     vi.setSystemTime(new Date('2024-01-01T16:00:00').getTime()) // 1.5 hours later
     
-    render(<StatusBar {...defaultProps} lastSaved={saveTime} />)
+    render(<StatusBar {...defaultProps} lastSaved={saveTime} saveStatus="idle" />)
     
     expect(screen.getByText(/Saved.*2:30 PM/)).toBeInTheDocument()
   })
@@ -141,7 +141,7 @@ describe('StatusBar', () => {
       const saveTime = new Date(time)
       vi.setSystemTime(saveTime.getTime() + 2 * 60 * 60 * 1000) // 2 hours later
       
-      const { unmount } = render(<StatusBar {...defaultProps} lastSaved={saveTime} />)
+      const { unmount } = render(<StatusBar {...defaultProps} lastSaved={saveTime} saveStatus="idle" />)
       
       expect(screen.getByText(expected)).toBeInTheDocument()
       
@@ -153,7 +153,7 @@ describe('StatusBar', () => {
     const saveTime = new Date()
     vi.setSystemTime(saveTime.getTime() + 60 * 1000) // Exactly 1 minute later
     
-    render(<StatusBar {...defaultProps} lastSaved={saveTime} />)
+    render(<StatusBar {...defaultProps} lastSaved={saveTime} saveStatus="idle" />)
     
     expect(screen.getByText('Saved 1m ago')).toBeInTheDocument()
   })
@@ -162,7 +162,7 @@ describe('StatusBar', () => {
     const saveTime = new Date('2024-01-01T14:00:00')
     vi.setSystemTime(new Date('2024-01-01T15:00:00').getTime()) // Exactly 1 hour later
     
-    render(<StatusBar {...defaultProps} lastSaved={saveTime} />)
+    render(<StatusBar {...defaultProps} lastSaved={saveTime} saveStatus="idle" />)
     
     expect(screen.getByText(/Saved.*2:00 PM/)).toBeInTheDocument()
   })
@@ -170,7 +170,7 @@ describe('StatusBar', () => {
   it('should prioritize auto-saving status over last saved', () => {
     const recentSave = new Date()
     
-    render(<StatusBar {...defaultProps} lastSaved={recentSave} isAutoSaving={true} />)
+    render(<StatusBar {...defaultProps} lastSaved={recentSave} saveStatus="saving" />)
     
     expect(screen.getByText('Saving...')).toBeInTheDocument()
     expect(screen.queryByText(/Saved/)).not.toBeInTheDocument()

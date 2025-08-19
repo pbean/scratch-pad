@@ -14,6 +14,9 @@ pub enum AppError {
     #[error("Connection pool error: {0}")]
     Pool(#[from] r2d2::Error),
     
+    #[error("Migration error: {0}")]
+    MigrationError(#[from] rusqlite_migration::Error),
+    
     #[error("Global shortcut error: {message}")]
     GlobalShortcut { message: String },
     
@@ -83,6 +86,10 @@ impl From<AppError> for ApiError {
             },
             AppError::Pool(e) => ApiError {
                 code: "POOL_ERROR".to_string(),
+                message: e.to_string(),
+            },
+            AppError::MigrationError(e) => ApiError {
+                code: "MIGRATION_ERROR".to_string(),
                 message: e.to_string(),
             },
             AppError::GlobalShortcut { message } => ApiError {

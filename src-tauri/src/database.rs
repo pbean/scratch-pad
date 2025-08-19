@@ -4,7 +4,7 @@ use crate::validation::SecurityValidator;  // Add security validation import
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, OptionalExtension};  // Added OptionalExtension trait
-use rusqlite_migration::{Migrations, M};
+// Migrations are now handled directly via execute_batch
 use std::path::Path;
 use std::sync::Arc;
 
@@ -58,26 +58,16 @@ impl DbService {
 
     /// Initialize the database schema with migrations
     fn initialize_database(&self) -> Result<(), AppError> {
+        // Get a connection from the pool and execute schema setup directly
         let conn = self.get_connection()?;
         
-        let migrations = Migrations::new(vec![
-            // Initial schema
-            M::up(include_str!("../migrations/001_initial.sql")),
-            
-            // Add settings table
-            M::up(include_str!("../migrations/002_settings.sql")),
-            
-            // Add FTS5 search
-            M::up(include_str!("../migrations/003_fts.sql")),
-            
-            // Add note format support
-            M::up(include_str!("../migrations/004_note_format.sql")),
-            
-            // Optimization indices
-            M::up(include_str!("../migrations/005_indices.sql")),
-        ]);
-
-        migrations.to_latest(&conn)?;
+        // Execute migration SQL files directly
+        conn.execute_batch(include_str!("../migrations/001_initial.sql"))?;
+        conn.execute_batch(include_str!("../migrations/002_settings.sql"))?;
+        conn.execute_batch(include_str!("../migrations/003_fts.sql"))?;
+        conn.execute_batch(include_str!("../migrations/004_note_format.sql"))?;
+        conn.execute_batch(include_str!("../migrations/005_indices.sql"))?;
+        
         Ok(())
     }
 
