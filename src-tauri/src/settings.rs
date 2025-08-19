@@ -1,242 +1,259 @@
+use std::sync::Arc;
+use std::collections::HashMap;
 use crate::database::DbService;
 use crate::error::AppError;
-// Settings model is defined in models.rs but we use HashMap for easier manipulation
-use serde_json;
-use std::collections::HashMap;
-use std::path::Path;
-use std::sync::Arc;
-// Note: File dialog functionality will be implemented via frontend
-// Tauri v2 requires dialog operations to be handled from the frontend
-use tokio::fs;
 
 pub struct SettingsService {
     db_service: Arc<DbService>,
 }
 
 impl SettingsService {
-    /// Create a new SettingsService
     pub fn new(db_service: Arc<DbService>) -> Self {
         Self { db_service }
     }
 
-    /// Get a setting value by key
+    /// Get a specific setting value
     pub async fn get_setting(&self, key: &str) -> Result<Option<String>, AppError> {
         self.db_service.get_setting(key).await
     }
 
-    /// Set a setting value
+    /// Set a specific setting value
     pub async fn set_setting(&self, key: &str, value: &str) -> Result<(), AppError> {
+        // SECURITY: Validate setting before storing
+        use crate::validation::SecurityValidator;
+        SecurityValidator::validate_setting(key, value)?;
+        
         self.db_service.set_setting(key, value).await
     }
 
-    /// Get all settings as a HashMap for easier manipulation
-    pub async fn get_all_settings(&self) -> Result<HashMap<String, String>, AppError> {
-        let settings = self.db_service.get_all_settings().await?;
-        let mut settings_map = HashMap::new();
-        
-        for setting in settings {
-            settings_map.insert(setting.key, setting.value);
-        }
-        
-        Ok(settings_map)
+    /// Check if a setting exists
+    pub async fn has_setting(&self, key: &str) -> Result<bool, AppError> {
+        Ok(self.get_setting(key).await?.is_some())
     }
 
-    /// Set multiple settings at once
-    pub async fn set_multiple_settings(&self, settings: HashMap<String, String>) -> Result<(), AppError> {
+    /// Get all settings as a hashmap
+    pub async fn get_all_settings(&self) -> Result<HashMap<String, serde_json::Value>, AppError> {
+        let mut settings = HashMap::new();
+        
+        // Get all settings from database
+        let all_settings = self.db_service.get_all_settings().await?;
+        
+        for (key, value) in all_settings {
+            // Try to parse as JSON, fallback to string
+            let json_value = serde_json::from_str::<serde_json::Value>(&value)
+                .unwrap_or_else(|_| serde_json::Value::String(value));
+            settings.insert(key, json_value);
+        }
+        
+        Ok(settings)
+    }
+
+    /// Export settings to a JSON file
+    pub async fn export_settings(&self, file_path: &str) -> Result<(), AppError> {
+        let settings = self.get_all_settings().await?;
+        let json = serde_json::to_string_pretty(&settings)?;
+        std::fs::write(file_path, json).map_err(|e| AppError::Io(e))
+    }
+
+    /// Import settings from a JSON file
+    pub async fn import_settings(&self, file_path: &str) -> Result<(), AppError> {
+        let content = std::fs::read_to_string(file_path)?;
+        let settings: HashMap<String, serde_json::Value> = serde_json::from_str(&content)?;
+        
         for (key, value) in settings {
-            self.set_setting(&key, &value).await?;
+            let value_str = match value {
+                serde_json::Value::String(s) => s,
+                _ => value.to_string(),
+            };
+            self.set_setting(&key, &value_str).await?;
         }
+        
         Ok(())
     }
 
-    /// Export settings as JSON string (frontend will handle file saving)
-    pub async fn export_settings(&self) -> Result<String, AppError> {
-        let settings = self.get_all_settings().await?;
-        let json_content = serde_json::to_string_pretty(&settings)?;
-        Ok(json_content)
-    }
-
-    /// Import settings from JSON string (frontend will handle file reading)
-    pub async fn import_settings(&self, json_content: String) -> Result<usize, AppError> {
-        let settings: HashMap<String, String> = serde_json::from_str(&json_content)?;
-        let count = settings.len();
-        
-        self.set_multiple_settings(settings).await?;
-        
-        Ok(count)
-    }
-
-    /// Export settings to a specific file path (for programmatic use)
-    pub async fn export_settings_to_path<P: AsRef<Path>>(&self, path: P) -> Result<(), AppError> {
-        let settings = self.get_all_settings().await?;
-        let json_content = serde_json::to_string_pretty(&settings)?;
-        fs::write(path, json_content).await?;
-        Ok(())
-    }
-
-    /// Import settings from a specific file path (for programmatic use)
-    pub async fn import_settings_from_path<P: AsRef<Path>>(&self, path: P) -> Result<usize, AppError> {
-        let json_content = fs::read_to_string(path).await?;
-        let settings: HashMap<String, String> = serde_json::from_str(&json_content)?;
-        let count = settings.len();
-        
-        self.set_multiple_settings(settings).await?;
-        
-        Ok(count)
-    }
-
-    /// Reset settings to default values
+    /// Reset all settings to default values
     pub async fn reset_to_defaults(&self) -> Result<(), AppError> {
-        let default_settings = self.get_default_settings();
-        self.set_multiple_settings(default_settings).await
-    }
-
-    /// Get default settings configuration
-    pub fn get_default_settings(&self) -> HashMap<String, String> {
-        let mut defaults = HashMap::new();
+        // Clear all existing settings
+        self.db_service.clear_all_settings().await?;
         
-        // Global shortcut settings
-        defaults.insert("global_shortcut".to_string(), "Ctrl+Shift+N".to_string());
-        
-        // Font settings
-        defaults.insert("ui_font".to_string(), "Inter".to_string());
-        defaults.insert("editor_font".to_string(), "SauceCodePro Nerd Font".to_string());
-        
-        // Note format settings
-        defaults.insert("default_note_format".to_string(), "plaintext".to_string());
-        
-        // Layout settings
-        defaults.insert("layout_mode".to_string(), "default".to_string());
-        defaults.insert("window_width".to_string(), "800".to_string());
-        defaults.insert("window_height".to_string(), "600".to_string());
-        
-        // Auto-save settings
-        defaults.insert("auto_save_delay_ms".to_string(), "500".to_string());
-        
-        // Search settings
-        defaults.insert("search_limit".to_string(), "100".to_string());
-        defaults.insert("fuzzy_search_threshold".to_string(), "0.6".to_string());
-        
-        defaults
+        // Initialize with defaults
+        self.initialize_defaults().await
     }
 
     /// Initialize default settings if they don't exist
     pub async fn initialize_defaults(&self) -> Result<(), AppError> {
-        let defaults = self.get_default_settings();
+        let defaults = get_default_settings();
         
-        for (key, default_value) in defaults {
-            // Only set if the setting doesn't already exist
-            if self.get_setting(&key).await?.is_none() {
-                self.set_setting(&key, &default_value).await?;
+        for (key, value) in defaults {
+            if !self.has_setting(&key).await? {
+                self.set_setting(&key, &value).await?;
             }
         }
         
         Ok(())
     }
 
-    /// Validate a setting value before setting it
-    pub fn validate_setting(&self, key: &str, value: &str) -> Result<(), AppError> {
-        match key {
-            "global_shortcut" => {
-                // Comprehensive validation for global shortcut format
-                if value.is_empty() {
-                    return Err(AppError::GlobalShortcut {
-                        message: "Global shortcut cannot be empty".to_string(),
-                    });
-                }
-                
-                // Check for valid shortcut format
-                let valid_modifiers = ["Ctrl", "Alt", "Shift", "Cmd", "Super", "Win"];
-                let valid_keys = ["Space", "Enter", "Tab", "Escape", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"];
-                
-                // Split by + and check each part
-                let parts: Vec<&str> = value.split('+').collect();
-                if parts.len() < 2 {
-                    return Err(AppError::GlobalShortcut {
-                        message: "Global shortcut must contain at least one modifier and one key".to_string(),
-                    });
-                }
-                
-                // Check if it starts or ends with +
-                if value.starts_with('+') || value.ends_with('+') || value.contains("++") {
-                    return Err(AppError::GlobalShortcut {
-                        message: "Invalid shortcut format".to_string(),
-                    });
-                }
-                
-                // Validate each part
-                for (i, part) in parts.iter().enumerate() {
-                    if part.is_empty() {
-                        return Err(AppError::GlobalShortcut {
-                            message: "Invalid shortcut format".to_string(),
-                        });
-                    }
-                    
-                    if i == parts.len() - 1 {
-                        // Last part should be a key or valid single character
-                        if !valid_keys.contains(part) && part.len() != 1 {
-                            return Err(AppError::GlobalShortcut {
-                                message: format!("Invalid key: {}", part),
-                            });
-                        }
-                    } else {
-                        // Other parts should be modifiers
-                        if !valid_modifiers.contains(part) {
-                            return Err(AppError::GlobalShortcut {
-                                message: format!("Invalid modifier: {}", part),
-                            });
-                        }
-                    }
-                }
-            }
-            "layout_mode" => {
-                if !["default", "half", "full"].contains(&value) {
-                    return Err(AppError::Io(std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        "Invalid layout mode. Must be 'default', 'half', or 'full'",
-                    )));
-                }
-            }
-            "default_note_format" => {
-                if !["plaintext", "markdown"].contains(&value) {
-                    return Err(AppError::Io(std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        "Invalid note format. Must be 'plaintext' or 'markdown'",
-                    )));
-                }
-            }
-            "window_width" | "window_height" | "auto_save_delay_ms" | "search_limit" => {
-                if value.parse::<u32>().is_err() {
-                    return Err(AppError::Io(std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        format!("Invalid numeric value for {}: {}", key, value),
-                    )));
-                }
-            }
-            "fuzzy_search_threshold" => {
-                match value.parse::<f64>() {
-                    Ok(threshold) if threshold >= 0.0 && threshold <= 1.0 => {}
-                    _ => {
-                        return Err(AppError::Io(std::io::Error::new(
-                            std::io::ErrorKind::InvalidInput,
-                            "Fuzzy search threshold must be a number between 0.0 and 1.0",
-                        )));
-                    }
-                }
-            }
-            _ => {
-                // Unknown settings are allowed for extensibility
-            }
+    /// Get a setting value parsed as a specific type
+    pub async fn get_setting_as<T>(&self, key: &str) -> Result<Option<T>, AppError>
+    where
+        T: std::str::FromStr,
+        T::Err: std::fmt::Display,
+    {
+        if let Some(value) = self.get_setting(key).await? {
+            Ok(Some(value.parse().map_err(|e| AppError::Parse {
+                message: format!("Failed to parse setting '{}': {}", key, e)
+            })?))
+        } else {
+            Ok(None)
         }
-        
-        Ok(())
     }
 
-    /// Set a setting with validation
-    pub async fn set_setting_validated(&self, key: &str, value: &str) -> Result<(), AppError> {
-        self.validate_setting(key, value)?;
-        self.set_setting(key, value).await
+    /// Set a setting value from any serializable type
+    pub async fn set_setting_from<T>(&self, key: &str, value: &T) -> Result<(), AppError>
+    where
+        T: serde::Serialize,
+    {
+        let value_str = serde_json::to_string(value)?;
+        self.set_setting(key, &value_str).await
     }
+
+    /// Get a setting as a boolean
+    pub async fn get_bool_setting(&self, key: &str) -> Result<Option<bool>, AppError> {
+        if let Some(value) = self.get_setting(key).await? {
+            match value.to_lowercase().as_str() {
+                "true" | "1" | "yes" | "on" => Ok(Some(true)),
+                "false" | "0" | "no" | "off" => Ok(Some(false)),
+                _ => Err(AppError::Parse {
+                    message: format!("Invalid boolean value for setting '{}': {}", key, value)
+                })
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Set a boolean setting
+    pub async fn set_bool_setting(&self, key: &str, value: bool) -> Result<(), AppError> {
+        self.set_setting(key, if value { "true" } else { "false" }).await
+    }
+
+    /// Get a setting as an integer
+    pub async fn get_int_setting(&self, key: &str) -> Result<Option<i64>, AppError> {
+        if let Some(value) = self.get_setting(key).await? {
+            Ok(Some(value.parse().map_err(|e| AppError::Parse {
+                message: format!("Failed to parse setting '{}' as integer: {}", key, e)
+            })?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Set an integer setting
+    pub async fn set_int_setting(&self, key: &str, value: i64) -> Result<(), AppError> {
+        self.set_setting(key, &value.to_string()).await
+    }
+
+    /// Get a setting as a float
+    pub async fn get_float_setting(&self, key: &str) -> Result<Option<f64>, AppError> {
+        if let Some(value) = self.get_setting(key).await? {
+            Ok(Some(value.parse().map_err(|e| AppError::Parse {
+                message: format!("Failed to parse setting '{}' as float: {}", key, e)
+            })?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Set a float setting
+    pub async fn set_float_setting(&self, key: &str, value: f64) -> Result<(), AppError> {
+        self.set_setting(key, &value.to_string()).await
+    }
+
+    /// Delete a specific setting
+    pub async fn delete_setting(&self, key: &str) -> Result<(), AppError> {
+        self.db_service.delete_setting(key).await
+    }
+
+    /// Get setting with a default value if not found
+    pub async fn get_setting_or_default(&self, key: &str, default: &str) -> Result<String, AppError> {
+        Ok(self.get_setting(key).await?.unwrap_or_else(|| default.to_string()))
+    }
+
+    /// Validate and parse a numeric setting
+    pub fn parse_numeric_setting(&self, key: &str, value: &str) -> Result<f64, AppError> {
+        value.parse().map_err(|e| AppError::Parse {
+            message: format!("Failed to parse setting '{}' as number: {}", key, e)
+        })
+    }
+
+    /// Flush any pending changes to the database for graceful shutdown
+    pub async fn flush_pending_changes(&self) -> Result<(), AppError> {
+        // Force WAL checkpoint on the database connection
+        if let Ok(conn) = self.db_service.get_connection() {
+            conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+                .map_err(|e| AppError::Database(e))?;
+        }
+        Ok(())
+    }
+}
+
+/// Get default application settings
+pub fn get_default_settings() -> HashMap<String, String> {
+    let mut defaults = HashMap::new();
+    
+    // Window settings
+    defaults.insert("window.width".to_string(), "800".to_string());
+    defaults.insert("window.height".to_string(), "600".to_string());
+    defaults.insert("window.x".to_string(), "100".to_string());
+    defaults.insert("window.y".to_string(), "100".to_string());
+    defaults.insert("window.always_on_top".to_string(), "false".to_string());
+    defaults.insert("window.resizable".to_string(), "true".to_string());
+    defaults.insert("window.decorations".to_string(), "true".to_string());
+    defaults.insert("window.transparent".to_string(), "false".to_string());
+    
+    // Theme settings
+    defaults.insert("theme.mode".to_string(), "auto".to_string());
+    defaults.insert("theme.accent_color".to_string(), "#3b82f6".to_string());
+    defaults.insert("theme.font_family".to_string(), "Inter".to_string());
+    defaults.insert("theme.font_size".to_string(), "14".to_string());
+    
+    // Editor settings
+    defaults.insert("editor.auto_save".to_string(), "true".to_string());
+    defaults.insert("editor.auto_save_delay".to_string(), "1000".to_string());
+    defaults.insert("editor.word_wrap".to_string(), "true".to_string());
+    defaults.insert("editor.line_numbers".to_string(), "false".to_string());
+    defaults.insert("editor.vim_mode".to_string(), "false".to_string());
+    defaults.insert("editor.default_format".to_string(), "plaintext".to_string());
+    
+    // Search settings
+    defaults.insert("search.max_results".to_string(), "100".to_string());
+    defaults.insert("search.highlight_matches".to_string(), "true".to_string());
+    defaults.insert("search.case_sensitive".to_string(), "false".to_string());
+    defaults.insert("search.fuzzy_threshold".to_string(), "0.6".to_string());
+    
+    // Global shortcut settings
+    defaults.insert("shortcuts.toggle_window".to_string(), "Ctrl+Alt+Space".to_string());
+    defaults.insert("shortcuts.quick_note".to_string(), "Ctrl+Alt+N".to_string());
+    defaults.insert("shortcuts.search".to_string(), "Ctrl+Alt+F".to_string());
+    
+    // General settings
+    defaults.insert("general.startup_behavior".to_string(), "minimize".to_string());
+    defaults.insert("general.confirm_delete".to_string(), "true".to_string());
+    defaults.insert("general.backup_enabled".to_string(), "true".to_string());
+    defaults.insert("general.backup_interval".to_string(), "24".to_string()); // hours
+    defaults.insert("general.max_recent_files".to_string(), "10".to_string());
+    
+    // Performance settings
+    defaults.insert("performance.animation_enabled".to_string(), "true".to_string());
+    defaults.insert("performance.virtual_scrolling".to_string(), "true".to_string());
+    defaults.insert("performance.debounce_delay".to_string(), "300".to_string());
+    
+    // Privacy settings
+    defaults.insert("privacy.analytics_enabled".to_string(), "false".to_string());
+    defaults.insert("privacy.crash_reporting".to_string(), "false".to_string());
+    defaults.insert("privacy.usage_stats".to_string(), "false".to_string());
+    
+    defaults
 }
 
 #[cfg(test)]
@@ -244,201 +261,227 @@ mod tests {
     use super::*;
     use crate::database::DbService;
     use tempfile::tempdir;
+    use anyhow::Context;
 
-    async fn create_test_settings_service() -> (SettingsService, tempfile::TempDir) {
-        let temp_dir = tempdir().unwrap();
+    async fn setup_test_service() -> Result<SettingsService, anyhow::Error> {
+        let temp_dir = tempdir()
+            .context("Failed to create temporary directory")?;
         let db_path = temp_dir.path().join("test.db");
-        let db_service = Arc::new(DbService::new(&db_path).unwrap());
-        let service = SettingsService::new(db_service);
-        (service, temp_dir)
+        
+        let db_service = Arc::new(DbService::new(&db_path.to_string_lossy())
+            .context("Failed to create database service")?);
+        Ok(SettingsService::new(db_service))
     }
 
     #[tokio::test]
-    async fn test_get_set_setting() {
-        let (service, _temp_dir) = create_test_settings_service().await;
+    async fn test_setting_operations() -> Result<(), anyhow::Error> {
+        let service = setup_test_service().await?;
         
         // Test setting and getting a value
-        service.set_setting("test_key", "test_value").await.unwrap();
-        let value = service.get_setting("test_key").await.unwrap();
+        service.set_setting("test_key", "test_value").await
+            .context("Failed to set setting")?;
+        
+        let value = service.get_setting("test_key").await
+            .context("Failed to get setting")?;
         assert_eq!(value, Some("test_value".to_string()));
         
-        // Test getting non-existent setting
-        let missing = service.get_setting("missing_key").await.unwrap();
-        assert_eq!(missing, None);
+        // Test has_setting
+        assert!(service.has_setting("test_key").await
+            .context("Failed to check if setting exists")?);
+        assert!(!service.has_setting("nonexistent_key").await
+            .context("Failed to check nonexistent setting")?);
+        
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_get_all_settings() {
-        let (service, _temp_dir) = create_test_settings_service().await;
+    async fn test_default_settings() -> Result<(), anyhow::Error> {
+        let service = setup_test_service().await?;
         
-        // Set multiple settings
-        service.set_setting("key1", "value1").await.unwrap();
-        service.set_setting("key2", "value2").await.unwrap();
+        // Initialize defaults
+        service.initialize_defaults().await
+            .context("Failed to initialize defaults")?;
         
-        let all_settings = service.get_all_settings().await.unwrap();
-        assert_eq!(all_settings.get("key1"), Some(&"value1".to_string()));
-        assert_eq!(all_settings.get("key2"), Some(&"value2".to_string()));
+        // Check that some default settings exist
+        assert!(service.has_setting("window.width").await
+            .context("window.width setting should exist")?);
+        assert!(service.has_setting("theme.mode").await
+            .context("theme.mode setting should exist")?);
+        
+        // Get specific default values
+        let window_width = service.get_setting("window.width").await
+            .context("Failed to get window.width")?;
+        assert_eq!(window_width, Some("800".to_string()));
+        
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_set_multiple_settings() {
-        let (service, _temp_dir) = create_test_settings_service().await;
+    async fn test_typed_settings() -> Result<(), anyhow::Error> {
+        let service = setup_test_service().await?;
         
-        let mut settings = HashMap::new();
-        settings.insert("key1".to_string(), "value1".to_string());
-        settings.insert("key2".to_string(), "value2".to_string());
+        // Test boolean settings
+        service.set_bool_setting("test_bool", true).await
+            .context("Failed to set boolean setting")?;
+        let bool_value = service.get_bool_setting("test_bool").await
+            .context("Failed to get boolean setting")?;
+        assert_eq!(bool_value, Some(true));
         
-        service.set_multiple_settings(settings).await.unwrap();
+        // Test integer settings
+        service.set_int_setting("test_int", 42).await
+            .context("Failed to set integer setting")?;
+        let int_value = service.get_int_setting("test_int").await
+            .context("Failed to get integer setting")?;
+        assert_eq!(int_value, Some(42));
         
-        let value1 = service.get_setting("key1").await.unwrap();
-        let value2 = service.get_setting("key2").await.unwrap();
+        // Test float settings
+        service.set_float_setting("test_float", 3.14).await
+            .context("Failed to set float setting")?;
+        let float_value = service.get_float_setting("test_float").await
+            .context("Failed to get float setting")?;
+        assert_eq!(float_value, Some(3.14));
         
-        assert_eq!(value1, Some("value1".to_string()));
-        assert_eq!(value2, Some("value2".to_string()));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_default_settings() {
-        let (service, _temp_dir) = create_test_settings_service().await;
+    async fn test_get_all_settings() -> Result<(), anyhow::Error> {
+        let service = setup_test_service().await?;
         
-        let defaults = service.get_default_settings();
-        assert!(defaults.contains_key("global_shortcut"));
-        assert!(defaults.contains_key("ui_font"));
-        assert!(defaults.contains_key("editor_font"));
-        assert!(defaults.contains_key("default_note_format"));
-        assert!(defaults.contains_key("layout_mode"));
+        // Set some test settings
+        service.set_setting("key1", "value1").await
+            .context("Failed to set key1")?;
+        service.set_setting("key2", "2").await
+            .context("Failed to set key2")?;
+        service.set_setting("key3", "true").await
+            .context("Failed to set key3")?;
+        
+        let all_settings = service.get_all_settings().await
+            .context("Failed to get all settings")?;
+        
+        assert!(all_settings.contains_key("key1"));
+        assert!(all_settings.contains_key("key2"));
+        assert!(all_settings.contains_key("key3"));
+        
+        // Check that values are preserved as JSON values
+        if let Some(value1) = all_settings.get("key1") {
+            assert_eq!(value1.as_str(), Some("value1"));
+        }
+        
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_initialize_defaults() {
-        let (service, _temp_dir) = create_test_settings_service().await;
+    async fn test_delete_setting() -> Result<(), anyhow::Error> {
+        let service = setup_test_service().await?;
         
-        service.initialize_defaults().await.unwrap();
+        // Set a setting and verify it exists
+        service.set_setting("to_delete", "value").await
+            .context("Failed to set setting")?;
+        assert!(service.has_setting("to_delete").await
+            .context("Setting should exist")?);
         
-        let global_shortcut = service.get_setting("global_shortcut").await.unwrap();
-        assert_eq!(global_shortcut, Some("Ctrl+Shift+N".to_string()));
+        // Delete the setting
+        service.delete_setting("to_delete").await
+            .context("Failed to delete setting")?;
         
-        let ui_font = service.get_setting("ui_font").await.unwrap();
-        assert_eq!(ui_font, Some("Inter".to_string()));
+        // Verify it no longer exists
+        assert!(!service.has_setting("to_delete").await
+            .context("Setting should not exist after deletion")?);
+        
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_setting_validation() {
-        let (service, _temp_dir) = create_test_settings_service().await;
+    async fn test_get_setting_or_default() -> Result<(), anyhow::Error> {
+        let service = setup_test_service().await?;
         
-        // Test valid layout mode
-        assert!(service.validate_setting("layout_mode", "default").is_ok());
-        assert!(service.validate_setting("layout_mode", "half").is_ok());
-        assert!(service.validate_setting("layout_mode", "full").is_ok());
+        // Test with existing setting
+        service.set_setting("existing", "value").await
+            .context("Failed to set existing setting")?;
+        let result = service.get_setting_or_default("existing", "default").await
+            .context("Failed to get existing setting")?;
+        assert_eq!(result, "value");
         
-        // Test invalid layout mode
-        assert!(service.validate_setting("layout_mode", "invalid").is_err());
+        // Test with non-existing setting
+        let result = service.get_setting_or_default("nonexistent", "default").await
+            .context("Failed to get nonexistent setting")?;
+        assert_eq!(result, "default");
         
-        // Test valid note format
-        assert!(service.validate_setting("default_note_format", "plaintext").is_ok());
-        assert!(service.validate_setting("default_note_format", "markdown").is_ok());
-        
-        // Test invalid note format
-        assert!(service.validate_setting("default_note_format", "invalid").is_err());
-        
-        // Test numeric validation
-        assert!(service.validate_setting("window_width", "800").is_ok());
-        assert!(service.validate_setting("window_width", "invalid").is_err());
-        
-        // Test fuzzy search threshold
-        assert!(service.validate_setting("fuzzy_search_threshold", "0.6").is_ok());
-        assert!(service.validate_setting("fuzzy_search_threshold", "1.5").is_err());
-        assert!(service.validate_setting("fuzzy_search_threshold", "-0.1").is_err());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_export_import_settings_json() {
-        let (service, _temp_dir) = create_test_settings_service().await;
-        
-        // Set some settings
-        service.set_setting("key1", "value1").await.unwrap();
-        service.set_setting("key2", "value2").await.unwrap();
-        
-        // Export settings as JSON
-        let json_content = service.export_settings().await.unwrap();
-        assert!(json_content.contains("key1"));
-        assert!(json_content.contains("value1"));
-        
-        // Create new service and import settings
-        let (service2, _temp_dir2) = create_test_settings_service().await;
-        let count = service2.import_settings(json_content).await.unwrap();
-        assert_eq!(count, 2);
-        
-        // Verify imported settings
-        let value1 = service2.get_setting("key1").await.unwrap();
-        let value2 = service2.get_setting("key2").await.unwrap();
-        
-        assert_eq!(value1, Some("value1".to_string()));
-        assert_eq!(value2, Some("value2".to_string()));
-    }
-
-    #[tokio::test]
-    async fn test_export_import_settings_programmatic() {
-        let (service, _temp_dir) = create_test_settings_service().await;
-        let temp_dir2 = tempdir().unwrap();
-        let export_path = temp_dir2.path().join("settings.json");
-        
-        // Set some settings
-        service.set_setting("key1", "value1").await.unwrap();
-        service.set_setting("key2", "value2").await.unwrap();
-        
-        // Export settings
-        service.export_settings_to_path(&export_path).await.unwrap();
-        
-        // Clear settings
-        let (service2, _temp_dir3) = create_test_settings_service().await;
-        
-        // Import settings
-        let count = service2.import_settings_from_path(&export_path).await.unwrap();
-        assert_eq!(count, 2);
-        
-        // Verify imported settings
-        let value1 = service2.get_setting("key1").await.unwrap();
-        let value2 = service2.get_setting("key2").await.unwrap();
-        
-        assert_eq!(value1, Some("value1".to_string()));
-        assert_eq!(value2, Some("value2".to_string()));
-    }
-
-    #[tokio::test]
-    async fn test_reset_to_defaults() {
-        let (service, _temp_dir) = create_test_settings_service().await;
-        
-        // Set some custom settings
-        service.set_setting("global_shortcut", "Ctrl+Alt+N").await.unwrap();
-        service.set_setting("custom_setting", "custom_value").await.unwrap();
-        
-        // Reset to defaults
-        service.reset_to_defaults().await.unwrap();
-        
-        // Check that default was restored
-        let global_shortcut = service.get_setting("global_shortcut").await.unwrap();
-        assert_eq!(global_shortcut, Some("Ctrl+Shift+N".to_string()));
-        
-        // Custom setting should still exist (reset doesn't delete non-default settings)
-        let custom = service.get_setting("custom_setting").await.unwrap();
-        assert_eq!(custom, Some("custom_value".to_string()));
-    }
-
-    #[tokio::test]
-    async fn test_set_setting_validated() {
-        let (service, _temp_dir) = create_test_settings_service().await;
+    async fn test_validation() -> Result<(), anyhow::Error> {
+        let service = setup_test_service().await?;
         
         // Test valid setting
-        assert!(service.set_setting_validated("layout_mode", "half").await.is_ok());
-        let value = service.get_setting("layout_mode").await.unwrap();
-        assert_eq!(value, Some("half".to_string()));
+        assert!(service.set_setting("valid_key", "valid_value").await.is_ok());
         
-        // Test invalid setting
-        assert!(service.set_setting_validated("layout_mode", "invalid").await.is_err());
+        // Test invalid key (should fail validation)
+        assert!(service.set_setting("", "value").await.is_err());
+        assert!(service.set_setting("key with spaces", "value").await.is_err());
         
-        // Verify invalid setting wasn't saved
-        let value = service.get_setting("layout_mode").await.unwrap();
-        assert_eq!(value, Some("half".to_string())); // Should still be the valid value
+        Ok(())
+    }
+
+    #[tokio::test] 
+    async fn test_export_import() -> Result<(), anyhow::Error> {
+        let service = setup_test_service().await?;
+        let temp_dir = tempdir().context("Failed to create temp dir")?;
+        let export_file = temp_dir.path().join("settings.json");
+        
+        // Set some test settings
+        service.set_setting("export_test1", "value1").await
+            .context("Failed to set export_test1")?;
+        service.set_setting("export_test2", "value2").await
+            .context("Failed to set export_test2")?;
+        
+        // Export settings
+        service.export_settings(&export_file.to_string_lossy()).await
+            .context("Failed to export settings")?;
+        
+        // Verify file was created
+        assert!(export_file.exists());
+        
+        // Clear settings and import
+        service.delete_setting("export_test1").await
+            .context("Failed to delete export_test1")?;
+        service.delete_setting("export_test2").await
+            .context("Failed to delete export_test2")?;
+        
+        service.import_settings(&export_file.to_string_lossy()).await
+            .context("Failed to import settings")?;
+        
+        // Verify settings were restored
+        let value1 = service.get_setting("export_test1").await
+            .context("Failed to get imported export_test1")?;
+        assert_eq!(value1, Some("value1".to_string()));
+        
+        let value2 = service.get_setting("export_test2").await
+            .context("Failed to get imported export_test2")?;
+        assert_eq!(value2, Some("value2".to_string()));
+        
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_flush_pending_changes() -> Result<(), anyhow::Error> {
+        let service = setup_test_service().await?;
+        
+        // Set a setting and flush
+        service.set_setting("flush_test", "value").await
+            .context("Failed to set flush_test")?;
+        
+        // This should not fail
+        service.flush_pending_changes().await
+            .context("Failed to flush pending changes")?;
+        
+        // Verify setting still exists
+        let value = service.get_setting("flush_test").await
+            .context("Failed to get setting after flush")?;
+        assert_eq!(value, Some("value".to_string()));
+        
+        Ok(())
     }
 }

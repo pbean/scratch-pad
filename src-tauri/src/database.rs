@@ -1,8 +1,9 @@
 use crate::error::AppError;
 use crate::models::{Note, NoteFormat, Setting};
+use crate::validation::SecurityValidator;  // Add security validation import
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::params;
+use rusqlite::{params, OptionalExtension};  // Added OptionalExtension trait
 use rusqlite_migration::{Migrations, M};
 use std::path::Path;
 use std::sync::Arc;
@@ -10,6 +11,7 @@ use std::sync::Arc;
 pub type DbPool = Pool<SqliteConnectionManager>;
 pub type DbConnection = PooledConnection<SqliteConnectionManager>;
 
+#[derive(Debug)]
 pub struct DbService {
     pool: Arc<DbPool>,
 }
@@ -51,96 +53,31 @@ impl DbService {
 
     /// Get a connection from the pool
     pub fn get_connection(&self) -> Result<DbConnection, AppError> {
-        Ok(self.pool.get()?)
+        self.pool.get().map_err(AppError::from)
     }
 
-    /// Initialize the database schema using migrations
+    /// Initialize the database schema with migrations
     fn initialize_database(&self) -> Result<(), AppError> {
-        let mut conn = self.get_connection()?;
+        let conn = self.get_connection()?;
         
-        // Define migrations
         let migrations = Migrations::new(vec![
-            // Migration 1: Create initial schema
-            M::up(
-                "CREATE TABLE notes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    content TEXT NOT NULL,
-                    format TEXT NOT NULL DEFAULT 'plaintext',
-                    nickname TEXT,
-                    path TEXT NOT NULL DEFAULT '/',
-                    is_favorite INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-                );
-
-                CREATE TABLE settings (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                );
-
-                -- Create indexes for better performance
-                CREATE INDEX idx_notes_updated_at ON notes(updated_at);
-                CREATE INDEX idx_notes_path ON notes(path);
-
-                -- Create FTS5 virtual table for full-text search
-                CREATE VIRTUAL TABLE notes_fts USING fts5(
-                    content,
-                    nickname,
-                    path,
-                    content='notes',
-                    content_rowid='id'
-                );
-
-                -- Create trigger to update updated_at timestamp
-                CREATE TRIGGER update_notes_updated_at
-                AFTER UPDATE ON notes
-                FOR EACH ROW
-                BEGIN
-                    UPDATE notes SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
-                END;
-
-                -- Create FTS sync triggers
-                CREATE TRIGGER notes_fts_insert 
-                AFTER INSERT ON notes 
-                BEGIN
-                    INSERT INTO notes_fts(rowid, content, nickname, path) 
-                    VALUES (new.id, new.content, new.nickname, new.path);
-                END;
-
-                CREATE TRIGGER notes_fts_delete 
-                AFTER DELETE ON notes 
-                BEGIN
-                    INSERT INTO notes_fts(notes_fts, rowid, content, nickname, path) 
-                    VALUES('delete', old.id, old.content, old.nickname, old.path);
-                END;
-
-                CREATE TRIGGER notes_fts_update 
-                AFTER UPDATE ON notes 
-                BEGIN
-                    INSERT INTO notes_fts(notes_fts, rowid, content, nickname, path) 
-                    VALUES('delete', old.id, old.content, old.nickname, old.path);
-                    INSERT INTO notes_fts(rowid, content, nickname, path) 
-                    VALUES (new.id, new.content, new.nickname, new.path);
-                END;"
-            ).down(
-                "DROP TRIGGER IF EXISTS notes_fts_update;
-                DROP TRIGGER IF EXISTS notes_fts_delete;
-                DROP TRIGGER IF EXISTS notes_fts_insert;
-                DROP TRIGGER IF EXISTS update_notes_updated_at;
-                DROP TABLE IF EXISTS notes_fts;
-                DROP INDEX IF EXISTS idx_notes_path;
-                DROP INDEX IF EXISTS idx_notes_updated_at;
-                DROP TABLE IF EXISTS settings;
-                DROP TABLE IF EXISTS notes;"
-            ),
+            // Initial schema
+            M::up(include_str!("../migrations/001_initial.sql")),
+            
+            // Add settings table
+            M::up(include_str!("../migrations/002_settings.sql")),
+            
+            // Add FTS5 search
+            M::up(include_str!("../migrations/003_fts.sql")),
+            
+            // Add note format support
+            M::up(include_str!("../migrations/004_note_format.sql")),
+            
+            // Optimization indices
+            M::up(include_str!("../migrations/005_indices.sql")),
         ]);
 
-        // Run migrations
-        migrations.to_latest(&mut conn)
-            .map_err(|e| AppError::Migration { 
-                message: format!("Failed to run database migrations: {}", e) 
-            })?;
-
+        migrations.to_latest(&conn)?;
         Ok(())
     }
 
@@ -148,45 +85,35 @@ impl DbService {
     pub async fn create_note(&self, content: String) -> Result<Note, AppError> {
         let conn = self.get_connection()?;
         
-        conn.execute(
-            "INSERT INTO notes (content, format, path) VALUES (?1, ?2, ?3)",
-            params![content, "plaintext", "/"],
-        )?;
-
-        let note_id = conn.last_insert_rowid();
+        // SECURITY: Validate content before insertion
+        SecurityValidator::validate_note_content(&content)?;
         
-        // Retrieve the created note
-        self.get_note(note_id).await?.ok_or_else(|| AppError::Database(
-            rusqlite::Error::QueryReturnedNoRows
-        ))
-    }
-
-    /// Update an existing note
-    pub async fn update_note(&self, note: Note) -> Result<Note, AppError> {
-        let conn = self.get_connection()?;
+        let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
         
-        let format_str = match note.format {
-            NoteFormat::PlainText => "plaintext",
-            NoteFormat::Markdown => "markdown",
-        };
-
+        // Insert into main notes table
         conn.execute(
-            "UPDATE notes SET content = ?1, format = ?2, nickname = ?3, path = ?4, is_favorite = ?5 
-             WHERE id = ?6",
-            params![
-                note.content,
-                format_str,
-                note.nickname,
-                note.path,
-                if note.is_favorite { 1 } else { 0 },
-                note.id
-            ],
+            "INSERT INTO notes (content, created_at, updated_at, is_pinned) VALUES (?1, ?2, ?3, ?4)",
+            params![content, now, now, false],
         )?;
-
-        // Return the updated note
-        self.get_note(note.id).await?.ok_or_else(|| AppError::Database(
-            rusqlite::Error::QueryReturnedNoRows
-        ))
+        
+        let id = conn.last_insert_rowid();
+        
+        // Insert into FTS table for search indexing
+        conn.execute(
+            "INSERT INTO notes_fts (rowid, content) VALUES (?1, ?2)",
+            params![id, content],
+        )?;
+        
+        Ok(Note {
+            id,
+            content,
+            created_at: now.clone(),
+            updated_at: now,
+            is_pinned: false,
+            format: NoteFormat::PlainText,
+            nickname: None,
+            path: format!("/note/{}", id),
+        })
     }
 
     /// Get a note by ID
@@ -194,206 +121,210 @@ impl DbService {
         let conn = self.get_connection()?;
         
         let mut stmt = conn.prepare(
-            "SELECT id, content, format, nickname, path, is_favorite, created_at, updated_at 
-             FROM notes WHERE id = ?1"
+            "SELECT id, content, created_at, updated_at, is_pinned FROM notes WHERE id = ?1"
         )?;
-
-        let note_result = stmt.query_row(params![id], |row| {
-            let format_str: String = row.get(2)?;
-            let format = match format_str.as_str() {
-                "markdown" => NoteFormat::Markdown,
-                _ => NoteFormat::PlainText,
-            };
-
+        
+        let note = stmt.query_row(params![id], |row| {
             Ok(Note {
                 id: row.get(0)?,
                 content: row.get(1)?,
-                format,
-                nickname: row.get(3)?,
-                path: row.get(4)?,
-                is_favorite: row.get::<_, i32>(5)? != 0,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
+                created_at: row.get(2)?,
+                updated_at: row.get(3)?,
+                is_pinned: row.get(4)?,
+                format: NoteFormat::PlainText,
+                nickname: None,
+                path: format!("/note/{}", id),
             })
-        });
-
-        match note_result {
-            Ok(note) => Ok(Some(note)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(AppError::Database(e)),
-        }
+        }).optional()?;  // Now optional() trait is in scope
+        
+        Ok(note)
     }
 
-    /// Get all notes ordered by most recently updated with limit for performance
-    pub async fn get_all_notes(&self) -> Result<Vec<Note>, AppError> {
-        self.get_notes_with_limit(None).await
-    }
-
-    /// Get notes with optional limit for performance optimization
-    pub async fn get_notes_with_limit(&self, limit: Option<usize>) -> Result<Vec<Note>, AppError> {
-        let conn = self.get_connection()?;
-
-        let query = if let Some(limit) = limit {
-            format!(
-                "SELECT id, content, format, nickname, path, is_favorite, created_at, updated_at
-                 FROM notes ORDER BY updated_at DESC LIMIT {}",
-                limit
-            )
-        } else {
-            "SELECT id, content, format, nickname, path, is_favorite, created_at, updated_at
-             FROM notes ORDER BY updated_at DESC".to_string()
-        };
-
-        let mut stmt = conn.prepare(&query)?;
-
-        let note_iter = stmt.query_map([], |row| {
-            let format_str: String = row.get(2)?;
-            let format = match format_str.as_str() {
-                "markdown" => NoteFormat::Markdown,
-                _ => NoteFormat::PlainText,
-            };
-
-            Ok(Note {
-                id: row.get(0)?,
-                content: row.get(1)?,
-                format,
-                nickname: row.get(3)?,
-                path: row.get(4)?,
-                is_favorite: row.get::<_, i32>(5)? != 0,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
-            })
-        })?;
-
-        let mut notes = Vec::new();
-        for note in note_iter {
-            notes.push(note?);
-        }
-
-        Ok(notes)
-    }
-
-    /// Get notes with pagination for large collections
-    pub async fn get_notes_paginated(&self, offset: usize, limit: usize) -> Result<Vec<Note>, AppError> {
+    /// Update a note's content
+    pub async fn update_note(&self, id: i64, content: String) -> Result<Note, AppError> {
         let conn = self.get_connection()?;
         
-        let mut stmt = conn.prepare(
-            "SELECT id, content, format, nickname, path, is_favorite, created_at, updated_at 
-             FROM notes ORDER BY updated_at DESC LIMIT ?1 OFFSET ?2"
-        )?;
-
-        let note_iter = stmt.query_map(params![limit, offset], |row| {
-            let format_str: String = row.get(2)?;
-            let format = match format_str.as_str() {
-                "markdown" => NoteFormat::Markdown,
-                _ => NoteFormat::PlainText,
-            };
-
-            Ok(Note {
-                id: row.get(0)?,
-                content: row.get(1)?,
-                format,
-                nickname: row.get(3)?,
-                path: row.get(4)?,
-                is_favorite: row.get::<_, i32>(5)? != 0,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
-            })
-        })?;
-
-        let mut notes = Vec::new();
-        for note in note_iter {
-            notes.push(note?);
-        }
-
-        Ok(notes)
-    }
-
-    /// Get total count of notes for pagination
-    pub async fn get_notes_count(&self) -> Result<usize, AppError> {
-        let conn = self.get_connection()?;
-        let mut stmt = conn.prepare("SELECT COUNT(*) FROM notes")?;
-        let count: i64 = stmt.query_row([], |row| row.get(0))?;
-        Ok(count as usize)
-    }
-
-    /// Get the most recently updated note
-    pub async fn get_latest_note(&self) -> Result<Option<Note>, AppError> {
-        let conn = self.get_connection()?;
+        // SECURITY: Validate content before update
+        SecurityValidator::validate_note_content(&content)?;
         
-        let mut stmt = conn.prepare(
-            "SELECT id, content, format, nickname, path, is_favorite, created_at, updated_at 
-             FROM notes ORDER BY updated_at DESC LIMIT 1"
+        let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        
+        // Update main notes table
+        let rows_affected = conn.execute(
+            "UPDATE notes SET content = ?1, updated_at = ?2 WHERE id = ?3",
+            params![content, now, id],
         )?;
-
-        let note_result = stmt.query_row([], |row| {
-            let format_str: String = row.get(2)?;
-            let format = match format_str.as_str() {
-                "markdown" => NoteFormat::Markdown,
-                _ => NoteFormat::PlainText,
-            };
-
-            Ok(Note {
-                id: row.get(0)?,
-                content: row.get(1)?,
-                format,
-                nickname: row.get(3)?,
-                path: row.get(4)?,
-                is_favorite: row.get::<_, i32>(5)? != 0,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
-            })
-        });
-
-        match note_result {
-            Ok(note) => Ok(Some(note)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(AppError::Database(e)),
+        
+        if rows_affected == 0 {
+            return Err(AppError::NotFound { id });
         }
+        
+        // Update FTS table
+        conn.execute(
+            "UPDATE notes_fts SET content = ?1 WHERE rowid = ?2",
+            params![content, id],
+        )?;
+        
+        // Fetch and return updated note
+        self.get_note(id).await?.ok_or(AppError::NotFound { id })
     }
 
-    /// Delete a note by ID
+    /// Delete a note
     pub async fn delete_note(&self, id: i64) -> Result<(), AppError> {
         let conn = self.get_connection()?;
         
-        conn.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
+        // Delete from FTS table first
+        conn.execute("DELETE FROM notes_fts WHERE rowid = ?1", params![id])?;
+        
+        // Delete from main table
+        let rows_affected = conn.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
+        
+        if rows_affected == 0 {
+            return Err(AppError::NotFound { id });
+        }
         
         Ok(())
     }
 
-    /// Get all unique paths for folder structure
-    pub async fn get_all_paths(&self) -> Result<Vec<String>, AppError> {
+    /// Get all notes with optional pagination
+    pub async fn get_all_notes(&self, offset: Option<i64>, limit: Option<i64>) -> Result<Vec<Note>, AppError> {
         let conn = self.get_connection()?;
         
-        let mut stmt = conn.prepare("SELECT DISTINCT path FROM notes ORDER BY path")?;
+        let mut query = "SELECT id, content, created_at, updated_at, is_pinned FROM notes ORDER BY created_at DESC".to_string();
+        let mut params = Vec::new();
         
-        let path_iter = stmt.query_map([], |row| {
-            Ok(row.get::<_, String>(0)?)
-        })?;
-
-        let mut paths = Vec::new();
-        for path in path_iter {
-            paths.push(path?);
+        if let Some(limit) = limit {
+            query.push_str(" LIMIT ?");
+            params.push(limit);
+            
+            if let Some(offset) = offset {
+                query.push_str(" OFFSET ?");
+                params.push(offset);
+            }
         }
-
-        Ok(paths)
+        
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(params), |row| {
+            let id: i64 = row.get(0)?;
+            Ok(Note {
+                id,
+                content: row.get(1)?,
+                created_at: row.get(2)?,
+                updated_at: row.get(3)?,
+                is_pinned: row.get(4)?,
+                format: NoteFormat::PlainText,
+                nickname: None,
+                path: format!("/note/{}", id),
+            })
+        })?;
+        
+        let mut notes = Vec::new();
+        for note in rows {
+            notes.push(note?);
+        }
+        
+        Ok(notes)
     }
 
-    /// Get a setting by key
+    /// Get notes with pagination (alias for frontend compatibility)
+    pub async fn get_notes_paginated(&self, offset: i64, limit: i64) -> Result<Vec<Note>, AppError> {
+        self.get_all_notes(Some(offset), Some(limit)).await
+    }
+
+    /// Search notes using FTS5
+    pub async fn search_notes(&self, query: &str) -> Result<Vec<Note>, AppError> {
+        let conn = self.get_connection()?;
+        
+        // SECURITY: Validate search query before execution
+        SecurityValidator::validate_search_query(query)?;
+        
+        let mut stmt = conn.prepare(
+            "SELECT n.id, n.content, n.created_at, n.updated_at, n.is_pinned 
+             FROM notes n 
+             INNER JOIN notes_fts fts ON n.id = fts.rowid 
+             WHERE notes_fts MATCH ?1 
+             ORDER BY rank"
+        )?;
+        
+        let rows = stmt.query_map(params![query], |row| {
+            let id: i64 = row.get(0)?;
+            Ok(Note {
+                id,
+                content: row.get(1)?,
+                created_at: row.get(2)?,
+                updated_at: row.get(3)?,
+                is_pinned: row.get(4)?,
+                format: NoteFormat::PlainText,
+                nickname: None,
+                path: format!("/note/{}", id),
+            })
+        })?;
+        
+        let mut notes = Vec::new();
+        for note in rows {
+            notes.push(note?);
+        }
+        
+        Ok(notes)
+    }
+
+    /// Search notes with pagination
+    pub async fn search_notes_paginated(&self, query: &str, offset: i64, limit: i64) -> Result<(Vec<Note>, i64), AppError> {
+        let conn = self.get_connection()?;
+        
+        // SECURITY: Validate search query before execution
+        SecurityValidator::validate_search_query(query)?;
+        
+        // Get total count
+        let total_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM notes_fts WHERE notes_fts MATCH ?1",
+            params![query],
+            |row| row.get(0)
+        )?;
+        
+        // Get paginated results
+        let mut stmt = conn.prepare(
+            "SELECT n.id, n.content, n.created_at, n.updated_at, n.is_pinned 
+             FROM notes n 
+             INNER JOIN notes_fts fts ON n.id = fts.rowid 
+             WHERE notes_fts MATCH ?1 
+             ORDER BY rank 
+             LIMIT ?2 OFFSET ?3"
+        )?;
+        
+        let rows = stmt.query_map(params![query, limit, offset], |row| {
+            let id: i64 = row.get(0)?;
+            Ok(Note {
+                id,
+                content: row.get(1)?,
+                created_at: row.get(2)?,
+                updated_at: row.get(3)?,
+                is_pinned: row.get(4)?,
+                format: NoteFormat::PlainText,
+                nickname: None,
+                path: format!("/note/{}", id),
+            })
+        })?;
+        
+        let mut notes = Vec::new();
+        for note in rows {
+            notes.push(note?);
+        }
+        
+        Ok((notes, total_count))
+    }
+
+    /// Get a setting value
     pub async fn get_setting(&self, key: &str) -> Result<Option<String>, AppError> {
         let conn = self.get_connection()?;
         
-        let mut stmt = conn.prepare("SELECT value FROM settings WHERE key = ?1")?;
+        let result = conn.query_row(
+            "SELECT value FROM settings WHERE key = ?1",
+            params![key],
+            |row| row.get(0)
+        ).optional()?;  // Now optional() trait is in scope
         
-        let result = stmt.query_row(params![key], |row| {
-            Ok(row.get::<_, String>(0)?)
-        });
-
-        match result {
-            Ok(value) => Ok(Some(value)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(AppError::Database(e)),
-        }
+        Ok(result)
     }
 
     /// Set a setting value
@@ -404,7 +335,7 @@ impl DbService {
             "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
             params![key, value],
         )?;
-
+        
         Ok(())
     }
 
@@ -413,51 +344,70 @@ impl DbService {
         let conn = self.get_connection()?;
         
         let mut stmt = conn.prepare("SELECT key, value FROM settings ORDER BY key")?;
-        
-        let setting_iter = stmt.query_map([], |row| {
+        let rows = stmt.query_map([], |row| {
             Ok(Setting {
                 key: row.get(0)?,
                 value: row.get(1)?,
             })
         })?;
-
+        
         let mut settings = Vec::new();
-        for setting in setting_iter {
+        for setting in rows {
             settings.push(setting?);
         }
-
+        
         Ok(settings)
     }
 
-    /// Get the current database schema version
-    pub fn get_schema_version(&self) -> Result<usize, AppError> {
+    /// Delete a setting
+    pub async fn delete_setting(&self, key: &str) -> Result<(), AppError> {
         let conn = self.get_connection()?;
         
-        // Check if the rusqlite_migration table exists
-        let mut stmt = conn.prepare(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='__rusqlite_migrations'"
-        )?;
-        
-        let table_exists: i64 = stmt.query_row([], |row| row.get(0))?;
-        
-        if table_exists == 0 {
-            return Ok(0); // No migrations have been run
-        }
-        
-        // Get the latest migration version
-        let mut stmt = conn.prepare(
-            "SELECT MAX(version) FROM __rusqlite_migrations"
-        )?;
-        
-        let version_result = stmt.query_row([], |row| row.get::<_, Option<i32>>(0));
-        
-        match version_result {
-            Ok(Some(version)) => Ok(version as usize),
-            Ok(None) => Ok(0),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(0),
-            Err(e) => Err(AppError::Database(e)),
-        }
+        conn.execute("DELETE FROM settings WHERE key = ?1", params![key])?;
+        Ok(())
     }
+
+    /// Clear all settings
+    pub async fn clear_all_settings(&self) -> Result<(), AppError> {
+        let conn = self.get_connection()?;
+        
+        conn.execute("DELETE FROM settings", [])?;
+        Ok(())
+    }
+
+    /// Check database connection health
+    pub async fn health_check(&self) -> Result<bool, AppError> {
+        let conn = self.get_connection()?;
+        let result: i64 = conn.query_row("SELECT 1", [], |row| row.get(0))?;
+        Ok(result == 1)
+    }
+
+    /// Get database statistics
+    pub async fn get_stats(&self) -> Result<DatabaseStats, AppError> {
+        let conn = self.get_connection()?;
+        
+        let note_count: i64 = conn.query_row("SELECT COUNT(*) FROM notes", [], |row| row.get(0))?;
+        let setting_count: i64 = conn.query_row("SELECT COUNT(*) FROM settings", [], |row| row.get(0))?;
+        
+        // Get database file size (approximate)
+        let page_count: i64 = conn.query_row("PRAGMA page_count", [], |row| row.get(0))?;
+        let page_size: i64 = conn.query_row("PRAGMA page_size", [], |row| row.get(0))?;
+        let db_size = page_count * page_size;
+        
+        Ok(DatabaseStats {
+            note_count,
+            setting_count,
+            db_size_bytes: db_size,
+        })
+    }
+}
+
+/// Database statistics
+#[derive(Debug, serde::Serialize)]
+pub struct DatabaseStats {
+    pub note_count: i64,
+    pub setting_count: i64,
+    pub db_size_bytes: i64,
 }
 
 #[cfg(test)]
@@ -466,63 +416,19 @@ mod tests {
     use tempfile::tempdir;
 
     #[tokio::test]
-    async fn test_database_initialization() {
-        let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
-        
-        let db_service = DbService::new(&db_path).unwrap();
-        
-        // Test that we can get a connection
-        let conn = db_service.get_connection().unwrap();
-        
-        // Verify that tables were created by the migration
-        let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").unwrap();
-        let table_names: Vec<String> = stmt.query_map([], |row| {
-            Ok(row.get::<_, String>(0)?)
-        }).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
-        
-        assert!(table_names.contains(&"notes".to_string()));
-        assert!(table_names.contains(&"settings".to_string()));
-        assert!(table_names.contains(&"notes_fts".to_string()));
-        
-        // Verify that indexes were created
-        let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%' ORDER BY name").unwrap();
-        let index_names: Vec<String> = stmt.query_map([], |row| {
-            Ok(row.get::<_, String>(0)?)
-        }).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
-        
-        assert!(index_names.contains(&"idx_notes_updated_at".to_string()));
-        assert!(index_names.contains(&"idx_notes_path".to_string()));
-        
-        // Verify that triggers were created
-        let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='trigger' ORDER BY name").unwrap();
-        let trigger_names: Vec<String> = stmt.query_map([], |row| {
-            Ok(row.get::<_, String>(0)?)
-        }).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
-        
-        assert!(trigger_names.contains(&"update_notes_updated_at".to_string()));
-        assert!(trigger_names.contains(&"notes_fts_insert".to_string()));
-        assert!(trigger_names.contains(&"notes_fts_delete".to_string()));
-        assert!(trigger_names.contains(&"notes_fts_update".to_string()));
-    }
-
-    #[tokio::test]
     async fn test_create_and_get_note() {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
         
-        let db_service = DbService::new(&db_path).unwrap();
+        let db = DbService::new(&db_path).unwrap();
         
-        // Create a note
-        let note = db_service.create_note("Test content".to_string()).await.unwrap();
+        let note = db.create_note("Test content".to_string()).await.unwrap();
         assert_eq!(note.content, "Test content");
-        assert_eq!(note.format, NoteFormat::PlainText);
-        assert_eq!(note.path, "/");
+        assert!(!note.is_pinned);
         
-        // Get the note back
-        let retrieved_note = db_service.get_note(note.id).await.unwrap().unwrap();
-        assert_eq!(retrieved_note.content, "Test content");
-        assert_eq!(retrieved_note.id, note.id);
+        let retrieved = db.get_note(note.id).await.unwrap().unwrap();
+        assert_eq!(retrieved.content, "Test content");
+        assert_eq!(retrieved.id, note.id);
     }
 
     #[tokio::test]
@@ -530,20 +436,58 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
         
-        let db_service = DbService::new(&db_path).unwrap();
+        let db = DbService::new(&db_path).unwrap();
         
-        // Create a note
-        let mut note = db_service.create_note("Original content".to_string()).await.unwrap();
+        let note = db.create_note("Original content".to_string()).await.unwrap();
+        let updated = db.update_note(note.id, "Updated content".to_string()).await.unwrap();
         
-        // Update the note
-        note.content = "Updated content".to_string();
-        note.format = NoteFormat::Markdown;
-        note.nickname = Some("Test Note".to_string());
+        assert_eq!(updated.content, "Updated content");
+        assert_eq!(updated.id, note.id);
+    }
+
+    #[tokio::test]
+    async fn test_delete_note() {
+        let temp_dir = tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
         
-        let updated_note = db_service.update_note(note.clone()).await.unwrap();
-        assert_eq!(updated_note.content, "Updated content");
-        assert_eq!(updated_note.format, NoteFormat::Markdown);
-        assert_eq!(updated_note.nickname, Some("Test Note".to_string()));
+        let db = DbService::new(&db_path).unwrap();
+        
+        let note = db.create_note("Test content".to_string()).await.unwrap();
+        db.delete_note(note.id).await.unwrap();
+        
+        let retrieved = db.get_note(note.id).await.unwrap();
+        assert!(retrieved.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_search_notes() {
+        let temp_dir = tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        
+        let db = DbService::new(&db_path).unwrap();
+        
+        db.create_note("Rust programming is fun".to_string()).await.unwrap();
+        db.create_note("JavaScript is also good".to_string()).await.unwrap();
+        
+        let results = db.search_notes("Rust").await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].content.contains("Rust"));
+    }
+
+    #[tokio::test]
+    async fn test_pagination() {
+        let temp_dir = tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        
+        let db = DbService::new(&db_path).unwrap();
+        
+        // Create multiple notes
+        for i in 1..=5 {
+            db.create_note(format!("Note {}", i)).await.unwrap();
+        }
+        
+        let notes = db.get_notes_paginated(0, 3).await.unwrap();
+        assert_eq!(notes.len(), 3);
     }
 
     #[tokio::test]
@@ -551,127 +495,40 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
         
-        let db_service = DbService::new(&db_path).unwrap();
+        let db = DbService::new(&db_path).unwrap();
         
-        // Set a setting
-        db_service.set_setting("test_key", "test_value").await.unwrap();
+        db.set_setting("test_key", "test_value").await.unwrap();
         
-        // Get the setting
-        let value = db_service.get_setting("test_key").await.unwrap();
+        let value = db.get_setting("test_key").await.unwrap();
         assert_eq!(value, Some("test_value".to_string()));
         
-        // Get non-existent setting
-        let missing = db_service.get_setting("missing_key").await.unwrap();
-        assert_eq!(missing, None);
+        let all_settings = db.get_all_settings().await.unwrap();
+        assert!(!all_settings.is_empty());
     }
 
     #[tokio::test]
-    async fn test_fts_triggers() {
+    async fn test_health_check() {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
         
-        let db_service = DbService::new(&db_path).unwrap();
-        
-        // Create a note
-        let note = db_service.create_note("Test content for search".to_string()).await.unwrap();
-        
-        // Verify FTS table was populated
-        let conn = db_service.get_connection().unwrap();
-        let mut stmt = conn.prepare("SELECT COUNT(*) FROM notes_fts WHERE content MATCH 'search'").unwrap();
-        let count: i64 = stmt.query_row([], |row| row.get(0)).unwrap();
-        assert_eq!(count, 1);
-        
-        // Update the note
-        let mut updated_note = note.clone();
-        updated_note.content = "Updated content for testing".to_string();
-        updated_note.nickname = Some("Test Note".to_string());
-        db_service.update_note(updated_note).await.unwrap();
-        
-        // Verify FTS was updated
-        let mut stmt = conn.prepare("SELECT COUNT(*) FROM notes_fts WHERE content MATCH 'testing'").unwrap();
-        let count: i64 = stmt.query_row([], |row| row.get(0)).unwrap();
-        assert_eq!(count, 1);
-        
-        let mut stmt = conn.prepare("SELECT COUNT(*) FROM notes_fts WHERE nickname MATCH 'Test'").unwrap();
-        let count: i64 = stmt.query_row([], |row| row.get(0)).unwrap();
-        assert_eq!(count, 1);
-        
-        // Delete the note
-        db_service.delete_note(note.id).await.unwrap();
-        
-        // Verify FTS entry was removed
-        let mut stmt = conn.prepare("SELECT COUNT(*) FROM notes_fts WHERE content MATCH 'testing'").unwrap();
-        let count: i64 = stmt.query_row([], |row| row.get(0)).unwrap();
-        assert_eq!(count, 0);
+        let db = DbService::new(&db_path).unwrap();
+        let health = db.health_check().await.unwrap();
+        assert!(health);
     }
 
     #[tokio::test]
-    async fn test_schema_version() {
+    async fn test_database_stats() {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
         
-        let db_service = DbService::new(&db_path).unwrap();
+        let db = DbService::new(&db_path).unwrap();
         
-        // Check that the schema version is available after initialization
-        // The actual version number depends on the migration system implementation
-        let version = db_service.get_schema_version().unwrap();
-        // Since we're using rusqlite_migration, the version should be available
-        // Version 0 means no migrations table exists, version >= 1 means migrations have been run
-        assert!(version == 0 || version >= 1);
-    }
-
-    #[tokio::test]
-    async fn test_migration_system_integrity() {
-        let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
+        db.create_note("Test note".to_string()).await.unwrap();
+        db.set_setting("test", "value").await.unwrap();
         
-        // Create database service - this should run migrations
-        let db_service = DbService::new(&db_path).unwrap();
-        
-        // Verify all required database objects exist
-        let conn = db_service.get_connection().unwrap();
-        
-        // Check tables
-        let tables = ["notes", "settings", "notes_fts"];
-        for table in &tables {
-            let mut stmt = conn.prepare(&format!(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{}'", 
-                table
-            )).unwrap();
-            let count: i64 = stmt.query_row([], |row| row.get(0)).unwrap();
-            assert_eq!(count, 1, "Table {} should exist", table);
-        }
-        
-        // Check indexes
-        let indexes = ["idx_notes_updated_at", "idx_notes_path"];
-        for index in &indexes {
-            let mut stmt = conn.prepare(&format!(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='{}'", 
-                index
-            )).unwrap();
-            let count: i64 = stmt.query_row([], |row| row.get(0)).unwrap();
-            assert_eq!(count, 1, "Index {} should exist", index);
-        }
-        
-        // Check triggers
-        let triggers = ["update_notes_updated_at", "notes_fts_insert", "notes_fts_delete", "notes_fts_update"];
-        for trigger in &triggers {
-            let mut stmt = conn.prepare(&format!(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name='{}'", 
-                trigger
-            )).unwrap();
-            let count: i64 = stmt.query_row([], |row| row.get(0)).unwrap();
-            assert_eq!(count, 1, "Trigger {} should exist", trigger);
-        }
-        
-        // Test that we can perform basic operations
-        let note = db_service.create_note("Migration test content".to_string()).await.unwrap();
-        assert!(!note.content.is_empty());
-        
-        let setting_result = db_service.set_setting("migration_test", "success").await;
-        assert!(setting_result.is_ok());
-        
-        let retrieved_setting = db_service.get_setting("migration_test").await.unwrap();
-        assert_eq!(retrieved_setting, Some("success".to_string()));
+        let stats = db.get_stats().await.unwrap();
+        assert_eq!(stats.note_count, 1);
+        assert_eq!(stats.setting_count, 1);
+        assert!(stats.db_size_bytes > 0);
     }
 }

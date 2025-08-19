@@ -21,6 +21,22 @@ impl GlobalShortcutService {
         }
     }
 
+    /// Create a new GlobalShortcutService for testing (no-op implementation)
+    #[cfg(test)]
+    pub fn new_test(settings_service: Arc<SettingsService>) -> Self {
+        // Create a mock app handle for testing
+        // This will have limited functionality but allows tests to compile
+        use tauri::test::{mock_app, MockRuntime};
+        let app = mock_app();
+        let app_handle = app.handle();
+        
+        Self {
+            app_handle,
+            settings_service,
+            current_shortcut: Arc::new(Mutex::new(None)),
+        }
+    }
+
     /// Initialize the global shortcut service with the current setting
     pub async fn initialize(&self) -> Result<(), AppError> {
         // Get the current global shortcut setting
@@ -137,7 +153,7 @@ impl GlobalShortcutService {
 
         // Update the setting
         self.settings_service
-            .set_setting_validated("global_shortcut", new_shortcut)
+            .set_setting("global_shortcut", new_shortcut)
             .await?;
 
         Ok(())

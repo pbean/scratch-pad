@@ -46,6 +46,23 @@ impl WindowManager {
         }
     }
 
+    /// Create a new WindowManager for testing (no-op implementation)
+    #[cfg(test)]
+    pub fn new_test(settings_service: Arc<SettingsService>) -> Self {
+        // Create a mock app handle for testing
+        // This will have limited functionality but allows tests to compile
+        use tauri::test::{mock_app, MockRuntime};
+        let app = mock_app();
+        let app_handle = app.handle();
+        
+        Self {
+            app_handle,
+            settings_service,
+            current_layout: Arc::new(Mutex::new(LayoutMode::Default)),
+            previous_app_focused: Arc::new(Mutex::new(false)),
+        }
+    }
+
     /// Initialize the window manager with saved settings
     pub async fn initialize(&self) -> Result<(), AppError> {
         // Load the saved layout mode
@@ -126,7 +143,7 @@ impl WindowManager {
 
         // Save to settings
         self.settings_service
-            .set_setting_validated("layout_mode", &mode.to_string())
+            .set_setting("layout_mode", &mode.to_string())
             .await?;
 
         // Apply the layout if window is visible

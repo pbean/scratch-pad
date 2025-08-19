@@ -25,6 +25,39 @@ pub enum AppError {
     
     #[error("Migration error: {message}")]
     Migration { message: String },
+    
+    #[error("Validation error in field '{field}': {message}")]
+    Validation { field: String, message: String },
+    
+    #[error("Security error: {message}")]
+    Security { message: String },
+    
+    #[error("Rate limit exceeded: {message}")]
+    RateLimit { message: String },
+    
+    #[error("Runtime initialization error: {message}")]
+    Runtime { message: String },
+    
+    #[error("Thread operation failed: {message}")]
+    Thread { message: String },
+    
+    #[error("Parse error: {message}")]
+    Parse { message: String },
+    
+    #[error("Path operation failed: {message}")]
+    Path { message: String },
+    
+    #[error("Directory operation failed: {message}")]
+    Directory { message: String },
+    
+    #[error("Temporary file operation failed: {message}")]
+    TempFile { message: String },
+    
+    #[error("Shutdown error: {message}")]
+    Shutdown { message: String },
+    
+    #[error("Not found: record with id {id}")]
+    NotFound { id: i64 },  // Added NotFound variant for database operations
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -68,6 +101,50 @@ impl From<AppError> for ApiError {
                 code: "MIGRATION_ERROR".to_string(),
                 message,
             },
+            AppError::Validation { field, message } => ApiError {
+                code: "VALIDATION_ERROR".to_string(),
+                message: format!("Validation failed for '{}': {}", field, message),
+            },
+            AppError::Security { message } => ApiError {
+                code: "SECURITY_ERROR".to_string(),
+                message,
+            },
+            AppError::RateLimit { message } => ApiError {
+                code: "RATE_LIMIT_ERROR".to_string(),
+                message,
+            },
+            AppError::Runtime { message } => ApiError {
+                code: "RUNTIME_ERROR".to_string(),
+                message,
+            },
+            AppError::Thread { message } => ApiError {
+                code: "THREAD_ERROR".to_string(),
+                message,
+            },
+            AppError::Parse { message } => ApiError {
+                code: "PARSE_ERROR".to_string(),
+                message,
+            },
+            AppError::Path { message } => ApiError {
+                code: "PATH_ERROR".to_string(),
+                message,
+            },
+            AppError::Directory { message } => ApiError {
+                code: "DIRECTORY_ERROR".to_string(),
+                message,
+            },
+            AppError::TempFile { message } => ApiError {
+                code: "TEMP_FILE_ERROR".to_string(),
+                message,
+            },
+            AppError::Shutdown { message } => ApiError {
+                code: "SHUTDOWN_ERROR".to_string(),
+                message,
+            },
+            AppError::NotFound { id } => ApiError {
+                code: "NOT_FOUND_ERROR".to_string(),
+                message: format!("Record with id {} not found", id),
+            },
         }
     }
 }
@@ -107,6 +184,60 @@ mod tests {
             message: "migration failed".to_string(),
         };
         assert_eq!(migration_error.to_string(), "Migration error: migration failed");
+        
+        let validation_error = AppError::Validation {
+            field: "email".to_string(),
+            message: "invalid format".to_string(),
+        };
+        assert_eq!(validation_error.to_string(), "Validation error in field 'email': invalid format");
+        
+        let security_error = AppError::Security {
+            message: "unauthorized access".to_string(),
+        };
+        assert_eq!(security_error.to_string(), "Security error: unauthorized access");
+        
+        let rate_limit_error = AppError::RateLimit {
+            message: "too many requests".to_string(),
+        };
+        assert_eq!(rate_limit_error.to_string(), "Rate limit exceeded: too many requests");
+
+        let runtime_error = AppError::Runtime {
+            message: "failed to initialize tokio runtime".to_string(),
+        };
+        assert_eq!(runtime_error.to_string(), "Runtime initialization error: failed to initialize tokio runtime");
+        
+        let thread_error = AppError::Thread {
+            message: "thread join failed".to_string(),
+        };
+        assert_eq!(thread_error.to_string(), "Thread operation failed: thread join failed");
+        
+        let parse_error = AppError::Parse {
+            message: "invalid configuration format".to_string(),
+        };
+        assert_eq!(parse_error.to_string(), "Parse error: invalid configuration format");
+        
+        let path_error = AppError::Path {
+            message: "invalid path format".to_string(),
+        };
+        assert_eq!(path_error.to_string(), "Path operation failed: invalid path format");
+        
+        let directory_error = AppError::Directory {
+            message: "failed to create directory".to_string(),
+        };
+        assert_eq!(directory_error.to_string(), "Directory operation failed: failed to create directory");
+        
+        let temp_file_error = AppError::TempFile {
+            message: "failed to create temporary directory".to_string(),
+        };
+        assert_eq!(temp_file_error.to_string(), "Temporary file operation failed: failed to create temporary directory");
+        
+        let shutdown_error = AppError::Shutdown {
+            message: "graceful shutdown failed".to_string(),
+        };
+        assert_eq!(shutdown_error.to_string(), "Shutdown error: graceful shutdown failed");
+
+        let not_found_error = AppError::NotFound { id: 42 };
+        assert_eq!(not_found_error.to_string(), "Not found: record with id 42");
     }
 
     #[test]
@@ -127,7 +258,7 @@ mod tests {
         assert!(api_error.message.contains("file not found"));
 
         // Test Serialization error conversion
-        let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+        let json_error = serde_json::from_str::<serde_json::Value>("invalid json").expect_err("Should be an error");
         let serialization_error = AppError::Serialization(json_error);
         let api_error: ApiError = serialization_error.into();
         assert_eq!(api_error.code, "SERIALIZATION_ERROR");
@@ -163,6 +294,94 @@ mod tests {
         let api_error: ApiError = migration_error.into();
         assert_eq!(api_error.code, "MIGRATION_ERROR");
         assert_eq!(api_error.message, "migration failed");
+        
+        // Test Validation error conversion
+        let validation_error = AppError::Validation {
+            field: "password".to_string(),
+            message: "too short".to_string(),
+        };
+        let api_error: ApiError = validation_error.into();
+        assert_eq!(api_error.code, "VALIDATION_ERROR");
+        assert!(api_error.message.contains("password"));
+        assert!(api_error.message.contains("too short"));
+        
+        // Test Security error conversion
+        let security_error = AppError::Security {
+            message: "access denied".to_string(),
+        };
+        let api_error: ApiError = security_error.into();
+        assert_eq!(api_error.code, "SECURITY_ERROR");
+        assert_eq!(api_error.message, "access denied");
+        
+        // Test RateLimit error conversion
+        let rate_limit_error = AppError::RateLimit {
+            message: "quota exceeded".to_string(),
+        };
+        let api_error: ApiError = rate_limit_error.into();
+        assert_eq!(api_error.code, "RATE_LIMIT_ERROR");
+        assert_eq!(api_error.message, "quota exceeded");
+
+        // Test Runtime error conversion
+        let runtime_error = AppError::Runtime {
+            message: "tokio initialization failed".to_string(),
+        };
+        let api_error: ApiError = runtime_error.into();
+        assert_eq!(api_error.code, "RUNTIME_ERROR");
+        assert_eq!(api_error.message, "tokio initialization failed");
+
+        // Test Thread error conversion
+        let thread_error = AppError::Thread {
+            message: "thread panic".to_string(),
+        };
+        let api_error: ApiError = thread_error.into();
+        assert_eq!(api_error.code, "THREAD_ERROR");
+        assert_eq!(api_error.message, "thread panic");
+
+        // Test Parse error conversion
+        let parse_error = AppError::Parse {
+            message: "malformed config".to_string(),
+        };
+        let api_error: ApiError = parse_error.into();
+        assert_eq!(api_error.code, "PARSE_ERROR");
+        assert_eq!(api_error.message, "malformed config");
+
+        // Test Path error conversion
+        let path_error = AppError::Path {
+            message: "path not found".to_string(),
+        };
+        let api_error: ApiError = path_error.into();
+        assert_eq!(api_error.code, "PATH_ERROR");
+        assert_eq!(api_error.message, "path not found");
+
+        // Test Directory error conversion
+        let directory_error = AppError::Directory {
+            message: "mkdir failed".to_string(),
+        };
+        let api_error: ApiError = directory_error.into();
+        assert_eq!(api_error.code, "DIRECTORY_ERROR");
+        assert_eq!(api_error.message, "mkdir failed");
+
+        // Test TempFile error conversion
+        let temp_file_error = AppError::TempFile {
+            message: "tempdir creation failed".to_string(),
+        };
+        let api_error: ApiError = temp_file_error.into();
+        assert_eq!(api_error.code, "TEMP_FILE_ERROR");
+        assert_eq!(api_error.message, "tempdir creation failed");
+
+        // Test Shutdown error conversion
+        let shutdown_error = AppError::Shutdown {
+            message: "shutdown timeout".to_string(),
+        };
+        let api_error: ApiError = shutdown_error.into();
+        assert_eq!(api_error.code, "SHUTDOWN_ERROR");
+        assert_eq!(api_error.message, "shutdown timeout");
+
+        // Test NotFound error conversion
+        let not_found_error = AppError::NotFound { id: 123 };
+        let api_error: ApiError = not_found_error.into();
+        assert_eq!(api_error.code, "NOT_FOUND_ERROR");
+        assert_eq!(api_error.message, "Record with id 123 not found");
     }
 
     #[test]
@@ -173,12 +392,12 @@ mod tests {
         };
 
         // Test that ApiError can be serialized
-        let json = serde_json::to_string(&api_error).unwrap();
+        let json = serde_json::to_string(&api_error).expect("Failed to serialize");
         assert!(json.contains("TEST_ERROR"));
         assert!(json.contains("test message"));
 
         // Test that it can be deserialized
-        let deserialized: ApiError = serde_json::from_str(&json).unwrap();
+        let deserialized: ApiError = serde_json::from_str(&json).expect("Failed to deserialize");
         assert_eq!(deserialized.code, "TEST_ERROR");
         assert_eq!(deserialized.message, "test message");
     }
@@ -202,5 +421,15 @@ mod tests {
         let debug_str = format!("{:?}", error);
         assert!(debug_str.contains("TEST_CODE"));
         assert!(debug_str.contains("test message"));
+    }
+
+    #[test]
+    fn test_not_found_error() {
+        let error = AppError::NotFound { id: 42 };
+        assert_eq!(error.to_string(), "Not found: record with id 42");
+        
+        let api_error: ApiError = error.into();
+        assert_eq!(api_error.code, "NOT_FOUND_ERROR");
+        assert_eq!(api_error.message, "Record with id 42 not found");
     }
 }

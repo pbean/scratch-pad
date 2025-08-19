@@ -18,7 +18,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["test"] }
 tauri-plugin-opener = "2"
 tauri-plugin-global-shortcut = "2"
 serde = { version = "1", features = ["derive"] }
@@ -29,10 +29,15 @@ r2d2 = "0.8"
 r2d2_sqlite = "0.25"
 tokio = { version = "1", features = ["full"] }
 thiserror = "1.0"
+anyhow = "1.0"
 fuzzy-matcher = "0.3"
 clap = { version = "4.0", features = ["derive"] }
 ctrlc = "3.4"
 chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4"] }
+# Security validation dependencies
+regex = "1.10"
+dirs = "5.0"
 
 [dev-dependencies]
 tempfile = "3.8"
@@ -53,4 +58,3 @@ strip = true
 
 [profile.dev]
 opt-level = 1 # Some optimization for faster dev builds
-

@@ -1,8 +1,9 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use scratch_pad_lib::cli::{parse_cli_args, handle_cli_args, check_single_instance, cleanup_lock_file, try_send_to_existing_instance};
+use scratch_pad_lib::cli::{parse_cli_args, handle_cli_args, create_lock_file, cleanup_lock_file};
 use scratch_pad_lib::database::DbService;
+use scratch_pad_lib::error::AppError;
 use std::process;
 
 fn main() {
@@ -11,13 +12,16 @@ fn main() {
     
     // If we have content to create a note, handle it in CLI mode
     if cli_args.content.is_some() {
-        handle_cli_mode(cli_args);
+        if let Err(e) = handle_cli_mode(cli_args) {
+            eprintln!("Error: {}", e);
+            process::exit(1);
+        }
         return;
     }
     
     // For GUI mode, check single instance
-    if !check_single_instance() {
-        eprintln!("Another instance of scratch-pad is already running.");
+    if let Err(e) = create_lock_file() {
+        eprintln!("Another instance of scratch-pad is already running: {}", e);
         process::exit(1);
     }
     
@@ -31,36 +35,26 @@ fn main() {
     scratch_pad_lib::run()
 }
 
-fn handle_cli_mode(cli_args: scratch_pad_lib::cli::CliArgs) {
-    tokio::runtime::Runtime::new().unwrap().block_on(async {
-        if let Some(content) = &cli_args.content {
-            // First, try to send to existing instance if one is running
-            if !check_single_instance() {
-                // Another instance is running, try to send the content to it
-                if let Ok(()) = try_send_to_existing_instance(content).await {
-                    return; // Successfully sent to existing instance
-                }
-                // If sending failed, fall back to direct database access
-                eprintln!("Warning: Could not communicate with existing instance, creating note directly...");
-            }
+fn handle_cli_mode(cli_args: scratch_pad_lib::cli::CliArgs) -> Result<(), AppError> {
+    let runtime = tokio::runtime::Runtime::new()
+        .map_err(|e| AppError::Runtime { 
+            message: format!("Failed to create tokio runtime: {}", e) 
+        })?;
+    
+    runtime.block_on(async {
+        if let Some(_content) = &cli_args.content {
+            // For CLI mode, we bypass the lock check and create notes directly
+            // This allows CLI to work even when GUI is running
             
             // Initialize database service for direct access
-            let db_service = match DbService::new("scratch_pad.db") {
-                Ok(service) => service,
-                Err(e) => {
-                    eprintln!("Error: Failed to initialize database: {}", e);
-                    process::exit(1);
-                }
-            };
+            let db_service = DbService::new("scratch_pad.db")?;
             
             // Handle the CLI arguments
-            if let Err(e) = handle_cli_args(&cli_args, &db_service).await {
-                eprintln!("Error: Failed to create note: {}", e);
-                process::exit(1);
-            }
+            handle_cli_args(&cli_args, &db_service).await?;
             
             // Clean up lock file if we created one
             cleanup_lock_file();
         }
-    });
+        Ok(())
+    })
 }
