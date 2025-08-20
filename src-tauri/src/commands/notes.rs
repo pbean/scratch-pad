@@ -254,19 +254,9 @@ mod tests {
         AppState {
             db: db_service,
             search: search_service,
-            settings: settings_service,
-            global_shortcut: Arc::new(
-                GlobalShortcutService::new(
-                    tauri::AppHandle::from_raw(std::ptr::null_mut()), // Mock handle
-                    settings_service.clone()
-                )
-            ),
-            window_manager: Arc::new(
-                WindowManager::new(
-                    tauri::AppHandle::from_raw(std::ptr::null_mut()), // Mock handle
-                    settings_service.clone()
-                )
-            ),
+            settings: settings_service.clone(),
+            global_shortcut: Arc::new(GlobalShortcutService::new_test(settings_service.clone())),
+            window_manager: Arc::new(WindowManager::new_test(settings_service.clone())),
             plugin_manager: Arc::new(tokio::sync::Mutex::new(PluginManager::new())),
             security_validator,
             shutdown_manager: Arc::new(ShutdownManager::new()),

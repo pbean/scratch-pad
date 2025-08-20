@@ -63,6 +63,83 @@ pub enum AppError {
     NotFound { id: i64 },  // Added NotFound variant for database operations
 }
 
+impl AppError {
+    /// Create a copy of this error for mock usage, preserving error information as strings
+    /// This is primarily for testing scenarios where error cloning is needed
+    pub fn mock_clone(&self) -> Self {
+        match self {
+            Self::Database(e) => Self::Database(rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_MISUSE),
+                Some(format!("Mock database error: {}", e))
+            )),
+            Self::Io(e) => Self::Io(std::io::Error::new(
+                e.kind(),
+                format!("Mock IO error: {}", e)
+            )),
+            Self::Serialization(_) => Self::Serialization(
+                serde_json::from_str::<()>("invalid").unwrap_err()
+            ),
+            Self::Pool(e) => {
+                // Convert pool error to IO error for mock purposes
+                let io_error = std::io::Error::new(
+                    std::io::ErrorKind::ConnectionRefused,
+                    format!("Mock pool error: {}", e)
+                );
+                Self::Io(io_error)
+            },
+            Self::MigrationError(_) => Self::Migration {
+                message: "Mock migration error".to_string()
+            },
+            Self::GlobalShortcut { message } => Self::GlobalShortcut { 
+                message: message.clone() 
+            },
+            Self::Plugin { message } => Self::Plugin { 
+                message: message.clone() 
+            },
+            Self::Search { message } => Self::Search { 
+                message: message.clone() 
+            },
+            Self::Migration { message } => Self::Migration { 
+                message: message.clone() 
+            },
+            Self::Validation { field, message } => Self::Validation { 
+                field: field.clone(), 
+                message: message.clone() 
+            },
+            Self::Security { message } => Self::Security { 
+                message: message.clone() 
+            },
+            Self::RateLimit { message } => Self::RateLimit { 
+                message: message.clone() 
+            },
+            Self::Runtime { message } => Self::Runtime { 
+                message: message.clone() 
+            },
+            Self::Thread { message } => Self::Thread { 
+                message: message.clone() 
+            },
+            Self::Parse { message } => Self::Parse { 
+                message: message.clone() 
+            },
+            Self::Path { message } => Self::Path { 
+                message: message.clone() 
+            },
+            Self::Directory { message } => Self::Directory { 
+                message: message.clone() 
+            },
+            Self::TempFile { message } => Self::TempFile { 
+                message: message.clone() 
+            },
+            Self::Shutdown { message } => Self::Shutdown { 
+                message: message.clone() 
+            },
+            Self::NotFound { id } => Self::NotFound { 
+                id: *id 
+            },
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApiError {
     pub code: String,
@@ -245,6 +322,32 @@ mod tests {
 
         let not_found_error = AppError::NotFound { id: 42 };
         assert_eq!(not_found_error.to_string(), "Not found: record with id 42");
+    }
+
+    #[test]
+    fn test_mock_clone() {
+        // Test that mock_clone preserves error information as strings
+        let original_error = AppError::GlobalShortcut {
+            message: "shortcut conflict".to_string(),
+        };
+        let cloned_error = original_error.mock_clone();
+        
+        match (original_error, cloned_error) {
+            (AppError::GlobalShortcut { message: orig }, AppError::GlobalShortcut { message: cloned }) => {
+                assert_eq!(orig, cloned);
+            },
+            _ => panic!("mock_clone should preserve error variant"),
+        }
+
+        // Test NotFound variant
+        let not_found = AppError::NotFound { id: 123 };
+        let cloned_not_found = not_found.mock_clone();
+        match (not_found, cloned_not_found) {
+            (AppError::NotFound { id: orig }, AppError::NotFound { id: cloned }) => {
+                assert_eq!(orig, cloned);
+            },
+            _ => panic!("mock_clone should preserve NotFound variant"),
+        }
     }
 
     #[test]

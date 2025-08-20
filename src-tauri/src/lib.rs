@@ -25,6 +25,11 @@ pub mod shutdown;
 pub mod validation;
 pub mod window_manager;
 pub mod cli;
+pub mod traits; // Add traits module
+
+// Add testing module for comprehensive service testing framework
+#[cfg(test)]
+pub mod testing;
 
 #[derive(Clone)]
 pub struct AppState {

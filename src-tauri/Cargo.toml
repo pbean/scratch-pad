@@ -38,6 +38,8 @@ uuid = { version = "1.0", features = ["v4"] }
 # Security validation dependencies
 regex = "1.10"
 dirs = "5.0"
+# Trait-based service architecture
+async-trait = "0.1"
 
 [dev-dependencies]
 tempfile = "3.8"

@@ -1087,7 +1087,7 @@ mod tests {
             .context("Failed to create temporary directory")?;
         let db_path = temp_dir.path().join("test.db");
         
-        let db_service = Arc::new(DbService::new(&db_path.to_string_lossy())
+        let db_service = Arc::new(DbService::new(&*db_path.to_string_lossy())
             .context("Failed to create database service")?);
         let search_service = SearchService::new(db_service.clone());
         
@@ -1099,14 +1099,14 @@ mod tests {
             .context("Failed to create test note 2")?;
         note2.nickname = Some("JS Tips".to_string());
         note2.path = "/programming/javascript".to_string();
-        search_service.db_service.update_note(note2).await
+        search_service.db_service.update_note(note2.id, note2.content).await
             .context("Failed to update test note 2")?;
         
         let mut note3 = search_service.db_service.create_note("Database design patterns".to_string()).await
             .context("Failed to create test note 3")?;
         note3.path = "/database/design".to_string();
         note3.is_pinned = true;
-        search_service.db_service.update_note(note3).await
+        search_service.db_service.update_note(note3.id, note3.content).await
             .context("Failed to update test note 3")?;
         
         // Create a note that will help test Boolean search
