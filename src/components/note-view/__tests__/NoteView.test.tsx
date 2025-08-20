@@ -50,16 +50,18 @@ describe('NoteView', () => {
     vi.useFakeTimers()
     
     // Reset store state
-    useScratchPadStore.setState({
-      notes: [mockNote],
-      activeNoteId: 1,
-      getActiveNote: () => mockNote,
-      saveNote: vi.fn(),
-      setActiveNote: vi.fn(),
-      setCommandPaletteOpen: vi.fn(),
-      createNote: vi.fn(),
-      deleteNote: vi.fn(),
-      setCurrentView: vi.fn()
+    act(() => {
+      useScratchPadStore.setState({
+        notes: [mockNote],
+        activeNoteId: 1,
+        getActiveNote: () => mockNote,
+        saveNote: vi.fn(),
+        setActiveNote: vi.fn(),
+        setCommandPaletteOpen: vi.fn(),
+        createNote: vi.fn(),
+        deleteNote: vi.fn(),
+        setCurrentView: vi.fn()
+      })
     })
     
     mockInvoke.mockClear()
@@ -80,7 +82,10 @@ describe('NoteView', () => {
 
   it('should render tab bar when multiple notes exist', async () => {
     const note2 = { ...mockNote, id: 2, content: 'Second note' }
-    useScratchPadStore.setState({ notes: [mockNote, note2] })
+    
+    act(() => {
+      useScratchPadStore.setState({ notes: [mockNote, note2] })
+    })
     
     render(<NoteView />)
     
@@ -88,7 +93,9 @@ describe('NoteView', () => {
   })
 
   it('should not render tab bar when only one note exists', async () => {
-    useScratchPadStore.setState({ notes: [mockNote] })
+    act(() => {
+      useScratchPadStore.setState({ notes: [mockNote] })
+    })
     
     render(<NoteView />)
     
@@ -118,14 +125,19 @@ describe('NoteView', () => {
     const textarea = screen.getByRole('textbox')
     
     // Use fireEvent for more reliable testing
-    fireEvent.change(textarea, { target: { value: 'New content' } })
+    act(() => {
+      fireEvent.change(textarea, { target: { value: 'New content' } })
+    })
     
     expect(textarea).toHaveValue('New content')
   })
 
   it('should auto-save after 2 seconds of inactivity', async () => {
     const mockSaveNote = vi.fn().mockResolvedValue(undefined)
-    useScratchPadStore.setState({ saveNote: mockSaveNote })
+    
+    act(() => {
+      useScratchPadStore.setState({ saveNote: mockSaveNote })
+    })
     
     render(<NoteView />)
     
@@ -148,7 +160,10 @@ describe('NoteView', () => {
 
   it('should not auto-save if content unchanged', async () => {
     const mockSaveNote = vi.fn()
-    useScratchPadStore.setState({ saveNote: mockSaveNote })
+    
+    act(() => {
+      useScratchPadStore.setState({ saveNote: mockSaveNote })
+    })
     
     render(<NoteView />)
     
@@ -162,47 +177,70 @@ describe('NoteView', () => {
 
   it('should handle Ctrl+P to open command palette', async () => {
     const mockSetCommandPaletteOpen = vi.fn()
-    useScratchPadStore.setState({ setCommandPaletteOpen: mockSetCommandPaletteOpen })
+    
+    act(() => {
+      useScratchPadStore.setState({ setCommandPaletteOpen: mockSetCommandPaletteOpen })
+    })
     
     render(<NoteView />)
     
-    fireEvent.keyDown(document, { key: 'p', ctrlKey: true })
+    act(() => {
+      fireEvent.keyDown(document, { key: 'p', ctrlKey: true })
+    })
     
     expect(mockSetCommandPaletteOpen).toHaveBeenCalledWith(true)
   })
 
   it('should handle Ctrl+Shift+F to open search view', async () => {
     const mockSetCurrentView = vi.fn()
-    useScratchPadStore.setState({ setCurrentView: mockSetCurrentView })
+    
+    act(() => {
+      useScratchPadStore.setState({ setCurrentView: mockSetCurrentView })
+    })
     
     render(<NoteView />)
     
-    fireEvent.keyDown(document, { key: 'F', ctrlKey: true, shiftKey: true })
+    act(() => {
+      fireEvent.keyDown(document, { key: 'F', ctrlKey: true, shiftKey: true })
+    })
     
     expect(mockSetCurrentView).toHaveBeenCalledWith('search-history')
   })
 
   it('should handle Ctrl+N to create new note', async () => {
     const mockCreateNote = vi.fn()
-    useScratchPadStore.setState({ createNote: mockCreateNote })
+    
+    act(() => {
+      useScratchPadStore.setState({ createNote: mockCreateNote })
+    })
     
     render(<NoteView />)
     
-    fireEvent.keyDown(document, { key: 'n', ctrlKey: true })
+    act(() => {
+      fireEvent.keyDown(document, { key: 'n', ctrlKey: true })
+    })
     
     expect(mockCreateNote).toHaveBeenCalled()
   })
 
   it('should handle Ctrl+S to manually save', async () => {
     const mockSaveNote = vi.fn()
-    useScratchPadStore.setState({ saveNote: mockSaveNote })
+    
+    act(() => {
+      useScratchPadStore.setState({ saveNote: mockSaveNote })
+    })
     
     render(<NoteView />)
     
     const textarea = screen.getByRole('textbox')
-    fireEvent.change(textarea, { target: { value: 'Content to save' } })
     
-    fireEvent.keyDown(document, { key: 's', ctrlKey: true })
+    act(() => {
+      fireEvent.change(textarea, { target: { value: 'Content to save' } })
+    })
+    
+    act(() => {
+      fireEvent.keyDown(document, { key: 's', ctrlKey: true })
+    })
     
     expect(mockSaveNote).toHaveBeenCalledWith('Content to save')
   })
@@ -211,15 +249,19 @@ describe('NoteView', () => {
     const mockDeleteNote = vi.fn()
     const note2 = { ...mockNote, id: 2 }
     
-    useScratchPadStore.setState({
-      notes: [mockNote, note2],
-      activeNoteId: 1,
-      deleteNote: mockDeleteNote
+    act(() => {
+      useScratchPadStore.setState({
+        notes: [mockNote, note2],
+        activeNoteId: 1,
+        deleteNote: mockDeleteNote
+      })
     })
     
     render(<NoteView />)
     
-    fireEvent.keyDown(document, { key: 'w', ctrlKey: true })
+    act(() => {
+      fireEvent.keyDown(document, { key: 'w', ctrlKey: true })
+    })
     
     expect(mockDeleteNote).toHaveBeenCalledWith(1)
   })
@@ -227,14 +269,18 @@ describe('NoteView', () => {
   it('should not close tab with Ctrl+W when only one note exists', async () => {
     const mockDeleteNote = vi.fn()
     
-    useScratchPadStore.setState({
-      notes: [mockNote],
-      deleteNote: mockDeleteNote
+    act(() => {
+      useScratchPadStore.setState({
+        notes: [mockNote],
+        deleteNote: mockDeleteNote
+      })
     })
     
     render(<NoteView />)
     
-    fireEvent.keyDown(document, { key: 'w', ctrlKey: true })
+    act(() => {
+      fireEvent.keyDown(document, { key: 'w', ctrlKey: true })
+    })
     
     expect(mockDeleteNote).not.toHaveBeenCalled()
   })
@@ -244,15 +290,19 @@ describe('NoteView', () => {
     const note2 = { ...mockNote, id: 2 }
     const note3 = { ...mockNote, id: 3 }
     
-    useScratchPadStore.setState({
-      notes: [mockNote, note2, note3],
-      activeNoteId: 1,
-      setActiveNote: mockSetActiveNote
+    act(() => {
+      useScratchPadStore.setState({
+        notes: [mockNote, note2, note3],
+        activeNoteId: 1,
+        setActiveNote: mockSetActiveNote
+      })
     })
     
     render(<NoteView />)
     
-    fireEvent.keyDown(document, { key: 'Tab', ctrlKey: true })
+    act(() => {
+      fireEvent.keyDown(document, { key: 'Tab', ctrlKey: true })
+    })
     
     expect(mockSetActiveNote).toHaveBeenCalledWith(2) // Next tab
   })
@@ -262,15 +312,19 @@ describe('NoteView', () => {
     const note2 = { ...mockNote, id: 2 }
     const note3 = { ...mockNote, id: 3 }
     
-    useScratchPadStore.setState({
-      notes: [mockNote, note2, note3],
-      activeNoteId: 2, // Start from middle
-      setActiveNote: mockSetActiveNote
+    act(() => {
+      useScratchPadStore.setState({
+        notes: [mockNote, note2, note3],
+        activeNoteId: 2, // Start from middle
+        setActiveNote: mockSetActiveNote
+      })
     })
     
     render(<NoteView />)
     
-    fireEvent.keyDown(document, { key: 'Tab', ctrlKey: true, shiftKey: true })
+    act(() => {
+      fireEvent.keyDown(document, { key: 'Tab', ctrlKey: true, shiftKey: true })
+    })
     
     expect(mockSetActiveNote).toHaveBeenCalledWith(1) // Previous tab
   })
@@ -280,41 +334,56 @@ describe('NoteView', () => {
     const note2 = { ...mockNote, id: 2 }
     const note3 = { ...mockNote, id: 3 }
     
-    useScratchPadStore.setState({
-      notes: [mockNote, note2, note3],
-      setActiveNote: mockSetActiveNote
+    act(() => {
+      useScratchPadStore.setState({
+        notes: [mockNote, note2, note3],
+        setActiveNote: mockSetActiveNote
+      })
     })
     
     render(<NoteView />)
     
-    fireEvent.keyDown(document, { key: '2', ctrlKey: true })
+    act(() => {
+      fireEvent.keyDown(document, { key: '2', ctrlKey: true })
+    })
     
     expect(mockSetActiveNote).toHaveBeenCalledWith(2) // Second tab (index 1)
   })
 
-  it('should handle layout mode shortcuts', () => {
+  it('should handle layout mode shortcuts', async () => {
     mockInvoke.mockResolvedValue(undefined)
     
     render(<NoteView />)
     
+    // Clear call count from beforeEach
+    mockInvoke.mockClear()
+    
     // Test Ctrl+Alt+1 for default layout
-    fireEvent.keyDown(document, { key: '1', ctrlKey: true, altKey: true })
-    expect(mockInvoke).toHaveBeenCalledWith('set_layout_mode', { mode: 'default' })
+    await act(async () => {
+      fireEvent.keyDown(document, { key: '1', ctrlKey: true, altKey: true })
+    })
+    expect(mockInvoke).toHaveBeenNthCalledWith(1, 'set_layout_mode', { mode: 'default' })
     
     // Test Ctrl+Alt+2 for half layout
-    fireEvent.keyDown(document, { key: '2', ctrlKey: true, altKey: true })
-    expect(mockInvoke).toHaveBeenCalledWith('set_layout_mode', { mode: 'half' })
+    await act(async () => {
+      fireEvent.keyDown(document, { key: '2', ctrlKey: true, altKey: true })
+    })
+    expect(mockInvoke).toHaveBeenNthCalledWith(2, 'set_layout_mode', { mode: 'half' })
     
     // Test Ctrl+Alt+3 for full layout
-    fireEvent.keyDown(document, { key: '3', ctrlKey: true, altKey: true })
-    expect(mockInvoke).toHaveBeenCalledWith('set_layout_mode', { mode: 'full' })
+    await act(async () => {
+      fireEvent.keyDown(document, { key: '3', ctrlKey: true, altKey: true })
+    })
+    expect(mockInvoke).toHaveBeenNthCalledWith(3, 'set_layout_mode', { mode: 'full' })
   })
 
   it('should display placeholder when no note is selected', async () => {
-    useScratchPadStore.setState({
-      notes: [],
-      activeNoteId: null,
-      getActiveNote: () => undefined
+    act(() => {
+      useScratchPadStore.setState({
+        notes: [],
+        activeNoteId: null,
+        getActiveNote: () => undefined
+      })
     })
     
     render(<NoteView />)
@@ -329,9 +398,11 @@ describe('NoteView', () => {
     const { rerender } = render(<NoteView />)
     
     // Change active note
-    useScratchPadStore.setState({
-      activeNoteId: 2,
-      getActiveNote: () => note2
+    act(() => {
+      useScratchPadStore.setState({
+        activeNoteId: 2,
+        getActiveNote: () => note2
+      })
     })
     
     rerender(<NoteView />)
@@ -342,12 +413,18 @@ describe('NoteView', () => {
 
   it('should show auto-saving status', async () => {
     const mockSaveNote = vi.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)))
-    useScratchPadStore.setState({ saveNote: mockSaveNote })
+    
+    act(() => {
+      useScratchPadStore.setState({ saveNote: mockSaveNote })
+    })
     
     render(<NoteView />)
     
     const textarea = screen.getByRole('textbox')
-    fireEvent.change(textarea, { target: { value: 'New content' } })
+    
+    act(() => {
+      fireEvent.change(textarea, { target: { value: 'New content' } })
+    })
     
     // Trigger auto-save
     act(() => {
@@ -362,7 +439,9 @@ describe('NoteView', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockSaveNote = vi.fn().mockRejectedValue(new Error('Save failed'))
     
-    useScratchPadStore.setState({ saveNote: mockSaveNote })
+    act(() => {
+      useScratchPadStore.setState({ saveNote: mockSaveNote })
+    })
     
     render(<NoteView />)
     
@@ -389,7 +468,10 @@ describe('NoteView', () => {
     render(<NoteView />)
     
     const textarea = screen.getByRole('textbox')
-    fireEvent.change(textarea, { target: { value: 'One two three four five' } })
+    
+    act(() => {
+      fireEvent.change(textarea, { target: { value: 'One two three four five' } })
+    })
     
     expect(screen.getByTestId('word-count')).toHaveTextContent('5')
   })
@@ -398,7 +480,10 @@ describe('NoteView', () => {
     render(<NoteView />)
     
     const textarea = screen.getByRole('textbox')
-    fireEvent.change(textarea, { target: { value: '' } })
+    
+    act(() => {
+      fireEvent.change(textarea, { target: { value: '' } })
+    })
     
     expect(screen.getByTestId('word-count')).toHaveTextContent('0')
   })
@@ -411,8 +496,11 @@ describe('NoteView', () => {
 
   it('should use first line as title when no nickname', async () => {
     const noteWithoutNickname = { ...mockNote, nickname: undefined }
-    useScratchPadStore.setState({
-      getActiveNote: () => noteWithoutNickname
+    
+    act(() => {
+      useScratchPadStore.setState({
+        getActiveNote: () => noteWithoutNickname
+      })
     })
     
     render(<NoteView />)
@@ -422,8 +510,11 @@ describe('NoteView', () => {
 
   it('should show "Untitled" when no content and no nickname', async () => {
     const emptyNote = { ...mockNote, content: '', nickname: undefined }
-    useScratchPadStore.setState({
-      getActiveNote: () => emptyNote
+    
+    act(() => {
+      useScratchPadStore.setState({
+        getActiveNote: () => emptyNote
+      })
     })
     
     render(<NoteView />)

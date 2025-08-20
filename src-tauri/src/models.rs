@@ -9,7 +9,8 @@ pub struct Note {
     pub format: NoteFormat,
     pub nickname: Option<String>,
     pub path: String,
-    pub is_pinned: bool,  // Changed from is_favorite to match database schema
+    #[serde(alias = "is_pinned")] // Allow both names for backward compatibility
+    pub is_favorite: bool,  // Changed back to is_favorite to match integration tests
     pub created_at: String,
     pub updated_at: String,
 }
@@ -58,7 +59,7 @@ mod tests {
             format: NoteFormat::PlainText,
             nickname: Some("Test Note".to_string()),
             path: "/test".to_string(),
-            is_pinned: true,  // Updated field name
+            is_favorite: true,  // Updated to match integration tests
             created_at: "2024-01-01T00:00:00Z".to_string(),
             updated_at: "2024-01-01T00:00:00Z".to_string(),
         };
@@ -78,7 +79,7 @@ mod tests {
         assert_eq!(deserialized.format, NoteFormat::PlainText);
         assert_eq!(deserialized.nickname, Some("Test Note".to_string()));
         assert_eq!(deserialized.path, "/test");
-        assert!(deserialized.is_pinned);  // Updated field name
+        assert!(deserialized.is_favorite);  // Updated field name
         
         Ok(())
     }
@@ -153,7 +154,7 @@ mod tests {
             format: NoteFormat::PlainText,
             nickname: Some("Test Note".to_string()),
             path: "/test".to_string(),
-            is_pinned: true,  // Updated field name
+            is_favorite: true,  // Updated field name
             created_at: "2024-01-01T00:00:00Z".to_string(),
             updated_at: "2024-01-01T00:00:00Z".to_string(),
         };
@@ -170,7 +171,7 @@ mod tests {
             format: NoteFormat::PlainText,
             nickname: Some("Test Note".to_string()),
             path: "/test".to_string(),
-            is_pinned: true,  // Updated field name
+            is_favorite: true,  // Updated field name
             created_at: "2024-01-01T00:00:00Z".to_string(),
             updated_at: "2024-01-01T00:00:00Z".to_string(),
         };

@@ -157,7 +157,7 @@ mod note_command_tests {
         
         // Update note
         let new_content = "Updated note content".to_string();
-        let update_result = env.db_service.update_note(note.id, new_content.clone()).await;
+        let update_result = env.db_service.update_note_content(note.id, new_content.clone()).await;
         assert!(update_result.is_ok());
         
         let updated_note = update_result.unwrap();
@@ -716,7 +716,7 @@ mod integration_tests {
             .validate_note_content_with_context(&updated_content, &context);
         assert!(update_validation.is_ok());
         
-        let update_result = env.db_service.update_note(note.id, updated_content.clone()).await;
+        let update_result = env.db_service.update_note_content(note.id, updated_content.clone()).await;
         assert!(update_result.is_ok());
         
         // Search for note
@@ -775,7 +775,7 @@ mod integration_tests {
         // Should handle gracefully (either error or None)
         assert!(invalid_get.is_ok() || invalid_get.is_err());
         
-        let invalid_update = env.db_service.update_note(-1, "test".to_string()).await;
+        let invalid_update = env.db_service.update_note_content(-1, "test".to_string()).await;
         assert!(invalid_update.is_err());
         
         let invalid_delete = env.db_service.delete_note(-1).await;

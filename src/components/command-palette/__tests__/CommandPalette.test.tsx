@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '../../../test/test-utils'
+import { render, screen, waitFor, act } from '../../../test/test-utils'
 import userEvent from '@testing-library/user-event'
 import { CommandPalette } from '../CommandPalette'
 import { useScratchPadStore } from '../../../lib/store'
@@ -27,12 +27,14 @@ describe('CommandPalette', () => {
 
   beforeEach(() => {
     // Reset store state
-    useScratchPadStore.setState({
-      isCommandPaletteOpen: false,
-      setCommandPaletteOpen: vi.fn(),
-      setCurrentView: vi.fn(),
-      createNote: vi.fn(),
-      getActiveNote: () => mockNote
+    act(() => {
+      useScratchPadStore.setState({
+        isCommandPaletteOpen: false,
+        setCommandPaletteOpen: vi.fn(),
+        setCurrentView: vi.fn(),
+        createNote: vi.fn(),
+        getActiveNote: () => mockNote
+      })
     })
     
     vi.mocked(invoke).mockClear()
@@ -49,7 +51,9 @@ describe('CommandPalette', () => {
   })
 
   it('should render when open', () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
@@ -57,7 +61,9 @@ describe('CommandPalette', () => {
   })
 
   it('should auto-focus input when opened', async () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
@@ -67,7 +73,9 @@ describe('CommandPalette', () => {
   })
 
   it('should display all default commands', () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
@@ -79,7 +87,9 @@ describe('CommandPalette', () => {
   })
 
   it('should display command descriptions', () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
@@ -90,7 +100,9 @@ describe('CommandPalette', () => {
   })
 
   it('should display keyboard shortcuts', () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
@@ -99,12 +111,16 @@ describe('CommandPalette', () => {
   })
 
   it('should filter commands based on search query', async () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
     const input = screen.getByPlaceholderText('Type a command or search...')
-    await user.type(input, 'search')
+    await act(async () => {
+      await user.type(input, 'search')
+    })
     
     expect(screen.getByText('Search History')).toBeInTheDocument()
     expect(screen.queryByText('New Note')).not.toBeInTheDocument()
@@ -112,44 +128,59 @@ describe('CommandPalette', () => {
   })
 
   it('should filter commands by description', async () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
     const input = screen.getByPlaceholderText('Type a command or search...')
-    await user.type(input, 'browse')
+    await act(async () => {
+      await user.type(input, 'browse')
+    })
     
     expect(screen.getByText('Search History')).toBeInTheDocument()
     expect(screen.queryByText('New Note')).not.toBeInTheDocument()
   })
 
   it('should show "No commands found" when no matches', async () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
     const input = screen.getByPlaceholderText('Type a command or search...')
-    await user.type(input, 'nonexistent')
+    await act(async () => {
+      await user.type(input, 'nonexistent')
+    })
     
     expect(screen.getByText('No commands found')).toBeInTheDocument()
   })
 
   it('should close on Escape key', async () => {
     const mockSetCommandPaletteOpen = vi.fn()
-    useScratchPadStore.setState({
-      isCommandPaletteOpen: true,
-      setCommandPaletteOpen: mockSetCommandPaletteOpen
+    
+    act(() => {
+      useScratchPadStore.setState({
+        isCommandPaletteOpen: true,
+        setCommandPaletteOpen: mockSetCommandPaletteOpen
+      })
     })
     
     render(<CommandPalette />)
     
-    await user.keyboard('{Escape}')
+    await act(async () => {
+      await user.keyboard('{Escape}')
+    })
     
     expect(mockSetCommandPaletteOpen).toHaveBeenCalledWith(false)
   })
 
   it('should navigate with arrow keys', async () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
@@ -158,7 +189,9 @@ describe('CommandPalette', () => {
     expect(firstCommand).toHaveClass('bg-accent', 'text-accent-foreground')
     
     // Navigate down
-    await user.keyboard('{ArrowDown}')
+    await act(async () => {
+      await user.keyboard('{ArrowDown}')
+    })
     
     const secondCommand = screen.getByText('New Note').closest('.flex.items-center')
     expect(secondCommand).toHaveClass('bg-accent', 'text-accent-foreground')
@@ -166,12 +199,16 @@ describe('CommandPalette', () => {
   })
 
   it('should wrap navigation at boundaries', async () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
     // Navigate up from first item (should wrap to last)
-    await user.keyboard('{ArrowUp}')
+    await act(async () => {
+      await user.keyboard('{ArrowUp}')
+    })
     
     const lastCommand = screen.getByText('Open Settings').closest('.flex.items-center')
     expect(lastCommand).toHaveClass('bg-accent', 'text-accent-foreground')
@@ -181,15 +218,19 @@ describe('CommandPalette', () => {
     const mockSetCurrentView = vi.fn()
     const mockSetCommandPaletteOpen = vi.fn()
     
-    useScratchPadStore.setState({
-      isCommandPaletteOpen: true,
-      setCurrentView: mockSetCurrentView,
-      setCommandPaletteOpen: mockSetCommandPaletteOpen
+    act(() => {
+      useScratchPadStore.setState({
+        isCommandPaletteOpen: true,
+        setCurrentView: mockSetCurrentView,
+        setCommandPaletteOpen: mockSetCommandPaletteOpen
+      })
     })
     
     render(<CommandPalette />)
     
-    await user.keyboard('{Enter}')
+    await act(async () => {
+      await user.keyboard('{Enter}')
+    })
     
     expect(mockSetCurrentView).toHaveBeenCalledWith('search-history')
     expect(mockSetCommandPaletteOpen).toHaveBeenCalledWith(false)
@@ -199,15 +240,19 @@ describe('CommandPalette', () => {
     const mockCreateNote = vi.fn()
     const mockSetCommandPaletteOpen = vi.fn()
     
-    useScratchPadStore.setState({
-      isCommandPaletteOpen: true,
-      createNote: mockCreateNote,
-      setCommandPaletteOpen: mockSetCommandPaletteOpen
+    act(() => {
+      useScratchPadStore.setState({
+        isCommandPaletteOpen: true,
+        createNote: mockCreateNote,
+        setCommandPaletteOpen: mockSetCommandPaletteOpen
+      })
     })
     
     render(<CommandPalette />)
     
-    await user.click(screen.getByText('New Note'))
+    await act(async () => {
+      await user.click(screen.getByText('New Note'))
+    })
     
     expect(mockCreateNote).toHaveBeenCalled()
     expect(mockSetCommandPaletteOpen).toHaveBeenCalledWith(false)
@@ -217,11 +262,15 @@ describe('CommandPalette', () => {
     vi.mocked(invoke).mockResolvedValue(undefined)
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
-    await user.click(screen.getByText('Export Note'))
+    await act(async () => {
+      await user.click(screen.getByText('Export Note'))
+    })
     
     expect(invoke).toHaveBeenCalledWith('export_note', {
       note: mockNote,
@@ -239,11 +288,15 @@ describe('CommandPalette', () => {
     vi.mocked(invoke).mockRejectedValue(new Error('Export failed'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
-    await user.click(screen.getByText('Export Note'))
+    await act(async () => {
+      await user.click(screen.getByText('Export Note'))
+    })
     
     await waitFor(() => {
       expect(consoleSpy).toHaveBeenCalledWith('Failed to export note:', expect.any(Error))
@@ -253,14 +306,18 @@ describe('CommandPalette', () => {
   })
 
   it('should handle export when no active note', async () => {
-    useScratchPadStore.setState({
-      isCommandPaletteOpen: true,
-      getActiveNote: () => undefined
+    act(() => {
+      useScratchPadStore.setState({
+        isCommandPaletteOpen: true,
+        getActiveNote: () => undefined
+      })
     })
     
     render(<CommandPalette />)
     
-    await user.click(screen.getByText('Export Note'))
+    await act(async () => {
+      await user.click(screen.getByText('Export Note'))
+    })
     
     expect(invoke).not.toHaveBeenCalled()
   })
@@ -269,15 +326,19 @@ describe('CommandPalette', () => {
     const mockSetCurrentView = vi.fn()
     const mockSetCommandPaletteOpen = vi.fn()
     
-    useScratchPadStore.setState({
-      isCommandPaletteOpen: true,
-      setCurrentView: mockSetCurrentView,
-      setCommandPaletteOpen: mockSetCommandPaletteOpen
+    act(() => {
+      useScratchPadStore.setState({
+        isCommandPaletteOpen: true,
+        setCurrentView: mockSetCurrentView,
+        setCommandPaletteOpen: mockSetCommandPaletteOpen
+      })
     })
     
     render(<CommandPalette />)
     
-    await user.click(screen.getByText('Open Settings'))
+    await act(async () => {
+      await user.click(screen.getByText('Open Settings'))
+    })
     
     expect(mockSetCurrentView).toHaveBeenCalledWith('settings')
     expect(mockSetCommandPaletteOpen).toHaveBeenCalledWith(false)
@@ -287,7 +348,9 @@ describe('CommandPalette', () => {
     const { rerender } = render(<CommandPalette />)
     
     // Open palette
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     rerender(<CommandPalette />)
     
     const input = screen.getByPlaceholderText('Type a command or search...')
@@ -299,19 +362,25 @@ describe('CommandPalette', () => {
   })
 
   it('should reset selection when query changes', async () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
     // Navigate to second item
-    await user.keyboard('{ArrowDown}')
+    await act(async () => {
+      await user.keyboard('{ArrowDown}')
+    })
     
     const secondCommand = screen.getByText('New Note').closest('.flex.items-center')
     expect(secondCommand).toHaveClass('bg-accent', 'text-accent-foreground')
     
     // Type in search - should reset to first item in filtered results
     const input = screen.getByPlaceholderText('Type a command or search...')
-    await user.type(input, 'export')
+    await act(async () => {
+      await user.type(input, 'export')
+    })
     
     // Wait for the selection to reset and re-render
     await waitFor(() => {
@@ -321,7 +390,9 @@ describe('CommandPalette', () => {
   })
 
   it('should render command icons', () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
@@ -335,7 +406,9 @@ describe('CommandPalette', () => {
   })
 
   it('should apply correct styling', () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
@@ -347,12 +420,16 @@ describe('CommandPalette', () => {
   })
 
   it('should handle keyboard navigation with filtered results', async () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
     const input = screen.getByPlaceholderText('Type a command or search...')
-    await user.type(input, 'export')
+    await act(async () => {
+      await user.type(input, 'export')
+    })
     
     // Wait for filtering to complete
     await waitFor(() => {
@@ -369,12 +446,16 @@ describe('CommandPalette', () => {
   })
 
   it('should handle case-insensitive filtering', async () => {
-    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    act(() => {
+      useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     render(<CommandPalette />)
     
     const input = screen.getByPlaceholderText('Type a command or search...')
-    await user.type(input, 'SEARCH')
+    await act(async () => {
+      await user.type(input, 'SEARCH')
+    })
     
     expect(screen.getByText('Search History')).toBeInTheDocument()
     expect(screen.queryByText('New Note')).not.toBeInTheDocument()

@@ -17,6 +17,9 @@ pub enum AppError {
     #[error("Migration error: {0}")]
     MigrationError(#[from] rusqlite_migration::Error),
     
+    #[error("General error: {0}")]
+    General(String),
+    
     #[error("Global shortcut error: {message}")]
     GlobalShortcut { message: String },
     
@@ -63,6 +66,13 @@ pub enum AppError {
     NotFound { id: i64 },  // Added NotFound variant for database operations
 }
 
+// Implement From<anyhow::Error> for AppError
+impl From<anyhow::Error> for AppError {
+    fn from(err: anyhow::Error) -> Self {
+        AppError::General(err.to_string())
+    }
+}
+
 impl AppError {
     /// Create a copy of this error for mock usage, preserving error information as strings
     /// This is primarily for testing scenarios where error cloning is needed
@@ -90,6 +100,7 @@ impl AppError {
             Self::MigrationError(_) => Self::Migration {
                 message: "Mock migration error".to_string()
             },
+            Self::General(message) => Self::General(message.clone()),
             Self::GlobalShortcut { message } => Self::GlobalShortcut { 
                 message: message.clone() 
             },
@@ -168,6 +179,10 @@ impl From<AppError> for ApiError {
             AppError::MigrationError(e) => ApiError {
                 code: "MIGRATION_ERROR".to_string(),
                 message: e.to_string(),
+            },
+            AppError::General(message) => ApiError {
+                code: "GENERAL_ERROR".to_string(),
+                message,
             },
             AppError::GlobalShortcut { message } => ApiError {
                 code: "GLOBAL_SHORTCUT_ERROR".to_string(),

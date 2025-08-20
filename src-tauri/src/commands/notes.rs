@@ -103,7 +103,7 @@ pub async fn get_all_notes(
     log_security_event("NOTE_LIST_ALL", "IPC", true, "Retrieving all notes");
     
     // Retrieve all notes from database (Fixed: pass None, None for no pagination)
-    let notes = app_state.db.get_all_notes(None, None).await?;
+    let notes = app_state.db.get_all_notes().await?;
     
     Ok(notes)
 }
@@ -183,7 +183,7 @@ pub async fn update_note(
     );
     
     // Update note using database service (Fixed: pass id and content separately)
-    let updated_note = app_state.db.update_note(id, content).await?;
+    let updated_note = app_state.db.update_note_content(id, content).await?;
     
     Ok(updated_note)
 }
@@ -280,7 +280,7 @@ mod tests {
         // Create a note first
         let created = app_state.db.create_note("Initial content".to_string()).await;
         if let Ok(note) = created {
-            let result = app_state.db.update_note(note.id, "Updated content".to_string()).await;
+            let result = app_state.db.update_note_content(note.id, "Updated content".to_string()).await;
             assert!(result.is_ok() || result.is_err()); // Either outcome is fine for compilation test
         }
     }

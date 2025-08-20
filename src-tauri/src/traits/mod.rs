@@ -14,6 +14,5 @@ pub use repository::{NoteRepository, SettingsRepository, SearchRepository};
 pub use services::{
     SearchService as SearchServiceTrait, 
     SettingsService as SettingsServiceTrait, 
-    SettingsServiceExt, 
     WindowManager as WindowManagerTrait
 };

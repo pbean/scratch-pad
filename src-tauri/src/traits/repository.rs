@@ -24,7 +24,7 @@ pub trait NoteRepository: Send + Sync {
     async fn delete_note(&self, id: i64) -> Result<(), AppError>;
     
     /// Get all notes with optional pagination
-    async fn get_all_notes(&self, offset: Option<i64>, limit: Option<i64>) -> Result<Vec<Note>, AppError>;
+    async fn get_all_notes(&self) -> Result<Vec<Note>, AppError>;
     
     /// Get notes with pagination (alias for frontend compatibility)
     async fn get_notes_paginated(&self, offset: i64, limit: i64) -> Result<Vec<Note>, AppError>;
@@ -110,15 +110,15 @@ impl NoteRepository for DbService {
     }
     
     async fn update_note(&self, id: i64, content: String) -> Result<Note, AppError> {
-        self.update_note(id, content).await
+        self.update_note_content(id, content).await
     }
     
     async fn delete_note(&self, id: i64) -> Result<(), AppError> {
         self.delete_note(id).await
     }
     
-    async fn get_all_notes(&self, offset: Option<i64>, limit: Option<i64>) -> Result<Vec<Note>, AppError> {
-        self.get_all_notes(offset, limit).await
+    async fn get_all_notes(&self) -> Result<Vec<Note>, AppError> {
+        self.get_all_notes().await
     }
     
     async fn get_notes_paginated(&self, offset: i64, limit: i64) -> Result<Vec<Note>, AppError> {
@@ -194,7 +194,7 @@ impl SearchRepository for DbService {
                 content: row.get(1)?,
                 created_at: row.get(2)?,
                 updated_at: row.get(3)?,
-                is_pinned: row.get(4)?,
+                is_favorite: row.get(4)?,
                 format: crate::models::NoteFormat::PlainText,
                 nickname: None,
                 path: format!("/note/{}", id),
@@ -225,7 +225,7 @@ impl SearchRepository for DbService {
                 content: row.get(1)?,
                 created_at: row.get(2)?,
                 updated_at: row.get(3)?,
-                is_pinned: row.get(4)?,
+                is_favorite: row.get(4)?,
                 format: crate::models::NoteFormat::PlainText,
                 nickname: None,
                 path: format!("/note/{}", id),
@@ -259,7 +259,7 @@ impl SearchRepository for DbService {
                 content: row.get(1)?,
                 created_at: row.get(2)?,
                 updated_at: row.get(3)?,
-                is_pinned: row.get(4)?,
+                is_favorite: row.get(4)?,
                 format: crate::models::NoteFormat::PlainText,
                 nickname: None,
                 path: format!("/note/{}", id),
@@ -374,7 +374,7 @@ impl SearchRepository for DbService {
                 content: row.get(1)?,
                 created_at: row.get(2)?,
                 updated_at: row.get(3)?,
-                is_pinned: row.get(4)?,
+                is_favorite: row.get(4)?,
                 format: crate::models::NoteFormat::PlainText,
                 nickname: None,
                 path: format!("/note/{}", id),

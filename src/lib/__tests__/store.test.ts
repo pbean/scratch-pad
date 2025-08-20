@@ -230,7 +230,7 @@ describe('ScratchPadStore', () => {
       
       const results = await searchNotes('test')
       
-      expect(mockInvoke).toHaveBeenCalledWith('combined_search_notes', { query: 'test' })
+      expect(mockInvoke).toHaveBeenCalledWith('search_notes', { query: 'test' })
       expect(results).toEqual(searchResults)
     })
 

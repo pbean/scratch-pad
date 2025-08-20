@@ -135,11 +135,11 @@ async fn test_window_management_settings_persistence() {
     // Verify all settings were persisted
     let all_settings = settings_service.get_all_settings().await.unwrap();
     
-    assert_eq!(all_settings.get("layout_mode"), Some(&"half".to_string()));
-    assert_eq!(all_settings.get("always_on_top"), Some(&"true".to_string()));
-    assert_eq!(all_settings.get("global_shortcut"), Some(&"Ctrl+Alt+S".to_string()));
-    assert_eq!(all_settings.get("window_width"), Some(&"800".to_string()));
-    assert_eq!(all_settings.get("window_height"), Some(&"600".to_string()));
+    assert_eq!(all_settings.get("layout_mode"), Some(&serde_json::Value::String("half".to_string())));
+    assert_eq!(all_settings.get("always_on_top"), Some(&serde_json::Value::String("true".to_string())));
+    assert_eq!(all_settings.get("global_shortcut"), Some(&serde_json::Value::String("Ctrl+Alt+S".to_string())));
+    assert_eq!(all_settings.get("window_width"), Some(&serde_json::Value::String("800".to_string())));
+    assert_eq!(all_settings.get("window_height"), Some(&serde_json::Value::String("600".to_string())));
     
     // Test settings export/import for window management
     let exported = settings_service.export_settings().await.unwrap();
@@ -153,8 +153,8 @@ async fn test_window_management_settings_persistence() {
     
     // Verify window settings were restored
     let restored_settings = settings_service.get_all_settings().await.unwrap();
-    assert_eq!(restored_settings.get("layout_mode"), Some(&"half".to_string()));
-    assert_eq!(restored_settings.get("always_on_top"), Some(&"true".to_string()));
+    assert_eq!(restored_settings.get("layout_mode"), Some(&serde_json::Value::String("half".to_string())));
+    assert_eq!(restored_settings.get("always_on_top"), Some(&serde_json::Value::String("true".to_string())));
 }
 
 /// Test suggested shortcuts functionality
@@ -358,11 +358,11 @@ async fn test_window_management_settings_integration() {
     // Verify complete configuration
     let all_settings = settings_service.get_all_settings().await.unwrap();
     
-    assert_eq!(all_settings.get("global_shortcut"), Some(&"Ctrl+Alt+S".to_string()));
-    assert_eq!(all_settings.get("layout_mode"), Some(&"half".to_string()));
-    assert_eq!(all_settings.get("always_on_top"), Some(&"true".to_string()));
-    assert_eq!(all_settings.get("auto_hide"), Some(&"false".to_string()));
-    assert_eq!(all_settings.get("window_opacity"), Some(&"0.95".to_string()));
+    assert_eq!(all_settings.get("global_shortcut"), Some(&serde_json::Value::String("Ctrl+Alt+S".to_string())));
+    assert_eq!(all_settings.get("layout_mode"), Some(&serde_json::Value::String("half".to_string())));
+    assert_eq!(all_settings.get("always_on_top"), Some(&serde_json::Value::String("true".to_string())));
+    assert_eq!(all_settings.get("auto_hide"), Some(&serde_json::Value::String("false".to_string())));
+    assert_eq!(all_settings.get("window_opacity"), Some(&serde_json::Value::String("0.95".to_string())));
     
     // Test that settings persist across service recreation
     let settings_service2 = SettingsService::new(
@@ -370,6 +370,6 @@ async fn test_window_management_settings_integration() {
     );
     
     let persisted_settings = settings_service2.get_all_settings().await.unwrap();
-    assert_eq!(persisted_settings.get("global_shortcut"), Some(&"Ctrl+Alt+S".to_string()));
-    assert_eq!(persisted_settings.get("layout_mode"), Some(&"half".to_string()));
+    assert_eq!(persisted_settings.get("global_shortcut"), Some(&serde_json::Value::String("Ctrl+Alt+S".to_string())));
+    assert_eq!(persisted_settings.get("layout_mode"), Some(&serde_json::Value::String("half".to_string())));
 }

@@ -51,14 +51,14 @@ impl SettingsService {
     }
 
     /// Export settings to a JSON file
-    pub async fn export_settings(&self, file_path: &str) -> Result<(), AppError> {
+    pub async fn export_settings_to_file(&self, file_path: &str) -> Result<(), AppError> {
         let settings = self.get_all_settings().await?;
         let json = serde_json::to_string_pretty(&settings)?;
         std::fs::write(file_path, json).map_err(|e| AppError::Io(e))
     }
 
     /// Import settings from a JSON file
-    pub async fn import_settings(&self, file_path: &str) -> Result<(), AppError> {
+    pub async fn import_settings_from_file(&self, file_path: &str) -> Result<(), AppError> {
         let content = std::fs::read_to_string(file_path)?;
         let settings: HashMap<String, serde_json::Value> = serde_json::from_str(&content)?;
         
@@ -71,6 +71,30 @@ impl SettingsService {
         }
         
         Ok(())
+    }
+
+    /// Export settings as a JSON string (for IPC)
+    pub async fn export_settings(&self) -> Result<String, AppError> {
+        let settings = self.get_all_settings().await?;
+        let json = serde_json::to_string_pretty(&settings)?;
+        Ok(json)
+    }
+
+    /// Import settings from a JSON string (for IPC)
+    pub async fn import_settings(&self, json_string: String) -> Result<usize, AppError> {
+        let settings: HashMap<String, serde_json::Value> = serde_json::from_str(&json_string)?;
+        let mut imported_count = 0;
+        
+        for (key, value) in settings {
+            let value_str = match value {
+                serde_json::Value::String(s) => s,
+                _ => value.to_string(),
+            };
+            self.set_setting(&key, &value_str).await?;
+            imported_count += 1;
+        }
+        
+        Ok(imported_count)
     }
 
     /// Reset all settings to default values
@@ -440,7 +464,7 @@ mod tests {
             .context("Failed to set export_test2")?;
         
         // Export settings
-        service.export_settings(&export_file.to_string_lossy()).await
+        service.export_settings_to_file(&export_file.to_string_lossy()).await
             .context("Failed to export settings")?;
         
         // Verify file was created
@@ -452,7 +476,7 @@ mod tests {
         service.delete_setting("export_test2").await
             .context("Failed to delete export_test2")?;
         
-        service.import_settings(&export_file.to_string_lossy()).await
+        service.import_settings_from_file(&export_file.to_string_lossy()).await
             .context("Failed to import settings")?;
         
         // Verify settings were restored

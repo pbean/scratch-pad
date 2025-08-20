@@ -150,8 +150,9 @@ pub async fn search_notes_paginated(
     );
     
     // Perform paginated search
-    let (notes, total_count) = app_state.search
+    let (notes, total_count_usize) = app_state.search
         .search_notes_paginated(&query, page, page_size).await?;
+    let total_count = total_count_usize;
     
     let query_time = start_time.elapsed();
     let has_more = (page + 1) * page_size < total_count;
@@ -290,7 +291,7 @@ pub async fn validate_boolean_search_query(
     );
     
     // Perform query validation and complexity analysis - fixed: removed .await
-    let complexity = app_state.search.validate_boolean_query(&query)?;
+    let complexity = app_state.search.validate_boolean_search_query(&query)?;
     
     Ok(QueryComplexity {
         term_count: complexity.term_count as usize,
