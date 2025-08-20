@@ -16,6 +16,7 @@ pub mod system;
 pub mod search;
 pub mod diagnostics;
 pub mod lifecycle;
+pub mod performance; // Add performance monitoring commands
 
 
 /// Re-export all command functions for centralized registration
@@ -45,6 +46,12 @@ pub use diagnostics::{
 
 pub use lifecycle::{
     is_shutting_down, initiate_shutdown
+};
+
+pub use performance::{
+    get_performance_overview, get_performance_metrics, get_performance_analytics,
+    record_frontend_metrics, get_performance_alerts, update_performance_budget,
+    get_performance_budget, PerformanceOverview, PerformanceReport
 };
 
 /// Generate the complete command handler for Tauri
@@ -93,6 +100,15 @@ macro_rules! generate_command_handler {
             // Shutdown operations (lifecycle domain)
             crate::commands::lifecycle::is_shutting_down,
             crate::commands::lifecycle::initiate_shutdown,
+            
+            // Performance monitoring operations (Week 3 Day 9)
+            crate::commands::performance::get_performance_overview,
+            crate::commands::performance::get_performance_metrics,
+            crate::commands::performance::get_performance_analytics,
+            crate::commands::performance::record_frontend_metrics,
+            crate::commands::performance::get_performance_alerts,
+            crate::commands::performance::update_performance_budget,
+            crate::commands::performance::get_performance_budget,
         ]
     };
 }

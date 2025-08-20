@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod security_tests {
-    use super::*;
+    // Security tests use specific imports
     use crate::validation::SecurityValidator;
     use crate::error::AppError;
     use std::path::PathBuf;

@@ -554,7 +554,7 @@ impl SecurityValidator {
     }
     
     /// Validates file extension against whitelist
-    fn validate_file_extension(path: &Path) -> Result<(), AppError> {
+    pub fn validate_file_extension(path: &Path) -> Result<(), AppError> {
         // Allowed file extensions for export
         const ALLOWED_EXTENSIONS: &[&str] = &[
             "txt", "md", "json", "csv", "html", "xml", "rtf"

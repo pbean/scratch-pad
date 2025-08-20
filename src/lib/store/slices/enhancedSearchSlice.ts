@@ -69,6 +69,7 @@ export interface EnhancedSearchSlice {
   
   // Performance actions
   enablePerformanceMonitoring: (enabled: boolean) => void
+  updatePerformanceStats: (metrics?: PerformanceMetrics, cacheHit?: boolean) => void
   getPerformanceInsights: () => {
     averageQueryTime: number
     cacheEfficiency: number
@@ -237,7 +238,7 @@ export const createEnhancedSearchSlice: StateCreator<
     try {
       // Start performance tracking
       if (searchPerformanceEnabled) {
-        queryId = performanceAnalytics.startQuery(`paginated_${Date.now()}`, query, 'paginated')
+        queryId = performanceAnalytics.startQuery(`paginated_${Date.now()}`, query, 'paginated') || null
       }
 
       const result = await invoke<SearchResult>("search_notes_paginated", { 
@@ -303,7 +304,7 @@ export const createEnhancedSearchSlice: StateCreator<
     try {
       // Start performance tracking
       if (searchPerformanceEnabled) {
-        queryId = performanceAnalytics.startQuery(`boolean_${Date.now()}`, query, 'boolean')
+        queryId = performanceAnalytics.startQuery(`boolean_${Date.now()}`, query, 'boolean') || null
       }
 
       const result = await invoke<BooleanSearchResult>("search_notes_boolean_paginated", { 

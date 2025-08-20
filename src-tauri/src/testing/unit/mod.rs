@@ -1,23 +1,22 @@
-/// Unit Tests for Service Business Logic
+/// Unit Tests for Service Business Logic and Command Layer
 /// 
-/// This module provides isolated unit tests for service business logic using mock
-/// repository implementations. These tests focus on service-level functionality
-/// without database dependencies, enabling fast and reliable testing.
+/// This module provides isolated unit tests for service business logic and
+/// comprehensive command layer testing using mock repository implementations.
+/// These tests focus on functionality without database dependencies, enabling
+/// fast and reliable testing.
 /// 
 /// ## Features
 /// - Isolated testing of business logic
+/// - Comprehensive command layer coverage
 /// - Mock repository dependencies
-/// - Error handling verification
+/// - Error handling verification  
 /// - Security validation preservation
 /// - Edge case coverage
 /// - Performance characteristics testing
 
 pub mod search_service_tests;
 pub mod settings_service_tests;
-
-// Re-export test modules for convenience
-pub use search_service_tests::*;
-pub use settings_service_tests::*;
+pub mod command_tests;
 
 /// Test utilities for creating mock-based service instances
 pub struct MockServiceFactory;

@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import { useState } from "react"
 import { Bug, AlertTriangle, Zap, Network } from "lucide-react"
 import { ComponentErrorBoundary, TauriErrorBoundary, useAsyncErrorHandler, safeInvoke } from "."
 import { useToast } from "../ui/toast"
@@ -30,7 +30,6 @@ function RenderErrorDemo() {
 
 function AsyncErrorDemo() {
   const { reportError } = useAsyncErrorHandler()
-  const toast = useToast()
   
   const simulateAsyncError = async () => {
     try {
@@ -97,7 +96,7 @@ function TauriErrorDemo() {
     setIsLoading(true)
     try {
       const result = await safeInvoke("test_db_connection")
-      toast.success("Connection OK", result)
+      toast.success("Connection OK", String(result))
     } catch (error) {
       toast.error("Connection Failed", `Unable to reach backend: ${error}`)
     } finally {

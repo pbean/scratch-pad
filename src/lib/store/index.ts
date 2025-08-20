@@ -408,6 +408,9 @@ export const useScratchPadStore = create<ScratchPadStore>()(
   )
 )
 
+// Export store type for external usage
+export type { ScratchPadStore }
+
 // Export individual slice hooks for selective subscriptions
 export const useNotesSlice = () => useScratchPadStore(
   (state) => ({

@@ -72,7 +72,7 @@ export interface SystemSlice {
 }
 
 const MAX_SYSTEM_ERRORS = 50
-const HEALTH_CHECK_INTERVAL = 30000 // 30 seconds
+// const HEALTH_CHECK_INTERVAL = 30000 // 30 seconds // Unused constant
 const ERROR_RETENTION_TIME = 300000 // 5 minutes
 
 export const createSystemSlice: StateCreator<

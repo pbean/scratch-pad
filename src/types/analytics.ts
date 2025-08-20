@@ -207,15 +207,170 @@ export interface AnalyticsDashboardConfig {
   }
 }
 
-export interface AnalyticsEvent {
-  /** Event type */
-  type: 'search_start' | 'search_complete' | 'cache_hit' | 'cache_miss' | 'alert_triggered' | 'optimization_applied'
-  /** Event timestamp */
+// ============================================================================
+// TYPE-SAFE ANALYTICS EVENT SYSTEM - Phase 1 Implementation
+// ============================================================================
+
+// Base event interface
+interface BaseAnalyticsEvent {
   timestamp: number
-  /** Event data */
-  data: any
-  /** Event source */
   source: 'user' | 'system' | 'automated'
+  eventId: string
+}
+
+// Specific event data types with strict typing
+export interface SearchStartEventData {
+  query: string
+  searchType: 'simple' | 'paginated' | 'boolean'
+  userId?: string
+  filters?: Record<string, unknown>
+}
+
+export interface SearchCompleteEventData {
+  query: string
+  resultCount: number
+  queryTime: number
+  cacheHit: boolean
+  complexityScore?: number
+  searchType: 'simple' | 'paginated' | 'boolean'
+  errorOccurred?: boolean
+  errorMessage?: string
+}
+
+export interface CacheEventData {
+  cacheKey: string
+  hitRate: number
+  size: number
+  operation: 'hit' | 'miss' | 'eviction' | 'clear'
+  entryAge?: number
+}
+
+export interface AlertEventData {
+  alertId: string
+  severity: 'info' | 'warning' | 'error' | 'critical'
+  message: string
+  relatedMetric?: PerformanceMetrics
+  actionRequired?: boolean
+  autoResolved?: boolean
+}
+
+export interface OptimizationEventData {
+  optimizationType: 'query_optimization' | 'cache_tuning' | 'index_creation' | 'memory_optimization'
+  before: PerformanceMetrics
+  after: PerformanceMetrics
+  improvement: number
+  automaticallyApplied: boolean
+  userApproved?: boolean
+}
+
+// Discriminated union for type-safe events
+export type AnalyticsEvent = 
+  | (BaseAnalyticsEvent & { type: 'search_start'; data: SearchStartEventData })
+  | (BaseAnalyticsEvent & { type: 'search_complete'; data: SearchCompleteEventData })
+  | (BaseAnalyticsEvent & { type: 'cache_hit'; data: CacheEventData })
+  | (BaseAnalyticsEvent & { type: 'cache_miss'; data: CacheEventData })
+  | (BaseAnalyticsEvent & { type: 'alert_triggered'; data: AlertEventData })
+  | (BaseAnalyticsEvent & { type: 'optimization_applied'; data: OptimizationEventData })
+
+// Type guard for runtime safety
+export function isAnalyticsEvent(obj: unknown): obj is AnalyticsEvent {
+  return typeof obj === 'object' && 
+         obj !== null && 
+         'type' in obj && 
+         'timestamp' in obj && 
+         'source' in obj && 
+         'data' in obj &&
+         'eventId' in obj
+}
+
+// Validate specific event data based on type
+export function validateEventData(type: AnalyticsEvent['type'], data: unknown): boolean {
+  if (!data || typeof data !== 'object') return false
+  
+  switch (type) {
+    case 'search_start':
+      return typeof (data as SearchStartEventData).query === 'string' &&
+             typeof (data as SearchStartEventData).searchType === 'string'
+    case 'search_complete':
+      return typeof (data as SearchCompleteEventData).query === 'string' &&
+             typeof (data as SearchCompleteEventData).resultCount === 'number' &&
+             typeof (data as SearchCompleteEventData).queryTime === 'number'
+    case 'cache_hit':
+    case 'cache_miss':
+      return typeof (data as CacheEventData).cacheKey === 'string' &&
+             typeof (data as CacheEventData).hitRate === 'number'
+    case 'alert_triggered':
+      return typeof (data as AlertEventData).alertId === 'string' &&
+             typeof (data as AlertEventData).severity === 'string'
+    case 'optimization_applied':
+      return typeof (data as OptimizationEventData).optimizationType === 'string' &&
+             typeof (data as OptimizationEventData).improvement === 'number'
+    default:
+      return false
+  }
+}
+
+// Event creation utilities with type safety
+export const createAnalyticsEvent = {
+  searchStart: (query: string, searchType: SearchStartEventData['searchType'], filters?: Record<string, unknown>): AnalyticsEvent => ({
+    type: 'search_start',
+    timestamp: Date.now(),
+    source: 'user',
+    eventId: crypto.randomUUID(),
+    data: { query, searchType, filters }
+  }),
+  
+  searchComplete: (data: SearchCompleteEventData): AnalyticsEvent => ({
+    type: 'search_complete',
+    timestamp: Date.now(),
+    source: 'system',
+    eventId: crypto.randomUUID(),
+    data
+  }),
+
+  cacheHit: (cacheKey: string, hitRate: number, size: number, entryAge?: number): AnalyticsEvent => ({
+    type: 'cache_hit',
+    timestamp: Date.now(),
+    source: 'system',
+    eventId: crypto.randomUUID(),
+    data: { cacheKey, hitRate, size, operation: 'hit', entryAge }
+  }),
+
+  cacheMiss: (cacheKey: string, hitRate: number, size: number): AnalyticsEvent => ({
+    type: 'cache_miss',
+    timestamp: Date.now(),
+    source: 'system',
+    eventId: crypto.randomUUID(),
+    data: { cacheKey, hitRate, size, operation: 'miss' }
+  }),
+
+  alertTriggered: (alertId: string, severity: AlertEventData['severity'], message: string, relatedMetric?: PerformanceMetrics): AnalyticsEvent => ({
+    type: 'alert_triggered',
+    timestamp: Date.now(),
+    source: 'system',
+    eventId: crypto.randomUUID(),
+    data: { alertId, severity, message, relatedMetric }
+  }),
+
+  optimizationApplied: (data: OptimizationEventData): AnalyticsEvent => ({
+    type: 'optimization_applied',
+    timestamp: Date.now(),
+    source: 'automated',
+    eventId: crypto.randomUUID(),
+    data
+  })
+}
+
+// Helper function to get event data with proper typing
+export function getEventData<T extends AnalyticsEvent['type']>(
+  event: AnalyticsEvent & { type: T }
+): T extends 'search_start' ? SearchStartEventData :
+    T extends 'search_complete' ? SearchCompleteEventData :
+    T extends 'cache_hit' | 'cache_miss' ? CacheEventData :
+    T extends 'alert_triggered' ? AlertEventData :
+    T extends 'optimization_applied' ? OptimizationEventData :
+    never {
+  return event.data as any
 }
 
 export interface RealTimeMetrics {

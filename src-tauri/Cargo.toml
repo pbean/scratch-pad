@@ -40,6 +40,11 @@ regex = "1.10"
 dirs = "5.0"
 # Trait-based service architecture
 async-trait = "0.1"
+# Performance monitoring dependencies
+hostname = "0.4"
+num_cpus = "1.0"
+rand = "0.8"
+sysinfo = "0.37.0"
 
 [dev-dependencies]
 tempfile = "3.8"

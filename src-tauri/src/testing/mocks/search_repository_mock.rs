@@ -196,7 +196,7 @@ impl SearchRepository for MockSearchRepository {
         favorites_only: bool,
         format_filter: Option<crate::models::NoteFormat>,
         date_from: Option<&str>,
-        date_to: Option<&str>,
+        _date_to: Option<&str>,
     ) -> Result<Vec<Note>, AppError> {
         self.state.record_call("advanced_search".to_string());
         self.check_error_response("advanced_search")?;

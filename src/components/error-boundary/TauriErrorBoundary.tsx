@@ -1,17 +1,29 @@
 import React, { ReactNode, useEffect, useState } from "react"
 import { AlertCircle, Wifi, WifiOff, RotateCcw, Settings } from "lucide-react"
-import { invoke } from "@tauri-apps/api/core"
+// import { invoke } from "@tauri-apps/api/core" // Removed unused import
 import { ComponentErrorBoundary } from "./ErrorBoundary"
 import { useAsyncErrorHandler, safeInvoke } from "./AsyncErrorHandler"
 import { useToast } from "../ui/toast"
+import type { CategorizedError } from "../../types/middleware"
 
-// Tauri-specific error types
+// ============================================================================
+// TYPE-SAFE TAURI ERROR HANDLING
+// ============================================================================
+
+/**
+ * Discriminated union for Tauri error types with complete type safety
+ */
+export type TauriErrorKind = 'connection' | 'permission' | 'timeout' | 'invalid_data' | 'unknown'
+
 export interface TauriError {
   code?: string
   message: string
-  kind?: "connection" | "permission" | "timeout" | "invalid_data" | "unknown"
+  kind: TauriErrorKind
 }
 
+/**
+ * Tauri connection state with type safety
+ */
 interface TauriConnectionState {
   isConnected: boolean
   lastError: TauriError | null
@@ -19,85 +31,187 @@ interface TauriConnectionState {
   isRetrying: boolean
 }
 
+/**
+ * Props interface with complete type safety
+ */
 interface TauriErrorBoundaryProps {
   children: ReactNode
-  fallbackComponent?: React.ComponentType<{
-    error: TauriError
-    connectionState: TauriConnectionState
-    onRetry: () => void
-    onOpenSettings: () => void
-  }>
+  fallbackComponent?: React.ComponentType<TauriErrorFallbackProps>
   enableHeartbeat?: boolean
   heartbeatInterval?: number
   maxRetries?: number
   onConnectionChange?: (connected: boolean) => void
 }
 
-function categorizeTauriError(error: any): TauriError {
-  const message = error?.message || error || "Unknown Tauri error"
-  let kind: TauriError["kind"] = "unknown"
-  let code = error?.code
+/**
+ * Fallback component props with type safety
+ */
+interface TauriErrorFallbackProps {
+  error: TauriError
+  connectionState: TauriConnectionState
+  onRetry: () => void
+  onOpenSettings: () => void
+}
 
+/**
+ * Error details interface for categorization
+ */
+interface ErrorAnalysisResult {
+  kind: TauriErrorKind
+  code: string
+  userMessage: string
+  technicalMessage: string
+  isRecoverable: boolean
+  suggestedActions: string[]
+}
+
+// ============================================================================
+// TYPE-SAFE ERROR CATEGORIZATION
+// ============================================================================
+
+/**
+ * Type-safe error categorization with enhanced analysis
+ */
+function categorizeTauriError(error: unknown): TauriError {
+  let message = "Unknown Tauri error"
+  // let kind: TauriErrorKind = "unknown" // Will be determined dynamically
+  let code = "UNKNOWN_ERROR"
+
+  // Extract error information safely
+  if (error instanceof Error) {
+    message = error.message
+  } else if (typeof error === 'string') {
+    message = error
+  } else if (typeof error === 'object' && error !== null) {
+    const errorObj = error as Record<string, unknown>
+    message = typeof errorObj.message === 'string' ? errorObj.message : JSON.stringify(error)
+    code = typeof errorObj.code === 'string' ? errorObj.code : code
+  }
+
+  // Analyze error details for categorization
+  const analysis = analyzeErrorDetails(message, code)
+  
+  return {
+    code: analysis.code,
+    message: analysis.userMessage,
+    kind: analysis.kind
+  }
+}
+
+/**
+ * Detailed error analysis with type safety
+ */
+function analyzeErrorDetails(message: string, code: string): ErrorAnalysisResult {
+  const lowerMessage = message.toLowerCase()
+  
   // Connection-related errors
   if (
-    message.includes("failed to invoke") ||
-    message.includes("connection") ||
-    message.includes("backend not available") ||
-    message.includes("ipc")
+    lowerMessage.includes("failed to invoke") ||
+    lowerMessage.includes("connection") ||
+    lowerMessage.includes("backend not available") ||
+    lowerMessage.includes("ipc") ||
+    lowerMessage.includes("websocket") ||
+    lowerMessage.includes("network unreachable")
   ) {
-    kind = "connection"
-    code = code || "CONNECTION_FAILED"
+    return {
+      kind: "connection",
+      code: code || "CONNECTION_FAILED",
+      userMessage: "Unable to communicate with the application backend",
+      technicalMessage: message,
+      isRecoverable: true,
+      suggestedActions: ["Check if the app is running properly", "Restart the application", "Check system resources"]
+    }
   }
   
   // Permission errors
-  else if (
-    message.includes("permission") ||
-    message.includes("access denied") ||
-    message.includes("forbidden")
+  if (
+    lowerMessage.includes("permission") ||
+    lowerMessage.includes("access denied") ||
+    lowerMessage.includes("forbidden") ||
+    lowerMessage.includes("unauthorized") ||
+    lowerMessage.includes("not allowed")
   ) {
-    kind = "permission"
-    code = code || "PERMISSION_DENIED"
+    return {
+      kind: "permission",
+      code: code || "PERMISSION_DENIED",
+      userMessage: "The requested operation requires additional permissions",
+      technicalMessage: message,
+      isRecoverable: true,
+      suggestedActions: ["Check system settings", "Run as administrator if needed", "Grant required permissions"]
+    }
   }
   
   // Timeout errors
-  else if (
-    message.includes("timeout") ||
-    message.includes("timed out")
+  if (
+    lowerMessage.includes("timeout") ||
+    lowerMessage.includes("timed out") ||
+    lowerMessage.includes("deadline exceeded") ||
+    lowerMessage.includes("operation timeout")
   ) {
-    kind = "timeout"
-    code = code || "TIMEOUT"
+    return {
+      kind: "timeout",
+      code: code || "TIMEOUT",
+      userMessage: "The operation took too long to complete",
+      technicalMessage: message,
+      isRecoverable: true,
+      suggestedActions: ["Check system load", "Try again", "Check network connectivity"]
+    }
   }
   
   // Data validation errors
-  else if (
-    message.includes("invalid") ||
-    message.includes("validation") ||
-    message.includes("parse")
+  if (
+    lowerMessage.includes("invalid") ||
+    lowerMessage.includes("validation") ||
+    lowerMessage.includes("parse") ||
+    lowerMessage.includes("malformed") ||
+    lowerMessage.includes("corrupt")
   ) {
-    kind = "invalid_data"
-    code = code || "INVALID_DATA"
+    return {
+      kind: "invalid_data",
+      code: code || "INVALID_DATA",
+      userMessage: "There was an issue with the data format or content",
+      technicalMessage: message,
+      isRecoverable: false,
+      suggestedActions: ["Try again with different data", "Reset to default settings", "Contact support"]
+    }
   }
 
-  return { code, message, kind }
+  // Unknown/unclassified errors
+  return {
+    kind: "unknown",
+    code: code || "UNKNOWN_ERROR",
+    userMessage: "An unexpected backend error occurred",
+    technicalMessage: message,
+    isRecoverable: false,
+    suggestedActions: ["Restart the application", "Check logs", "Contact support"]
+  }
 }
 
+// ============================================================================
+// FALLBACK COMPONENT WITH TYPE SAFETY
+// ============================================================================
+
+/**
+ * Default fallback component with complete type safety
+ */
 function DefaultTauriFallback({
   error,
   connectionState,
   onRetry,
   onOpenSettings
-}: {
-  error: TauriError
-  connectionState: TauriConnectionState
-  onRetry: () => void
-  onOpenSettings: () => void
-}) {
+}: TauriErrorFallbackProps) {
+  const analysis = analyzeErrorDetails(error.message, error.code || "")
+
   const getErrorIcon = () => {
     switch (error.kind) {
       case "connection":
         return <WifiOff className="w-8 h-8 text-destructive" />
       case "permission":
         return <AlertCircle className="w-8 h-8 text-yellow-500" />
+      case "timeout":
+        return <AlertCircle className="w-8 h-8 text-orange-500" />
+      case "invalid_data":
+        return <AlertCircle className="w-8 h-8 text-red-500" />
       default:
         return <AlertCircle className="w-8 h-8 text-destructive" />
     }
@@ -118,21 +232,6 @@ function DefaultTauriFallback({
     }
   }
 
-  const getErrorDescription = () => {
-    switch (error.kind) {
-      case "connection":
-        return "Unable to communicate with the application backend. Please check if the app is running properly."
-      case "permission":
-        return "The requested operation requires additional permissions. Please check your system settings."
-      case "timeout":
-        return "The operation took too long to complete. This might be due to system load or connectivity issues."
-      case "invalid_data":
-        return "There was an issue with the data format or content. Please try again."
-      default:
-        return "An unexpected backend error occurred. Please try restarting the application."
-    }
-  }
-
   return (
     <div className="flex items-center justify-center min-h-[200px] p-6">
       <div className="text-center max-w-md">
@@ -143,7 +242,7 @@ function DefaultTauriFallback({
         <h3 className="text-lg font-semibold mb-2">{getErrorTitle()}</h3>
         
         <p className="text-sm text-muted-foreground mb-6">
-          {getErrorDescription()}
+          {analysis.userMessage}
         </p>
 
         {error.code && (
@@ -152,16 +251,30 @@ function DefaultTauriFallback({
           </p>
         )}
 
+        {/* Suggested Actions */}
+        {analysis.suggestedActions.length > 0 && (
+          <div className="mb-6">
+            <p className="text-xs font-medium mb-2">Suggested Actions:</p>
+            <ul className="text-xs text-muted-foreground text-left">
+              {analysis.suggestedActions.map((action, index) => (
+                <li key={index} className="mb-1">• {action}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-2 justify-center">
-          <button
-            onClick={onRetry}
-            disabled={connectionState.isRetrying}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground 
-                     rounded-md hover:bg-primary/90 disabled:opacity-50 text-sm"
-          >
-            <RotateCcw size={16} className={connectionState.isRetrying ? "animate-spin" : ""} />
-            {connectionState.isRetrying ? "Retrying..." : "Try Again"}
-          </button>
+          {analysis.isRecoverable && (
+            <button
+              onClick={onRetry}
+              disabled={connectionState.isRetrying}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground 
+                       rounded-md hover:bg-primary/90 disabled:opacity-50 text-sm"
+            >
+              <RotateCcw size={16} className={connectionState.isRetrying ? "animate-spin" : ""} />
+              {connectionState.isRetrying ? "Retrying..." : "Try Again"}
+            </button>
+          )}
 
           {error.kind === "permission" && (
             <button
@@ -189,11 +302,28 @@ function DefaultTauriFallback({
             </>
           )}
         </div>
+
+        {/* Technical details (development only) */}
+        {process.env.NODE_ENV === 'development' && (
+          <details className="mt-4 text-left">
+            <summary className="text-xs cursor-pointer">Technical Details</summary>
+            <pre className="text-xs mt-2 p-2 bg-muted rounded overflow-auto">
+              {analysis.technicalMessage}
+            </pre>
+          </details>
+        )}
       </div>
     </div>
   )
 }
 
+// ============================================================================
+// MAIN COMPONENT WITH TYPE SAFETY
+// ============================================================================
+
+/**
+ * Enhanced Tauri error boundary with complete type safety
+ */
 export function TauriErrorBoundary({
   children,
   fallbackComponent: FallbackComponent = DefaultTauriFallback,
@@ -212,10 +342,10 @@ export function TauriErrorBoundary({
   const [currentError, setCurrentError] = useState<TauriError | null>(null)
   const toast = useToast()
 
-  // Handle async Tauri errors
+  // Handle async Tauri errors with type safety
   const { reportError } = useAsyncErrorHandler({
-    onError: (error) => {
-      if (error.type === "tauri_error") {
+    onError: (error: CategorizedError) => {
+      if (error.category === "tauri") {
         const tauriError = categorizeTauriError(error.originalError)
         setCurrentError(tauriError)
         setConnectionState(prev => ({
@@ -225,15 +355,18 @@ export function TauriErrorBoundary({
         }))
       }
     },
-    enableToast: false, // We handle toasts ourselves
-    enableReporting: true
+    config: {
+      enableToast: false, // We handle toasts ourselves
+      enableBackendReporting: true,
+      enableConsoleLogging: process.env.NODE_ENV === 'development'
+    }
   })
 
-  // Connection heartbeat
+  // Connection heartbeat with type safety
   useEffect(() => {
     if (!enableHeartbeat) return
 
-    const checkConnection = async () => {
+    const checkConnection = async (): Promise<void> => {
       try {
         await safeInvoke("test_db_connection")
         
@@ -267,15 +400,21 @@ export function TauriErrorBoundary({
       }
     }
 
-    const interval = setInterval(checkConnection, heartbeatInterval)
+    const interval = setInterval(() => {
+      checkConnection().catch(error => {
+        console.warn("Heartbeat check failed:", error)
+      })
+    }, heartbeatInterval)
     
     // Initial check
-    checkConnection()
+    checkConnection().catch(error => {
+      console.warn("Initial connection check failed:", error)
+    })
 
     return () => clearInterval(interval)
   }, [enableHeartbeat, heartbeatInterval, connectionState.isConnected, onConnectionChange, toast])
 
-  const handleRetry = async () => {
+  const handleRetry = async (): Promise<void> => {
     if (connectionState.retryCount >= maxRetries) {
       toast.warning("Max retries reached", "Please restart the application")
       return
@@ -315,9 +454,10 @@ export function TauriErrorBoundary({
     }
   }
 
-  const handleOpenSettings = () => {
+  const handleOpenSettings = (): void => {
     // This would typically navigate to settings or show a settings modal
     console.log("Open settings requested")
+    // TODO: Implement settings navigation
   }
 
   // If we have a current error, show the fallback
@@ -335,10 +475,15 @@ export function TauriErrorBoundary({
   return (
     <ComponentErrorBoundary
       componentName="TauriErrorBoundary"
-      onError={(error, errorInfo) => {
+      onError={(error) => {
         const tauriError = categorizeTauriError(error)
         setCurrentError(tauriError)
-        reportError(error, "tauri_error")
+        // Map TauriErrorKind to valid CategorizedError subtype
+        const mappedSubtype = tauriError.kind === 'connection' ? 'ipc_failure' : 
+                             tauriError.kind === 'permission' ? 'permission_denied' :
+                             tauriError.kind === 'timeout' ? 'ipc_failure' :
+                             'ipc_failure'
+        reportError(error, "tauri", mappedSubtype)
       }}
     >
       {children}
@@ -346,7 +491,13 @@ export function TauriErrorBoundary({
   )
 }
 
-// Higher-order component for wrapping components that use Tauri
+// ============================================================================
+// HIGHER-ORDER COMPONENT WITH TYPE SAFETY
+// ============================================================================
+
+/**
+ * Higher-order component for wrapping components that use Tauri
+ */
 export function withTauriErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
   options: Omit<TauriErrorBoundaryProps, "children"> = {}
@@ -359,3 +510,57 @@ export function withTauriErrorBoundary<P extends object>(
     )
   }
 }
+
+// ============================================================================
+// UTILITY FUNCTIONS FOR EXTERNAL USE
+// ============================================================================
+
+/**
+ * Check if an error is a Tauri-related error
+ */
+export function isTauriError(error: unknown): error is TauriError {
+  return typeof error === 'object' && 
+         error !== null && 
+         'kind' in error && 
+         'message' in error &&
+         typeof (error as TauriError).kind === 'string' &&
+         typeof (error as TauriError).message === 'string'
+}
+
+/**
+ * Create a Tauri error with type safety
+ */
+export function createTauriError(
+  message: string,
+  kind: TauriErrorKind = 'unknown',
+  code?: string
+): TauriError {
+  return { message, kind, code }
+}
+
+/**
+ * Get user-friendly error message for a Tauri error
+ */
+export function getTauriErrorUserMessage(error: TauriError): string {
+  const analysis = analyzeErrorDetails(error.message, error.code || "")
+  return analysis.userMessage
+}
+
+/**
+ * Check if a Tauri error is recoverable
+ */
+export function isTauriErrorRecoverable(error: TauriError): boolean {
+  const analysis = analyzeErrorDetails(error.message, error.code || "")
+  return analysis.isRecoverable
+}
+
+/**
+ * Get suggested actions for a Tauri error
+ */
+export function getTauriErrorSuggestedActions(error: TauriError): string[] {
+  const analysis = analyzeErrorDetails(error.message, error.code || "")
+  return analysis.suggestedActions
+}
+
+// Export types for external use
+export type { TauriConnectionState, TauriErrorFallbackProps, ErrorAnalysisResult }

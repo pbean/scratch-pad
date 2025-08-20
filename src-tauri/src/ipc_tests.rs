@@ -34,7 +34,7 @@ mod tests {
             .context("Failed to create temporary directory")?;
         let db_path = temp_dir.path().join("test.db");
         
-        let db_service = DbService::new(&db_path.to_string_lossy())
+        let db_service = DbService::new(&*db_path.to_string_lossy())
             .context("Failed to create database service")?;
 
         // Test create_note
@@ -49,27 +49,27 @@ mod tests {
         assert_eq!(all_notes.len(), 1);
         assert_eq!(all_notes[0].content, "Test note content");
 
-        // Test get_latest_note
-        let latest_note = db_service.get_latest_note().await
-            .context("Failed to get latest note")?;
-        assert!(latest_note.is_some());
-        let latest = latest_note.context("Latest note should exist")?;
-        assert_eq!(latest.content, "Test note content");
+        // Test get_note
+        let note = db_service.get_note(created_note.id).await
+            .context("Failed to get note")?;
+        assert!(note.is_some());
+        let fetched_note = note.context("Note should exist")?;
+        assert_eq!(fetched_note.content, "Test note content");
 
         // Test update_note
         let mut updated_note = created_note.clone();
         updated_note.content = "Updated content".to_string();
         updated_note.format = models::NoteFormat::Markdown;
         
-        let result = db_service.update_note(updated_note.clone()).await
+        let result = db_service.update_note(created_note.id, "Updated content".to_string()).await
             .context("Failed to update note")?;
         assert_eq!(result.content, "Updated content");
-        assert_eq!(result.format, models::NoteFormat::Markdown);
 
-        // Test get_all_paths
-        let paths = db_service.get_all_paths().await
-            .context("Failed to get all paths")?;
-        assert!(!paths.is_empty());
+        // Test get_all_notes again
+        let notes_after_update = db_service.get_all_notes(None, None).await
+            .context("Failed to get all notes after update")?;
+        assert_eq!(notes_after_update.len(), 1);
+        assert_eq!(notes_after_update[0].content, "Updated content");
 
         // Test delete_note
         db_service.delete_note(created_note.id).await

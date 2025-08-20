@@ -256,8 +256,7 @@ mod tests {
         let repo = MockNoteRepository::new();
         let mut note = repo.create_note("Original content".to_string()).await.unwrap();
         
-        note.content = "Updated content".to_string();
-        let updated = repo.update_note(note.clone()).await.unwrap();
+        let updated = repo.update_note(note.id, "Updated content".to_string()).await.unwrap();
         assert_eq!(updated.content, "Updated content");
     }
 

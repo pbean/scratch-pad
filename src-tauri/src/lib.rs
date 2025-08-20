@@ -26,6 +26,7 @@ pub mod validation;
 pub mod window_manager;
 pub mod cli;
 pub mod traits; // Add traits module
+pub mod performance; // Add performance monitoring module
 
 // Add testing module for comprehensive service testing framework
 #[cfg(test)]
@@ -82,6 +83,9 @@ pub fn run() {
             shutdown_manager.set_app_handle(app.handle().clone());
             let shutdown_manager = Arc::new(shutdown_manager);
             
+            // Initialize performance monitoring
+            crate::performance::initialize_performance_monitoring();
+            
             // Compose app state
             let app_state = AppState {
                 db: db_service,
@@ -106,7 +110,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // Test module uses core functionality
     
     #[test]
     fn verify_app_setup() {

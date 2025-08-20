@@ -10,6 +10,11 @@ import {
 } from './index'
 import type { Note, View, Settings } from '../../types'
 
+// Store type imports for proper typing
+type ScratchPadStore = ReturnType<typeof useScratchPadStore.getState>
+type StoreSelector<T, R> = (state: T) => R
+type ScratchPadStoreSelector<R> = StoreSelector<ScratchPadStore, R>
+
 // Performance-optimized hooks with selective subscriptions
 
 /**
@@ -321,18 +326,116 @@ export const useLegacyStore = () => {
   return useScratchPadStore()
 }
 
-// Selector utilities for complex state selections
-export const createNoteSelector = (noteId: number) => (state: any) => ({
-  note: state.getNoteById(noteId),
-  isActive: state.activeNoteId === noteId,
-  hasOptimisticUpdates: state.optimisticUpdates.has(noteId)
-})
+// ============================================================================
+// TYPE-SAFE SELECTOR UTILITIES - Phase 1 Implementation
+// ============================================================================
 
-export const createSearchResultSelector = (index: number) => (state: any) => ({
-  result: state.searchResults[index],
-  isSelected: state.selectedSearchIndex === index,
-  totalResults: state.searchResults.length
-})
+/**
+ * Type-safe note selector factory with proper return typing
+ * Replaces previous any usage with strict typing
+ */
+export function createNoteSelector(noteId: number): ScratchPadStoreSelector<{
+  note: Note | undefined
+  isActive: boolean
+  hasOptimisticUpdates: boolean
+}> {
+  return (state: ScratchPadStore) => ({
+    note: state.getNoteById(noteId),
+    isActive: state.activeNoteId === noteId,
+    hasOptimisticUpdates: state.optimisticUpdates.has(noteId)
+  })
+}
+
+/**
+ * Type-safe search result selector factory with proper return typing
+ * Replaces previous any usage with strict typing
+ */
+export function createSearchResultSelector(index: number): ScratchPadStoreSelector<{
+  result: Note | undefined
+  isSelected: boolean
+  totalResults: number
+  hasResults: boolean
+}> {
+  return (state: ScratchPadStore) => ({
+    result: state.searchResults[index],
+    isSelected: state.selectedSearchIndex === index,
+    totalResults: state.searchResults.length,
+    hasResults: state.searchResults.length > 0
+  })
+}
+
+/**
+ * Type-safe settings value selector with proper generic typing
+ * Provides type-safe access to specific setting values
+ */
+export function createSettingSelector<K extends keyof Settings>(
+  key: K
+): ScratchPadStoreSelector<{
+  value: Settings[K] | undefined
+  hasValue: boolean
+  isDefault: boolean
+}> {
+  return (state: ScratchPadStore) => {
+    const value = state.getSettingValue(key)
+    return {
+      value,
+      hasValue: value !== undefined,
+      isDefault: value === state.getDefaultSettings()[key]
+    }
+  }
+}
+
+/**
+ * Type-safe performance metrics selector
+ * Provides focused access to performance data
+ */
+export function createPerformanceSelector(): ScratchPadStoreSelector<{
+  averageQueryTime: number
+  cacheHitRate: number
+  totalQueries: number
+  isHealthy: boolean
+  lastUpdate: number
+}> {
+  return (state: ScratchPadStore) => {
+    const metrics = state.getAveragePerformance()
+    return {
+      averageQueryTime: metrics.avgQueryTime || 0,
+      cacheHitRate: metrics.cacheHitRate || 0,
+      totalQueries: metrics.totalQueries || 0,
+      isHealthy: state.isSystemHealthy(),
+      lastUpdate: Date.now()
+    }
+  }
+}
+
+/**
+ * Type-safe loading state selector for specific operations
+ * Provides granular loading state access
+ */
+export function createLoadingSelector(
+  operations: Array<'notes' | 'search' | 'settings' | 'more'>
+): ScratchPadStoreSelector<{
+  isLoading: boolean
+  activeOperations: string[]
+  hasAnyLoading: boolean
+}> {
+  return (state: ScratchPadStore) => {
+    const loadingStates = {
+      notes: state.isLoadingNotes,
+      search: state.isSearching,
+      settings: state.isLoadingSettings,
+      more: state.isLoadingMore
+    }
+    
+    const activeOperations = operations.filter(op => loadingStates[op])
+    
+    return {
+      isLoading: activeOperations.length > 0,
+      activeOperations,
+      hasAnyLoading: state.hasAnyLoading()
+    }
+  }
+}
 
 // Development helpers
 if (process.env.NODE_ENV === 'development') {
@@ -352,6 +455,12 @@ if (process.env.NODE_ENV === 'development') {
     useFolders,
     useGlobalShortcuts,
     useWindow,
-    usePlugins
+    usePlugins,
+    // Type-safe selectors
+    createNoteSelector,
+    createSearchResultSelector,
+    createSettingSelector,
+    createPerformanceSelector,
+    createLoadingSelector
   }
 }

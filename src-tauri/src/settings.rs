@@ -270,7 +270,7 @@ mod tests {
             .context("Failed to create temporary directory")?;
         let db_path = temp_dir.path().join("test.db");
         
-        let db_service = Arc::new(DbService::new(&db_path.to_string_lossy())
+        let db_service = Arc::new(DbService::new(&*db_path.to_string_lossy())
             .context("Failed to create database service")?);
         Ok(SettingsService::new(db_service))
     }

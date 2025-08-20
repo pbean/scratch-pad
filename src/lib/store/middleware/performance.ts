@@ -1,23 +1,10 @@
 import { StateCreator, StoreMutatorIdentifier } from 'zustand'
 import { useEffect } from 'react'
+import type { PerformanceMetrics, PerformanceSlice } from '../../../types/middleware'
 
-interface PerformanceMetrics {
-  totalStateUpdates: number
-  lastUpdateTime: number
-  updateTimes: number[]
-  slowUpdates: Array<{ timestamp: number; duration: number; action?: string }>
-  rerenderPrevention: {
-    prevented: number
-    total: number
-  }
-}
-
-interface PerformanceSlice {
-  _performance: PerformanceMetrics
-  _getPerformanceStats: () => PerformanceMetrics
-  _trackRerender: (prevented: boolean) => void
-  _resetPerformanceStats: () => void
-}
+// ============================================================================
+// TYPE-SAFE PERFORMANCE MIDDLEWARE IMPLEMENTATION
+// ============================================================================
 
 type PerformanceMiddleware = <
   T,
@@ -31,6 +18,23 @@ const SLOW_UPDATE_THRESHOLD = 16 // 16ms for 60fps
 const MAX_TRACKED_UPDATES = 100
 const PERFORMANCE_WINDOW = 30000 // 30 seconds
 
+/**
+ * Type-safe performance metrics with proper state typing
+ */
+interface TypedPerformanceState<T> extends T {
+  _performance: PerformanceMetrics
+  _getPerformanceStats: () => PerformanceMetrics & {
+    averageUpdateTime: number
+    recentUpdateCount: number
+    rerenderPreventionRate: number
+  }
+  _trackRerender: (prevented: boolean) => void
+  _resetPerformanceStats: () => void
+}
+
+/**
+ * Enhanced performance middleware with complete type safety
+ */
 const performanceMiddleware: PerformanceMiddleware = (config) => (set, get, api) => {
   const initialMetrics: PerformanceMetrics = {
     totalStateUpdates: 0,
@@ -43,7 +47,7 @@ const performanceMiddleware: PerformanceMiddleware = (config) => (set, get, api)
     }
   }
 
-  // Wrap the set function to track performance
+  // Type-safe wrapper for set function
   const performanceSet: typeof set = (...args) => {
     const startTime = performance.now()
     
@@ -53,8 +57,8 @@ const performanceMiddleware: PerformanceMiddleware = (config) => (set, get, api)
     const endTime = performance.now()
     const duration = endTime - startTime
     
-    // Update performance metrics
-    const currentState = get() as any
+    // Type-safe state access
+    const currentState = get() as TypedPerformanceState<ReturnType<typeof get>>
     const newMetrics: PerformanceMetrics = {
       totalStateUpdates: currentState._performance.totalStateUpdates + 1,
       lastUpdateTime: endTime,
@@ -93,7 +97,7 @@ const performanceMiddleware: PerformanceMiddleware = (config) => (set, get, api)
     _performance: initialMetrics,
     
     _getPerformanceStats: () => {
-      const state = get() as any
+      const state = get() as TypedPerformanceState<ReturnType<typeof get>>
       const metrics = state._performance
       const now = performance.now()
       
@@ -116,8 +120,8 @@ const performanceMiddleware: PerformanceMiddleware = (config) => (set, get, api)
     },
     
     _trackRerender: (prevented: boolean) => {
-      const state = get() as any
-      const newMetrics = {
+      const state = get() as TypedPerformanceState<ReturnType<typeof get>>
+      const newMetrics: PerformanceMetrics = {
         ...state._performance,
         rerenderPrevention: {
           prevented: state._performance.rerenderPrevention.prevented + (prevented ? 1 : 0),
@@ -142,6 +146,9 @@ const performanceMiddleware: PerformanceMiddleware = (config) => (set, get, api)
   }
 }
 
+/**
+ * Type-safe action name extraction from stack trace
+ */
 function extractActionName(): string | undefined {
   if (process.env.NODE_ENV !== 'development') return undefined
   
@@ -164,8 +171,14 @@ function extractActionName(): string | undefined {
   return undefined
 }
 
-// Development helper to monitor performance
-export const logPerformanceStats = (store: any) => {
+// ============================================================================
+// TYPE-SAFE DEVELOPMENT HELPERS
+// ============================================================================
+
+/**
+ * Type-safe performance logging for stores
+ */
+export const logPerformanceStats = <T extends PerformanceSlice>(store: T): void => {
   if (process.env.NODE_ENV !== 'development') return
   
   const stats = store._getPerformanceStats()
@@ -187,8 +200,13 @@ export const logPerformanceStats = (store: any) => {
   console.groupEnd()
 }
 
-// Performance monitoring hook for React components
-export const usePerformanceMonitor = (store: any, componentName: string) => {
+/**
+ * Type-safe performance monitoring hook for React components
+ */
+export const usePerformanceMonitor = <T extends PerformanceSlice>(
+  store: T, 
+  componentName: string
+): void => {
   useEffect(() => {
     let renderCount = 0
     let lastRenderTime = performance.now()
@@ -218,7 +236,144 @@ export const usePerformanceMonitor = (store: any, componentName: string) => {
         console.log(`🏁 ${componentName} unmounted after ${renderCount} renders`)
       }
     }
-  })
+  }, [store, componentName])
+}
+
+/**
+ * Type-safe performance store interface
+ */
+export interface TypeSafePerformanceStore extends PerformanceSlice {
+  // Additional methods for enhanced performance monitoring
+  getPerformanceSnapshot: () => {
+    metrics: PerformanceMetrics
+    timestamp: number
+    memoryInfo?: {
+      usedJSHeapSize: number
+      totalJSHeapSize: number
+      jsHeapSizeLimit: number
+    }
+  }
+  
+  comparePerformanceSnapshots: (
+    snapshot1: ReturnType<TypeSafePerformanceStore['getPerformanceSnapshot']>,
+    snapshot2: ReturnType<TypeSafePerformanceStore['getPerformanceSnapshot']>
+  ) => {
+    updatesDiff: number
+    averageTimeDiff: number
+    memoryDiff?: number
+  }
+}
+
+/**
+ * Enhanced performance store creator with type safety
+ */
+export const createTypeSafePerformanceStore = <T>(
+  baseStore: T & PerformanceSlice
+): T & TypeSafePerformanceStore => {
+  return {
+    ...baseStore,
+    
+    getPerformanceSnapshot: () => {
+      const metrics = baseStore._getPerformanceStats()
+      const snapshot = {
+        metrics,
+        timestamp: Date.now(),
+        memoryInfo: undefined as undefined | {
+          usedJSHeapSize: number
+          totalJSHeapSize: number
+          jsHeapSizeLimit: number
+        }
+      }
+      
+      // Safely access performance.memory if available
+      if (typeof window !== 'undefined' && 'performance' in window) {
+        const performance = window.performance
+        if ('memory' in performance) {
+          const memory = performance.memory as {
+            usedJSHeapSize: number
+            totalJSHeapSize: number
+            jsHeapSizeLimit: number
+          }
+          snapshot.memoryInfo = {
+            usedJSHeapSize: memory.usedJSHeapSize,
+            totalJSHeapSize: memory.totalJSHeapSize,
+            jsHeapSizeLimit: memory.jsHeapSizeLimit
+          }
+        }
+      }
+      
+      return snapshot
+    },
+    
+    comparePerformanceSnapshots: (snapshot1, snapshot2) => {
+      const updatesDiff = snapshot2.metrics.totalStateUpdates - snapshot1.metrics.totalStateUpdates
+      const averageTimeDiff = 
+        (snapshot2.metrics.updateTimes.reduce((sum, time) => sum + time, 0) / snapshot2.metrics.updateTimes.length) -
+        (snapshot1.metrics.updateTimes.reduce((sum, time) => sum + time, 0) / snapshot1.metrics.updateTimes.length)
+      
+      let memoryDiff: number | undefined
+      if (snapshot1.memoryInfo && snapshot2.memoryInfo) {
+        memoryDiff = snapshot2.memoryInfo.usedJSHeapSize - snapshot1.memoryInfo.usedJSHeapSize
+      }
+      
+      return {
+        updatesDiff,
+        averageTimeDiff: isNaN(averageTimeDiff) ? 0 : averageTimeDiff,
+        memoryDiff
+      }
+    }
+  }
+}
+
+/**
+ * Development performance monitoring dashboard
+ */
+export const startTypeSafePerformanceDashboard = <T extends PerformanceSlice>(
+  store: T
+): (() => void) => {
+  if (process.env.NODE_ENV !== 'development') {
+    return () => {} // No-op in production
+  }
+  
+  const enhancedStore = createTypeSafePerformanceStore(store)
+  let intervalId: NodeJS.Timeout
+  let previousSnapshot = enhancedStore.getPerformanceSnapshot()
+  
+  const logDashboard = () => {
+    const currentSnapshot = enhancedStore.getPerformanceSnapshot()
+    const comparison = enhancedStore.comparePerformanceSnapshots(previousSnapshot, currentSnapshot)
+    
+    console.group('📊 Performance Dashboard Update')
+    console.log('Time Range:', new Date(previousSnapshot.timestamp).toLocaleTimeString(), 
+                'to', new Date(currentSnapshot.timestamp).toLocaleTimeString())
+    console.log('State Updates:', comparison.updatesDiff)
+    console.log('Average Time Change:', `${comparison.averageTimeDiff.toFixed(2)}ms`)
+    
+    if (comparison.memoryDiff !== undefined) {
+      const memoryDiffMB = comparison.memoryDiff / (1024 * 1024)
+      console.log('Memory Usage Change:', `${memoryDiffMB.toFixed(2)}MB`)
+    }
+    
+    if (comparison.updatesDiff > 50) {
+      console.warn('⚠️ High update frequency detected')
+    }
+    
+    if (comparison.averageTimeDiff > 5) {
+      console.warn('⚠️ Performance degradation detected')
+    }
+    
+    console.groupEnd()
+    
+    previousSnapshot = currentSnapshot
+  }
+  
+  // Log dashboard every 30 seconds
+  intervalId = setInterval(logDashboard, 30000)
+  
+  // Return cleanup function
+  return () => {
+    clearInterval(intervalId)
+  }
 }
 
 export default performanceMiddleware

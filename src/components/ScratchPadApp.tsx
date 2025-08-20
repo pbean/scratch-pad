@@ -7,7 +7,7 @@ import { useToast } from "./ui/toast"
 import { useScratchPadStore } from "../lib/store"
 import { useMemoryCleanup, useDataCleanup } from "../hooks/useMemoryCleanup"
 import { useRenderPerformance, useMemoryMonitor, useStartupPerformance } from "../hooks/usePerformanceMonitor"
-import { invoke } from "@tauri-apps/api/core"
+// import { invoke } from "@tauri-apps/api/core" // Removed unused import
 
 // Error boundary imports
 import { 
@@ -48,7 +48,7 @@ export function ScratchPadApp() {
   const { currentView, loadNotes, error, isCommandPaletteOpen, initializeSettings, notes } = useScratchPadStore()
   const [isInitializing, setIsInitializing] = useState(true)
   const [isAppReady, setIsAppReady] = useState(false)
-  const [tauriConnectionState, setTauriConnectionState] = useState({ isConnected: true })
+  const [, setTauriConnectionState] = useState({ isConnected: true })
   const toast = useToast()
 
   // Memory management hooks
@@ -149,7 +149,7 @@ export function ScratchPadApp() {
         enableReporting={true}
         onError={(error) => {
           // Handle critical async errors that might affect connection state
-          if (error.type === "tauri_error") {
+          if (error.category === "tauri") {
             setTauriConnectionState({ isConnected: false })
           }
         }}

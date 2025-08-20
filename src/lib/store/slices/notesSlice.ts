@@ -227,6 +227,8 @@ export const createNotesSlice: StateCreator<
   // Selectors
   getActiveNote: () => {
     const { notes, activeNoteId, optimisticUpdates } = get()
+    if (activeNoteId === null) return undefined
+    
     const baseNote = notes.find(note => note.id === activeNoteId)
     if (!baseNote) return undefined
 

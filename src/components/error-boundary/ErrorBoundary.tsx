@@ -1,4 +1,4 @@
-import React, { Component, ReactNode } from "react"
+import { Component, ReactNode } from "react"
 import { AlertTriangle, RotateCcw, RefreshCw, Home, Bug } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 

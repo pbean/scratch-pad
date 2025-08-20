@@ -6,8 +6,8 @@
  * and <1ms overhead per operation.
  */
 
-import React, { memo, useState, useEffect } from 'react'
-import { Activity, AlertTriangle, BarChart3, Clock, Database, Zap, ChevronDown, ChevronUp } from 'lucide-react'
+import { memo, useState, useEffect } from 'react'
+import { Activity, AlertTriangle, BarChart3, Clock, Database, ChevronDown, ChevronUp } from 'lucide-react'
 import type { RealTimeMetrics, PerformanceAlert } from '../../types/analytics'
 import { useRealTimeMetrics, usePerformanceAlerts } from '../../hooks/usePerformanceMonitoring'
 import { Badge } from '../ui/badge'
@@ -184,7 +184,7 @@ export const PerformanceWidget = memo<PerformanceWidgetProps>(({
   }
 
   // Determine critical metrics
-  const isCritical = metrics.status === 'critical' || metrics.activeAlertsCount > 0
+  // const isCritical = metrics.status === 'critical' || metrics.activeAlertsCount > 0 // Unused variable
   const isSlowQuery = metrics.recentAvgQueryTime > 100
   const isLowCacheHit = metrics.currentCacheHitRate < 50
 
@@ -343,7 +343,7 @@ export const PerformanceStatusBar = memo<{
   onClick?: () => void
 }>(({ className = '', onClick }) => {
   const realTimeMetrics = useRealTimeMetrics(5000) // Update every 5 seconds
-  const alerts = usePerformanceAlerts()
+  // const alerts = usePerformanceAlerts() // Unused variable
 
   const metrics = realTimeMetrics.metrics
   

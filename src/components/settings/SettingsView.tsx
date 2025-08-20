@@ -6,8 +6,12 @@ import { Label } from "../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Separator } from "../ui/separator"
-import { ArrowLeft, Download, Upload, RotateCcw, Save, AlertCircle } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
+import { ArrowLeft, Download, Upload, RotateCcw, Save, AlertCircle, Activity, BarChart3 } from "lucide-react"
 import type { SettingsFormData, NoteFormat, LayoutMode } from "../../types"
+import PerformanceDashboard from "../performance/PerformanceDashboard"
+import PerformanceAlertManager from "../performance/PerformanceAlertManager"
+import OptimizationRecommendations from "../performance/OptimizationRecommendations"
 
 export function SettingsView() {
   const { 
@@ -227,7 +231,7 @@ export function SettingsView() {
 
   return (
     <div className="h-screen w-screen overflow-auto" style={{ backgroundColor: 'hsl(var(--background))' }}>
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Button
@@ -262,253 +266,320 @@ export function SettingsView() {
           </div>
         )}
 
-        {/* Global Shortcut Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Global Shortcut</CardTitle>
-            <CardDescription>
-              Configure the keyboard shortcut to show/hide the application
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="globalShortcut">Global Shortcut</Label>
-              <Input
-                id="globalShortcut"
-                value={formData.globalShortcut}
-                onChange={(e) => handleInputChange("globalShortcut", e.target.value)}
-                placeholder="e.g., Ctrl+Shift+N"
-                className={validationErrors.globalShortcut ? "border-red-500" : ""}
-              />
-              {validationErrors.globalShortcut && (
-                <p className="text-sm text-red-600">{validationErrors.globalShortcut}</p>
-              )}
-              <p className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>
-                Use standard modifier keys: Ctrl, Alt, Shift, Cmd (macOS)
-              </p>
+        {/* Main Settings Tabs */}
+        <Tabs defaultValue="general" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="performance">Performance</TabsTrigger>
+            <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
+            <TabsTrigger value="optimization">Optimization</TabsTrigger>
+          </TabsList>
+
+          {/* General Settings Tab */}
+          <TabsContent value="general" className="space-y-6">
+            {/* Global Shortcut Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Global Shortcut</CardTitle>
+                <CardDescription>
+                  Configure the keyboard shortcut to show/hide the application
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="globalShortcut">Global Shortcut</Label>
+                  <Input
+                    id="globalShortcut"
+                    value={formData.globalShortcut}
+                    onChange={(e) => handleInputChange("globalShortcut", e.target.value)}
+                    placeholder="e.g., Ctrl+Shift+N"
+                    className={validationErrors.globalShortcut ? "border-red-500" : ""}
+                  />
+                  {validationErrors.globalShortcut && (
+                    <p className="text-sm text-red-600">{validationErrors.globalShortcut}</p>
+                  )}
+                  <p className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>
+                    Use standard modifier keys: Ctrl, Alt, Shift, Cmd (macOS)
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Font Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Font Preferences</CardTitle>
+                <CardDescription>
+                  Configure fonts for the user interface and text editor
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="uiFont" id="uiFont-label">UI Font</Label>
+                    <Select value={formData.uiFont} onValueChange={(value) => handleInputChange("uiFont", value)}>
+                      <SelectTrigger id="uiFont" aria-labelledby="uiFont-label">
+                        <SelectValue placeholder="Select UI font" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Inter">Inter</SelectItem>
+                        <SelectItem value="system-ui">System UI</SelectItem>
+                        <SelectItem value="Arial">Arial</SelectItem>
+                        <SelectItem value="Helvetica">Helvetica</SelectItem>
+                        <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="editorFont" id="editorFont-label">Editor Font</Label>
+                    <Select value={formData.editorFont} onValueChange={(value) => handleInputChange("editorFont", value)}>
+                      <SelectTrigger id="editorFont" aria-labelledby="editorFont-label">
+                        <SelectValue placeholder="Select editor font" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SauceCodePro Nerd Font">SauceCodePro Nerd Font</SelectItem>
+                        <SelectItem value="Fira Code">Fira Code</SelectItem>
+                        <SelectItem value="JetBrains Mono">JetBrains Mono</SelectItem>
+                        <SelectItem value="Monaco">Monaco</SelectItem>
+                        <SelectItem value="Consolas">Consolas</SelectItem>
+                        <SelectItem value="monospace">Monospace</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Note Format and Layout Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Note Format & Layout</CardTitle>
+                <CardDescription>
+                  Configure default note format and window layout preferences
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="defaultNoteFormat" id="defaultNoteFormat-label">Default Note Format</Label>
+                    <Select value={formData.defaultNoteFormat} onValueChange={(value) => handleInputChange("defaultNoteFormat", value as NoteFormat)}>
+                      <SelectTrigger id="defaultNoteFormat" aria-labelledby="defaultNoteFormat-label">
+                        <SelectValue placeholder="Select note format" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="plaintext">Plain Text</SelectItem>
+                        <SelectItem value="markdown">Markdown</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="layoutMode" id="layoutMode-label">Layout Mode</Label>
+                    <Select value={formData.layoutMode} onValueChange={(value) => handleInputChange("layoutMode", value as LayoutMode)}>
+                      <SelectTrigger id="layoutMode" aria-labelledby="layoutMode-label">
+                        <SelectValue placeholder="Select layout mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="default">Default</SelectItem>
+                        <SelectItem value="half">Half Screen</SelectItem>
+                        <SelectItem value="full">Full Screen</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Window Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Window Settings</CardTitle>
+                <CardDescription>
+                  Configure window dimensions and behavior
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="windowWidth">Window Width (px)</Label>
+                    <Input
+                      id="windowWidth"
+                      type="number"
+                      value={formData.windowWidth}
+                      onChange={(e) => handleInputChange("windowWidth", e.target.value)}
+                      min="400"
+                      max="3840"
+                      className={validationErrors.windowWidth ? "border-red-500" : ""}
+                    />
+                    {validationErrors.windowWidth && (
+                      <p className="text-sm text-red-600">{validationErrors.windowWidth}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="windowHeight">Window Height (px)</Label>
+                    <Input
+                      id="windowHeight"
+                      type="number"
+                      value={formData.windowHeight}
+                      onChange={(e) => handleInputChange("windowHeight", e.target.value)}
+                      min="300"
+                      max="2160"
+                      className={validationErrors.windowHeight ? "border-red-500" : ""}
+                    />
+                    {validationErrors.windowHeight && (
+                      <p className="text-sm text-red-600">{validationErrors.windowHeight}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Performance Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Performance Settings</CardTitle>
+                <CardDescription>
+                  Configure auto-save and search performance settings
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="autoSaveDelay">Auto-save Delay (ms)</Label>
+                    <Input
+                      id="autoSaveDelay"
+                      type="number"
+                      value={formData.autoSaveDelay}
+                      onChange={(e) => handleInputChange("autoSaveDelay", e.target.value)}
+                      min="100"
+                      max="10000"
+                      className={validationErrors.autoSaveDelay ? "border-red-500" : ""}
+                    />
+                    {validationErrors.autoSaveDelay && (
+                      <p className="text-sm text-red-600">{validationErrors.autoSaveDelay}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="searchLimit">Search Results Limit</Label>
+                    <Input
+                      id="searchLimit"
+                      type="number"
+                      value={formData.searchLimit}
+                      onChange={(e) => handleInputChange("searchLimit", e.target.value)}
+                      min="10"
+                      max="1000"
+                      className={validationErrors.searchLimit ? "border-red-500" : ""}
+                    />
+                    {validationErrors.searchLimit && (
+                      <p className="text-sm text-red-600">{validationErrors.searchLimit}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="fuzzySearchThreshold">Fuzzy Search Threshold</Label>
+                    <Input
+                      id="fuzzySearchThreshold"
+                      type="number"
+                      step="0.1"
+                      value={formData.fuzzySearchThreshold}
+                      onChange={(e) => handleInputChange("fuzzySearchThreshold", e.target.value)}
+                      min="0"
+                      max="1"
+                      className={validationErrors.fuzzySearchThreshold ? "border-red-500" : ""}
+                    />
+                    {validationErrors.fuzzySearchThreshold && (
+                      <p className="text-sm text-red-600">{validationErrors.fuzzySearchThreshold}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-4 pt-6 border-t">
+              <Button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2">
+                <Save className="h-4 w-4" />
+                {isSaving ? "Saving..." : "Save Settings"}
+              </Button>
+
+              <Separator orientation="vertical" className="h-8" />
+
+              <Button variant="outline" onClick={handleExport} className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Export Settings
+              </Button>
+
+              <Button variant="outline" onClick={handleImport} className="flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Import Settings
+              </Button>
+
+              <Separator orientation="vertical" className="h-8" />
+
+              <Button variant="destructive" onClick={handleReset} className="flex items-center gap-2">
+                <RotateCcw className="h-4 w-4" />
+                Reset to Defaults
+              </Button>
             </div>
-          </CardContent>
-        </Card>
+          </TabsContent>
 
-        {/* Font Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Font Preferences</CardTitle>
-            <CardDescription>
-              Configure fonts for the user interface and text editor
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="uiFont" id="uiFont-label">UI Font</Label>
-                <Select value={formData.uiFont} onValueChange={(value) => handleInputChange("uiFont", value)}>
-                  <SelectTrigger id="uiFont" aria-labelledby="uiFont-label">
-                    <SelectValue placeholder="Select UI font" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Inter">Inter</SelectItem>
-                    <SelectItem value="system-ui">System UI</SelectItem>
-                    <SelectItem value="Arial">Arial</SelectItem>
-                    <SelectItem value="Helvetica">Helvetica</SelectItem>
-                    <SelectItem value="sans-serif">Sans Serif</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Performance Dashboard Tab */}
+          <TabsContent value="performance" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Performance Dashboard
+                </CardTitle>
+                <CardDescription>
+                  Monitor application performance and system metrics in real-time
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <PerformanceDashboard />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              <div className="space-y-2">
-                <Label htmlFor="editorFont" id="editorFont-label">Editor Font</Label>
-                <Select value={formData.editorFont} onValueChange={(value) => handleInputChange("editorFont", value)}>
-                  <SelectTrigger id="editorFont" aria-labelledby="editorFont-label">
-                    <SelectValue placeholder="Select editor font" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SauceCodePro Nerd Font">SauceCodePro Nerd Font</SelectItem>
-                    <SelectItem value="Fira Code">Fira Code</SelectItem>
-                    <SelectItem value="JetBrains Mono">JetBrains Mono</SelectItem>
-                    <SelectItem value="Monaco">Monaco</SelectItem>
-                    <SelectItem value="Consolas">Consolas</SelectItem>
-                    <SelectItem value="monospace">Monospace</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Monitoring Tab */}
+          <TabsContent value="monitoring" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Performance Alerts
+                </CardTitle>
+                <CardDescription>
+                  Manage performance alerts and notification settings
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <PerformanceAlertManager />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Note Format and Layout Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Note Format & Layout</CardTitle>
-            <CardDescription>
-              Configure default note format and window layout preferences
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="defaultNoteFormat" id="defaultNoteFormat-label">Default Note Format</Label>
-                <Select value={formData.defaultNoteFormat} onValueChange={(value) => handleInputChange("defaultNoteFormat", value as NoteFormat)}>
-                  <SelectTrigger id="defaultNoteFormat" aria-labelledby="defaultNoteFormat-label">
-                    <SelectValue placeholder="Select note format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="plaintext">Plain Text</SelectItem>
-                    <SelectItem value="markdown">Markdown</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="layoutMode" id="layoutMode-label">Layout Mode</Label>
-                <Select value={formData.layoutMode} onValueChange={(value) => handleInputChange("layoutMode", value as LayoutMode)}>
-                  <SelectTrigger id="layoutMode" aria-labelledby="layoutMode-label">
-                    <SelectValue placeholder="Select layout mode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Default</SelectItem>
-                    <SelectItem value="half">Half Screen</SelectItem>
-                    <SelectItem value="full">Full Screen</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Window Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Window Settings</CardTitle>
-            <CardDescription>
-              Configure window dimensions and behavior
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="windowWidth">Window Width (px)</Label>
-                <Input
-                  id="windowWidth"
-                  type="number"
-                  value={formData.windowWidth}
-                  onChange={(e) => handleInputChange("windowWidth", e.target.value)}
-                  min="400"
-                  max="3840"
-                  className={validationErrors.windowWidth ? "border-red-500" : ""}
-                />
-                {validationErrors.windowWidth && (
-                  <p className="text-sm text-red-600">{validationErrors.windowWidth}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="windowHeight">Window Height (px)</Label>
-                <Input
-                  id="windowHeight"
-                  type="number"
-                  value={formData.windowHeight}
-                  onChange={(e) => handleInputChange("windowHeight", e.target.value)}
-                  min="300"
-                  max="2160"
-                  className={validationErrors.windowHeight ? "border-red-500" : ""}
-                />
-                {validationErrors.windowHeight && (
-                  <p className="text-sm text-red-600">{validationErrors.windowHeight}</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Performance Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Performance Settings</CardTitle>
-            <CardDescription>
-              Configure auto-save and search performance settings
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="autoSaveDelay">Auto-save Delay (ms)</Label>
-                <Input
-                  id="autoSaveDelay"
-                  type="number"
-                  value={formData.autoSaveDelay}
-                  onChange={(e) => handleInputChange("autoSaveDelay", e.target.value)}
-                  min="100"
-                  max="10000"
-                  className={validationErrors.autoSaveDelay ? "border-red-500" : ""}
-                />
-                {validationErrors.autoSaveDelay && (
-                  <p className="text-sm text-red-600">{validationErrors.autoSaveDelay}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="searchLimit">Search Results Limit</Label>
-                <Input
-                  id="searchLimit"
-                  type="number"
-                  value={formData.searchLimit}
-                  onChange={(e) => handleInputChange("searchLimit", e.target.value)}
-                  min="10"
-                  max="1000"
-                  className={validationErrors.searchLimit ? "border-red-500" : ""}
-                />
-                {validationErrors.searchLimit && (
-                  <p className="text-sm text-red-600">{validationErrors.searchLimit}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="fuzzySearchThreshold">Fuzzy Search Threshold</Label>
-                <Input
-                  id="fuzzySearchThreshold"
-                  type="number"
-                  step="0.1"
-                  value={formData.fuzzySearchThreshold}
-                  onChange={(e) => handleInputChange("fuzzySearchThreshold", e.target.value)}
-                  min="0"
-                  max="1"
-                  className={validationErrors.fuzzySearchThreshold ? "border-red-500" : ""}
-                />
-                {validationErrors.fuzzySearchThreshold && (
-                  <p className="text-sm text-red-600">{validationErrors.fuzzySearchThreshold}</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4 pt-6 border-t">
-          <Button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2">
-            <Save className="h-4 w-4" />
-            {isSaving ? "Saving..." : "Save Settings"}
-          </Button>
-
-          <Separator orientation="vertical" className="h-8" />
-
-          <Button variant="outline" onClick={handleExport} className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Export Settings
-          </Button>
-
-          <Button variant="outline" onClick={handleImport} className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Import Settings
-          </Button>
-
-          <Separator orientation="vertical" className="h-8" />
-
-          <Button variant="destructive" onClick={handleReset} className="flex items-center gap-2">
-            <RotateCcw className="h-4 w-4" />
-            Reset to Defaults
-          </Button>
-        </div>
+          {/* Optimization Tab */}
+          <TabsContent value="optimization" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Optimization Recommendations
+                </CardTitle>
+                <CardDescription>
+                  AI-powered suggestions to improve application performance
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <OptimizationRecommendations />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

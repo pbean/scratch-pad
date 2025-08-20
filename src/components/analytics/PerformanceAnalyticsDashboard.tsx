@@ -6,7 +6,7 @@
  * Built for minimal performance overhead (<1ms per operation).
  */
 
-import React, { memo, useState, useEffect, useMemo, useCallback } from 'react'
+import { memo, useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Activity,
   AlertTriangle,
@@ -15,10 +15,10 @@ import {
   Database,
   Lightbulb,
   MemoryStick,
-  Search,
-  Settings,
+  // Search,
+  // Settings,
   TrendingUp,
-  Zap,
+  // Zap,
   AlertCircle,
   CheckCircle,
   Info,
@@ -470,7 +470,7 @@ export const PerformanceAnalyticsDashboard = memo<AnalyticsDashboardProps>(({
   }
 
   return (
-    <div className={`performance-analytics-dashboard space-y-6 ${className}`}>
+    <div className={`performance-analytics-dashboard ${compact ? 'space-y-3' : 'space-y-6'} ${className}`}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
