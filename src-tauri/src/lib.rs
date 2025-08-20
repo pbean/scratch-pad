@@ -14,7 +14,7 @@ pub mod commands;
 pub mod database;
 pub mod error;
 pub mod global_shortcut;
-pub mod ipc_tests;
+#[cfg(test)] pub mod ipc_tests;
 pub mod models;
 pub mod plugin;
 pub mod plugin_integration_test;

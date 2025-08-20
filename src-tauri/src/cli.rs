@@ -205,7 +205,7 @@ mod tests {
         assert!(result.is_ok());
 
         // Verify the note was created
-        let notes = db_service.get_all_notes(None, None).await
+        let notes = db_service.get_all_notes().await
             .context("Failed to get notes from database")?;
         assert_eq!(notes.len(), 1);
         assert_eq!(notes[0].content, "Test note content");

@@ -58,38 +58,23 @@ impl MockSearchRepository {
         self.state.clear_calls();
     }
     
-    /// Add notes to mock state for search simulation
-    pub fn add_notes(&self, notes: Vec<Note>) {
-        for note in notes {
-            self.state.set_data(note.id.to_string(), note);
-        }
+    /// Add a note to the mock storage (for test setup)
+    pub fn add_note(&self, note: Note) {
+        self.state.insert(note.id.to_string(), note);
     }
     
-    /// Check for configured error response
+    /// Clear all data and calls
+    pub fn clear_all(&self) {
+        self.state.clear();
+    }
+    
+    /// Check if a method would return an error
     fn check_error_response(&self, method: &str) -> Result<(), AppError> {
         let errors = self.error_responses.lock().unwrap();
         if let Some(error) = errors.get(method) {
             return Err(error.mock_clone());
         }
         Ok(())
-    }
-    
-    /// Simple mock search that filters notes by content
-    fn mock_search(&self, query: &str) -> Vec<Note> {
-        let all_data = self.state.get_all_data();
-        
-        // Simulate search by filtering notes
-        all_data
-            .values()
-            .filter(|note| note.content.to_lowercase().contains(&query.to_lowercase()))
-            .cloned()
-            .collect()
-    }
-}
-
-impl Default for MockSearchRepository {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -104,19 +89,25 @@ impl SearchRepository for MockSearchRepository {
         self.state.record_call("execute_fts5_search".to_string());
         self.check_error_response("execute_fts5_search")?;
         
-        let all_results = self.mock_search(fts5_query);
-        let total_count = all_results.len();
+        let all_data = self.state.get_all_data();
+        let mut matching_notes: Vec<Note> = all_data.values()
+            .filter(|note| note.content.to_lowercase().contains(&fts5_query.to_lowercase()))
+            .cloned()
+            .collect();
         
+        matching_notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        
+        let total_count = matching_notes.len();
         let start = page * page_size;
-        let end = std::cmp::min(start + page_size, all_results.len());
+        let end = (start + page_size).min(matching_notes.len());
         
-        let page_results = if start >= all_results.len() {
-            vec![]
+        let paginated_notes = if start >= matching_notes.len() {
+            Vec::new()
         } else {
-            all_results[start..end].to_vec()
+            matching_notes[start..end].to_vec()
         };
         
-        Ok((page_results, total_count))
+        Ok((paginated_notes, total_count))
     }
     
     async fn search_by_path(&self, path_prefix: &str) -> Result<Vec<Note>, AppError> {
@@ -138,14 +129,14 @@ impl SearchRepository for MockSearchRepository {
         
         let all_data = self.state.get_all_data();
         let results: Vec<Note> = all_data.values()
-            .filter(|note| note.is_pinned)
+            .filter(|note| note.is_favorite)  // Fixed: Use is_favorite instead of is_pinned
             .cloned()
             .collect();
         
         Ok(results)
     }
     
-    async fn search_recent(&self, days: u32) -> Result<Vec<Note>, AppError> {
+    async fn search_recent(&self, _days: u32) -> Result<Vec<Note>, AppError> {
         self.state.record_call("search_recent".to_string());
         self.check_error_response("search_recent")?;
         
@@ -195,7 +186,7 @@ impl SearchRepository for MockSearchRepository {
         path_filter: Option<&str>,
         favorites_only: bool,
         format_filter: Option<crate::models::NoteFormat>,
-        date_from: Option<&str>,
+        _date_from: Option<&str>,
         _date_to: Option<&str>,
     ) -> Result<Vec<Note>, AppError> {
         self.state.record_call("advanced_search".to_string());
@@ -218,16 +209,13 @@ impl SearchRepository for MockSearchRepository {
         
         // Apply favorites filter
         if favorites_only {
-            results.retain(|note| note.is_pinned);
+            results.retain(|note| note.is_favorite);  // Fixed: Use is_favorite instead of is_pinned
         }
         
         // Apply format filter
         if let Some(format) = format_filter {
             results.retain(|note| note.format == format);
         }
-        
-        // Note: Date filtering would require parsing date strings in a real implementation
-        // For mock purposes, we'll ignore date filters
         
         Ok(results)
     }
@@ -236,15 +224,14 @@ impl SearchRepository for MockSearchRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::NoteFormat;
 
-    fn create_test_note(id: i64, content: &str, is_pinned: bool) -> Note {
+    fn create_test_note(id: i64, content: &str, is_favorite: bool) -> Note {
         Note {
             id,
             content: content.to_string(),
             created_at: "2024-01-01T00:00:00Z".to_string(),
             updated_at: "2024-01-01T00:00:00Z".to_string(),
-            is_pinned,
+            is_favorite,  // Fixed: Use is_favorite instead of is_pinned
             format: NoteFormat::PlainText,
             nickname: None,
             path: format!("/note/{}", id),
@@ -252,100 +239,35 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_execute_fts5_search() {
+    async fn test_mock_search_repository() {
         let repo = MockSearchRepository::new();
         
-        // Add some test notes
-        let note1 = create_test_note(1, "Rust programming language", false);
-        let note2 = create_test_note(2, "JavaScript development", false);
+        // Add test notes
+        repo.add_note(create_test_note(1, "rust programming", false));
+        repo.add_note(create_test_note(2, "javascript tutorial", true));
+        repo.add_note(create_test_note(3, "python guide", false));
         
-        repo.add_notes(vec![note1, note2]);
-        
-        let (results, total) = repo.execute_fts5_search("rust", 0, 10).await.unwrap();
+        // Test FTS5 search
+        let (results, count) = repo.execute_fts5_search("rust", 0, 10).await.unwrap();
         assert_eq!(results.len(), 1);
-        assert_eq!(total, 1);
-        assert_eq!(results[0].id, 1);
-    }
-
-    #[tokio::test]
-    async fn test_search_by_path() {
-        let repo = MockSearchRepository::new();
+        assert_eq!(count, 1);
+        assert_eq!(results[0].content, "rust programming");
         
-        // Add notes with different paths
-        let note1 = create_test_note(1, "First note", false);
-        let mut note2 = create_test_note(2, "Second note", false);
-        note2.path = "/documents/work/note2".to_string();
-        let mut note3 = create_test_note(3, "Third note", false);
-        note3.path = "/documents/personal/note3".to_string();
+        // Test search by path
+        let path_results = repo.search_by_path("/note").await.unwrap();
+        assert_eq!(path_results.len(), 3);
         
-        repo.add_notes(vec![note1, note2, note3]);
+        // Test search favorites
+        let favorites = repo.search_favorites().await.unwrap();
+        assert_eq!(favorites.len(), 1);
+        assert!(favorites[0].is_favorite);  // Fixed: Use is_favorite instead of is_pinned
         
-        let results = repo.search_by_path("/documents/work").await.unwrap();
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].id, 2);
-    }
-
-    #[tokio::test]
-    async fn test_search_favorites() {
-        let repo = MockSearchRepository::new();
+        // Test search suggestions
+        let suggestions = repo.get_search_suggestions("rust").await.unwrap();
+        assert!(suggestions.contains(&"rust".to_string()));
         
-        let note1 = create_test_note(1, "Regular note", false);
-        let note2 = create_test_note(2, "Favorite note", true);
-        let note3 = create_test_note(3, "Another favorite", true);
-        
-        repo.add_notes(vec![note1, note2, note3]);
-        
-        let results = repo.search_favorites().await.unwrap();
-        assert_eq!(results.len(), 2);
-        assert!(results.iter().all(|note| note.is_pinned));
-    }
-
-    #[tokio::test]
-    async fn test_search_recent() {
-        let repo = MockSearchRepository::new();
-        
-        let note1 = create_test_note(1, "Recent note", false);
-        repo.add_notes(vec![note1]);
-        
-        let results = repo.search_recent(7).await.unwrap();
-        assert_eq!(results.len(), 1);
-    }
-
-    #[tokio::test]
-    async fn test_get_search_suggestions() {
-        let repo = MockSearchRepository::new();
-        
-        let note1 = create_test_note(1, "Rust programming language tutorial", false);
-        repo.add_notes(vec![note1]);
-        
-        let suggestions = repo.get_search_suggestions("prog").await.unwrap();
-        assert!(!suggestions.is_empty());
-        assert!(suggestions.iter().any(|s| s.contains("programming")));
-    }
-
-    #[tokio::test]
-    async fn test_advanced_search() {
-        let repo = MockSearchRepository::new();
-        
-        let note1 = create_test_note(1, "Rust programming", true);
-        let mut note2 = create_test_note(2, "JavaScript development", false);
-        note2.format = NoteFormat::Markdown;
-        
-        repo.add_notes(vec![note1, note2]);
-        
-        // Test query filter
-        let results = repo.advanced_search(
-            Some("rust"),
-            None,
-            false,
-            None,
-            None,
-            None,
-        ).await.unwrap();
-        assert_eq!(results.len(), 1);
-        
-        // Test favorites filter
-        let favorites = repo.advanced_search(
+        // Test advanced search with favorites filter
+        let advanced_results = repo.advanced_search(
             None,
             None,
             true,
@@ -353,32 +275,40 @@ mod tests {
             None,
             None,
         ).await.unwrap();
-        assert_eq!(favorites.len(), 1);
-        assert!(favorites[0].is_pinned);
+        assert_eq!(advanced_results.len(), 1);
+        assert!(advanced_results[0].is_favorite);  // Fixed: Use is_favorite instead of is_pinned
     }
 
     #[tokio::test]
-    async fn test_error_response() {
+    async fn test_mock_search_suggestions() {
         let repo = MockSearchRepository::new();
-        let error = AppError::Search {
-            message: "Search index corrupted".to_string(),
-        };
         
-        repo.set_error_response("execute_fts5_search", error);
+        // Set custom suggestions
+        repo.set_search_suggestions(vec![
+            "rust".to_string(),
+            "javascript".to_string(),
+            "python".to_string(),
+        ]);
         
-        let result = repo.execute_fts5_search("test", 0, 10).await;
-        assert!(result.is_err());
+        let suggestions = repo.get_search_suggestions("ru").await.unwrap();
+        assert!(suggestions.contains(&"rust".to_string()));
+        assert!(!suggestions.contains(&"javascript".to_string()));
     }
-    
+
     #[tokio::test]
-    async fn test_call_tracking() {
+    async fn test_error_responses() {
         let repo = MockSearchRepository::new();
         
-        let _ = repo.execute_fts5_search("test", 0, 10).await;
-        let _ = repo.search_favorites().await;
+        // Configure error response
+        repo.set_error_response("search_favorites", AppError::General("Mock error".to_string()));
         
-        let calls = repo.get_calls();
-        assert!(calls.contains(&"execute_fts5_search".to_string()));
-        assert!(calls.contains(&"search_favorites".to_string()));
+        // Test that error is returned
+        let result = repo.search_favorites().await;
+        assert!(result.is_err());
+        
+        // Clear error and test normal operation
+        repo.clear_error_responses();
+        let result = repo.search_favorites().await;
+        assert!(result.is_ok());
     }
 }

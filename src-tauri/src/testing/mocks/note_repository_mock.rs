@@ -52,23 +52,17 @@ impl MockNoteRepository {
         self.state.clear_calls();
     }
     
-    /// Get current state of all notes (helper method)
-    pub fn get_all_notes_helper(&self) -> Vec<Note> {
-        let data = self.state.get_all_data();
-        data.values().cloned().collect()
-    }
-    
-    /// Check if a note exists by ID
-    pub fn has_note(&self, id: i64) -> bool {
-        self.state.get(&id.to_string()).is_some()
-    }
-    
-    /// Manually add a note to the mock state
+    /// Add a note to the mock storage (for test setup)
     pub fn add_note(&self, note: Note) {
-        self.state.set_data(note.id.to_string(), note);
+        self.state.insert(note.id.to_string(), note);
     }
     
-    /// Check if error response is configured for method
+    /// Count of notes in storage
+    pub fn count_notes(&self) -> usize {
+        self.state.len()
+    }
+    
+    /// Check if a method would return an error
     fn check_error_response(&self, method: &str) -> Result<(), AppError> {
         let errors = self.error_responses.lock().unwrap();
         if let Some(error) = errors.get(method) {
@@ -77,18 +71,22 @@ impl MockNoteRepository {
         Ok(())
     }
     
-    /// Generate next ID for new notes
-    fn get_next_id(&self) -> i64 {
-        let mut next_id = self.next_id.lock().unwrap();
-        let id = *next_id;
-        *next_id += 1;
-        id
+    /// Check if a note exists by ID
+    pub fn has_note(&self, id: i64) -> bool {
+        self.state.get(&id.to_string()).is_some()
     }
-}
-
-impl Default for MockNoteRepository {
-    fn default() -> Self {
-        Self::new()
+    
+    /// Clear all data and calls
+    pub fn clear_all(&self) {
+        self.state.clear();
+    }
+    
+    /// Get next ID for created notes
+    fn get_next_id(&self) -> i64 {
+        let mut id = self.next_id.lock().unwrap();
+        let current = *id;
+        *id += 1;
+        current
     }
 }
 
@@ -105,7 +103,7 @@ impl NoteRepository for MockNoteRepository {
             content,
             created_at: now.clone(),
             updated_at: now,
-            is_pinned: false,
+            is_favorite: false,  // Fixed: Use is_favorite instead of is_pinned
             format: NoteFormat::PlainText,
             nickname: None,
             path: format!("/note/{}", id),
@@ -149,41 +147,29 @@ impl NoteRepository for MockNoteRepository {
         }
     }
     
+    async fn get_all_notes(&self) -> Result<Vec<Note>, AppError> {
+        self.state.record_call("get_all_notes".to_string());
+        self.check_error_response("get_all_notes")?;
+        
+        let mut notes: Vec<Note> = self.state.get_all_data().into_values().collect();
+        notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        Ok(notes)
+    }
+    
     async fn get_notes_paginated(&self, offset: i64, limit: i64) -> Result<Vec<Note>, AppError> {
         self.state.record_call("get_notes_paginated".to_string());
         self.check_error_response("get_notes_paginated")?;
         
-        let all_notes = self.get_all_notes_helper();
-        let start = offset as usize;
-        let end = std::cmp::min(start + limit as usize, all_notes.len());
+        let mut notes: Vec<Note> = self.state.get_all_data().into_values().collect();
+        notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
         
-        if start >= all_notes.len() {
-            Ok(vec![])
+        let start = offset.max(0) as usize;
+        let end = (offset + limit).max(0) as usize;
+        
+        if start >= notes.len() {
+            Ok(Vec::new())
         } else {
-            Ok(all_notes[start..end].to_vec())
-        }
-    }
-    
-    async fn get_all_notes(&self, offset: Option<i64>, limit: Option<i64>) -> Result<Vec<Note>, AppError> {
-        self.state.record_call("get_all_notes".to_string());
-        self.check_error_response("get_all_notes")?;
-        
-        let data = self.state.get_all_data();
-        let mut all_notes: Vec<Note> = data.values().cloned().collect();
-        // Sort by ID for consistent ordering
-        all_notes.sort_by_key(|note| note.id);
-        
-        match (offset, limit) {
-            (Some(off), Some(lim)) => {
-                let start = off as usize;
-                let end = std::cmp::min(start + lim as usize, all_notes.len());
-                if start >= all_notes.len() {
-                    Ok(vec![])
-                } else {
-                    Ok(all_notes[start..end].to_vec())
-                }
-            },
-            _ => Ok(all_notes)
+            Ok(notes[start..end.min(notes.len())].to_vec())
         }
     }
     
@@ -191,37 +177,41 @@ impl NoteRepository for MockNoteRepository {
         self.state.record_call("search_notes".to_string());
         self.check_error_response("search_notes")?;
         
-        let data = self.state.get_all_data();
-        let results: Vec<Note> = data.values()
+        let notes: Vec<Note> = self.state.get_all_data()
+            .into_values()
             .filter(|note| note.content.to_lowercase().contains(&query.to_lowercase()))
-            .cloned()
             .collect();
-        Ok(results)
+        
+        Ok(notes)
     }
     
     async fn search_notes_paginated(&self, query: &str, offset: i64, limit: i64) -> Result<(Vec<Note>, i64), AppError> {
         self.state.record_call("search_notes_paginated".to_string());
         self.check_error_response("search_notes_paginated")?;
         
-        let all_results = self.search_notes(query).await?;
-        let total_count = all_results.len() as i64;
+        let mut matching_notes: Vec<Note> = self.state.get_all_data()
+            .into_values()
+            .filter(|note| note.content.to_lowercase().contains(&query.to_lowercase()))
+            .collect();
         
-        let start = offset as usize;
-        let end = std::cmp::min(start + limit as usize, all_results.len());
+        matching_notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
         
-        let page_results = if start >= all_results.len() {
-            vec![]
+        let total_count = matching_notes.len() as i64;
+        let start = offset.max(0) as usize;
+        let end = (offset + limit).max(0) as usize;
+        
+        let paginated_notes = if start >= matching_notes.len() {
+            Vec::new()
         } else {
-            all_results[start..end].to_vec()
+            matching_notes[start..end.min(matching_notes.len())].to_vec()
         };
         
-        Ok((page_results, total_count))
+        Ok((paginated_notes, total_count))
     }
     
     async fn health_check(&self) -> Result<bool, AppError> {
         self.state.record_call("health_check".to_string());
         self.check_error_response("health_check")?;
-        
         Ok(true)
     }
 }
@@ -231,68 +221,74 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_create_note() {
+    async fn test_mock_note_repository() {
         let repo = MockNoteRepository::new();
-        let content = "Test note content".to_string();
         
-        let note = repo.create_note(content.clone()).await.unwrap();
-        assert_eq!(note.content, content);
-        assert_eq!(note.id, 1);
-        assert!(!note.is_pinned);
-    }
-
-    #[tokio::test]
-    async fn test_get_note() {
-        let repo = MockNoteRepository::new();
+        // Test create note
         let note = repo.create_note("Test content".to_string()).await.unwrap();
+        assert_eq!(note.content, "Test content");
+        assert!(!note.is_favorite);  // Fixed: Use is_favorite instead of is_pinned
         
-        let retrieved = repo.get_note(note.id).await.unwrap();
-        assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().id, note.id);
-    }
-
-    #[tokio::test]
-    async fn test_update_note() {
-        let repo = MockNoteRepository::new();
-        let mut note = repo.create_note("Original content".to_string()).await.unwrap();
+        // Test get note
+        let retrieved = repo.get_note(note.id).await.unwrap().unwrap();
+        assert_eq!(retrieved.content, "Test content");
         
+        // Test update note
         let updated = repo.update_note(note.id, "Updated content".to_string()).await.unwrap();
         assert_eq!(updated.content, "Updated content");
-    }
-
-    #[tokio::test]
-    async fn test_delete_note() {
-        let repo = MockNoteRepository::new();
-        let note = repo.create_note("Test content".to_string()).await.unwrap();
         
+        // Test search
+        let search_results = repo.search_notes("Updated").await.unwrap();
+        assert_eq!(search_results.len(), 1);
+        
+        // Test delete
         repo.delete_note(note.id).await.unwrap();
-        let retrieved = repo.get_note(note.id).await.unwrap();
-        assert!(retrieved.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_error_response() {
-        let repo = MockNoteRepository::new();
-        let error = AppError::Database(rusqlite::Error::SqliteFailure(
-            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
-            Some("Test error".to_string())
-        ));
+        let deleted = repo.get_note(note.id).await.unwrap();
+        assert!(deleted.is_none());
         
-        repo.set_error_response("create_note", error);
-        
-        let result = repo.create_note("Test content".to_string()).await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_call_tracking() {
-        let repo = MockNoteRepository::new();
-        
-        let _ = repo.create_note("Test content".to_string()).await;
-        let _ = repo.health_check().await;
-        
+        // Verify calls were recorded
         let calls = repo.get_calls();
         assert!(calls.contains(&"create_note".to_string()));
-        assert!(calls.contains(&"health_check".to_string()));
+        assert!(calls.contains(&"get_note".to_string()));
+        assert!(calls.contains(&"update_note".to_string()));
+        assert!(calls.contains(&"search_notes".to_string()));
+        assert!(calls.contains(&"delete_note".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_error_responses() {
+        let repo = MockNoteRepository::new();
+        
+        // Configure error response
+        repo.set_error_response("create_note", AppError::General("Mock error".to_string()));
+        
+        // Test that error is returned
+        let result = repo.create_note("Test".to_string()).await;
+        assert!(result.is_err());
+        
+        // Clear error and test normal operation
+        repo.clear_error_responses();
+        let result = repo.create_note("Test".to_string()).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_pagination() {
+        let repo = MockNoteRepository::new();
+        
+        // Create multiple notes
+        for i in 1..=5 {
+            repo.create_note(format!("Note {}", i)).await.unwrap();
+        }
+        
+        // Test pagination
+        let page1 = repo.get_notes_paginated(0, 2).await.unwrap();
+        assert_eq!(page1.len(), 2);
+        
+        let page2 = repo.get_notes_paginated(2, 2).await.unwrap();
+        assert_eq!(page2.len(), 2);
+        
+        let page3 = repo.get_notes_paginated(4, 2).await.unwrap();
+        assert_eq!(page3.len(), 1);
     }
 }

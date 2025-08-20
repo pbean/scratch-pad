@@ -85,9 +85,9 @@ impl TestEnvironment {
     
     /// Reset all mock repositories to clean state
     pub fn reset(&mut self) {
-        self.note_repo.clear_calls();
-        self.settings_repo.clear_calls();
-        self.search_repo.clear_calls();
+        self.note_repo.clear_all();
+        self.settings_repo.clear_all();
+        self.search_repo.clear_all();
     }
     
     /// Get call counts for all repositories

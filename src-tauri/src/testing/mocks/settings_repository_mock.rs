@@ -70,6 +70,11 @@ impl MockSettingsRepository {
         self.state.set_data(key, setting);
     }
     
+    /// Clear all data and calls
+    pub fn clear_all(&self) {
+        self.state.clear();
+    }
+    
     /// Check for configured error response
     fn check_error_response(&self, method: &str) -> Result<(), AppError> {
         let errors = self.error_responses.lock().unwrap();

@@ -149,10 +149,9 @@ pub async fn search_notes_paginated(
         )
     );
     
-    // Perform paginated search
-    let (notes, total_count_usize) = app_state.search
+    // Fixed: Handle tuple return from search service
+    let (notes, total_count) = app_state.search
         .search_notes_paginated(&query, page, page_size).await?;
-    let total_count = total_count_usize;
     
     let query_time = start_time.elapsed();
     let has_more = (page + 1) * page_size < total_count;
@@ -225,13 +224,13 @@ pub async fn search_notes_boolean_paginated(
         )
     );
     
-    // Perform Boolean search using search service
+    // Fixed: Handle tuple return from search service
     let (notes, total_count, search_complexity) = app_state.search
         .search_notes_boolean_paginated(&query, page, page_size).await?;
     
     let query_time = start_time.elapsed();
     
-    // Convert search complexity to API format - fixed: u32 to usize/f64 type mismatches
+    // Fixed: Convert search::QueryValidation to API QueryComplexity
     let complexity = QueryComplexity {
         term_count: search_complexity.term_count as usize,
         operator_count: search_complexity.operator_count as usize,
@@ -290,16 +289,17 @@ pub async fn validate_boolean_search_query(
         )
     );
     
-    // Perform query validation and complexity analysis - fixed: removed .await
-    let complexity = app_state.search.validate_boolean_search_query(&query)?;
+    // Fixed: Get validation result from search service
+    let validation = app_state.search.validate_boolean_search_query(&query)?;
     
+    // Fixed: Convert search::QueryValidation to API QueryComplexity
     Ok(QueryComplexity {
-        term_count: complexity.term_count as usize,
-        operator_count: complexity.operator_count as usize,
-        nesting_depth: complexity.nesting_depth as usize,
-        has_field_searches: complexity.has_field_searches,
-        has_phrase_searches: complexity.has_phrase_searches,
-        complexity_score: complexity.complexity_score as f64,
+        term_count: validation.term_count as usize,
+        operator_count: validation.operator_count as usize,
+        nesting_depth: validation.nesting_depth as usize,
+        has_field_searches: validation.has_field_searches,
+        has_phrase_searches: validation.has_phrase_searches,
+        complexity_score: validation.complexity_score as f64,
     })
 }
 
@@ -321,15 +321,10 @@ pub async fn get_boolean_search_examples(
         vec![OperationCapability::Search]
     )?;
     
-    // Get Boolean search examples from search service - fixed: use associated function syntax
-    let examples = crate::search::SearchService::get_boolean_search_examples();
+    // Fixed: Get examples from search service instance method
+    let examples = app_state.search.get_boolean_search_examples();
     
-    // Convert to String tuples for JSON serialization
-    let string_examples = examples.into_iter()
-        .map(|(query, description)| (query.to_string(), description.to_string()))
-        .collect();
-    
-    Ok(string_examples)
+    Ok(examples)
 }
 
 #[cfg(disabled)]
@@ -393,13 +388,13 @@ mod tests_disabled {
         let app_state = create_test_app_state().await;
         
         // Test Boolean query validation directly
-        let result = app_state.search.validate_boolean_query("rust AND programming");
+        let result = app_state.search.validate_boolean_search_query("rust AND programming");
         assert!(result.is_ok());
         
-        let complexity = result.unwrap();
-        assert!(complexity.term_count >= 2);
-        assert!(complexity.operator_count >= 1);
-        assert!(complexity.complexity_score >= 1);
+        let validation = result.unwrap();
+        assert!(validation.term_count >= 2);
+        assert!(validation.operator_count >= 1);
+        assert!(validation.complexity_score >= 1);
     }
     
     #[tokio::test]
@@ -421,7 +416,7 @@ mod tests_disabled {
         let app_state = create_test_app_state().await;
         
         // Test search examples directly
-        let examples = crate::search::SearchService::get_boolean_search_examples();
+        let examples = app_state.search.get_boolean_search_examples();
         assert!(!examples.is_empty());
         assert!(examples.len() >= 8);
         
