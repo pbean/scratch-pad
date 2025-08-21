@@ -33,7 +33,7 @@ async fn test_layout_mode_settings_integration() {
     // Test setting valid layout modes
     let valid_modes = vec!["default", "half", "full"];
     for mode in valid_modes {
-        let result = settings_service.set_setting_validated("layout_mode", mode).await;
+        let result = settings_service.set_setting("layout_mode", mode).await;
         assert!(result.is_ok(), "Valid layout mode {} should be accepted", mode);
         
         let retrieved = settings_service.get_setting("layout_mode").await.unwrap();
@@ -43,7 +43,7 @@ async fn test_layout_mode_settings_integration() {
     // Test invalid layout modes
     let invalid_modes = vec!["quarter", "mini", "invalid", ""];
     for mode in invalid_modes {
-        let result = settings_service.set_setting_validated("layout_mode", mode).await;
+        let result = settings_service.set_setting("layout_mode", mode).await;
         assert!(result.is_err(), "Invalid layout mode {} should be rejected", mode);
     }
 }
@@ -77,7 +77,7 @@ async fn test_global_shortcut_validation() {
     let all_valid_shortcuts = [valid_shortcuts, platform_shortcuts].concat();
     
     for shortcut in all_valid_shortcuts {
-        let result = settings_service.set_setting_validated("global_shortcut", shortcut).await;
+        let result = settings_service.set_setting("global_shortcut", shortcut).await;
         assert!(result.is_ok(), "Valid shortcut {} should be accepted", shortcut);
         
         let retrieved = settings_service.get_setting("global_shortcut").await.unwrap();
@@ -96,7 +96,7 @@ async fn test_global_shortcut_validation() {
     ];
     
     for shortcut in invalid_shortcuts {
-        let result = settings_service.set_setting_validated("global_shortcut", shortcut).await;
+        let result = settings_service.set_setting("global_shortcut", shortcut).await;
         assert!(result.is_err(), "Invalid shortcut {} should be rejected", shortcut);
     }
 }
@@ -124,7 +124,7 @@ async fn test_window_management_settings_persistence() {
     
     for (key, value) in window_settings {
         let result = if key == "layout_mode" || key == "global_shortcut" {
-            settings_service.set_setting_validated(key, value).await
+            settings_service.set_setting(key, value).await
         } else {
             settings_service.set_setting(key, value).await
         };
@@ -248,14 +248,14 @@ async fn test_shortcut_conflict_detection() {
     let settings_service = SettingsService::new(db_service);
     
     // Set an initial shortcut
-    settings_service.set_setting_validated("global_shortcut", "Ctrl+Alt+S").await.unwrap();
+    settings_service.set_setting("global_shortcut", "Ctrl+Alt+S").await.unwrap();
     
     // Test that the same shortcut is accepted (updating existing)
-    let result = settings_service.set_setting_validated("global_shortcut", "Ctrl+Alt+S").await;
+    let result = settings_service.set_setting("global_shortcut", "Ctrl+Alt+S").await;
     assert!(result.is_ok());
     
     // Test updating to a different valid shortcut
-    let result = settings_service.set_setting_validated("global_shortcut", "Ctrl+Shift+Space").await;
+    let result = settings_service.set_setting("global_shortcut", "Ctrl+Shift+Space").await;
     assert!(result.is_ok());
     
     let current_shortcut = settings_service.get_setting("global_shortcut").await.unwrap();
@@ -279,7 +279,7 @@ async fn test_window_management_error_handling() {
     ];
     
     for (key, value) in invalid_booleans {
-        let result = settings_service.set_setting_validated(key, value).await;
+        let result = settings_service.set_setting(key, value).await;
         assert!(result.is_err(), "Invalid boolean {}={} should be rejected", key, value);
     }
     
@@ -347,7 +347,7 @@ async fn test_window_management_settings_integration() {
     
     for (key, value) in config_updates {
         let result = if key == "global_shortcut" || key == "layout_mode" {
-            settings_service.set_setting_validated(key, value).await
+            settings_service.set_setting(key, value).await
         } else {
             settings_service.set_setting(key, value).await
         };

@@ -418,34 +418,36 @@ describe('SettingsView', () => {
   it('should auto-hide success messages', async () => {
     vi.useFakeTimers()
     
-    const mockSetSetting = vi.fn().mockResolvedValue(undefined)
-    useScratchPadStore.setState({ setSetting: mockSetSetting })
-    
-    await act(async () => {
-      render(<SettingsView />)
-    })
-    
-    await waitFor(() => {
-      expect(screen.getByText('Save Settings')).toBeInTheDocument()
-    })
-    
-    await act(async () => {
-      await user.click(screen.getByText('Save Settings'))
-    })
-    
-    await waitFor(() => {
-      expect(screen.getByText('Settings saved successfully!')).toBeInTheDocument()
-    })
-    
-    // Fast-forward time
-    await act(async () => {
-      vi.advanceTimersByTime(3000)
-    })
-    
-    await waitFor(() => {
-      expect(screen.queryByText('Settings saved successfully!')).not.toBeInTheDocument()
-    })
-    
-    vi.useRealTimers()
+    try {
+      const mockSetSetting = vi.fn().mockResolvedValue(undefined)
+      useScratchPadStore.setState({ setSetting: mockSetSetting })
+      
+      await act(async () => {
+        render(<SettingsView />)
+      })
+      
+      await waitFor(() => {
+        expect(screen.getByText('Save Settings')).toBeInTheDocument()
+      }, { timeout: 5000 })
+      
+      await act(async () => {
+        await user.click(screen.getByText('Save Settings'))
+      })
+      
+      await waitFor(() => {
+        expect(screen.getByText('Settings saved successfully!')).toBeInTheDocument()
+      }, { timeout: 5000 })
+      
+      // Fast-forward time to trigger auto-hide (component uses 3000ms)
+      act(() => {
+        vi.advanceTimersByTime(3000)
+      })
+      
+      await waitFor(() => {
+        expect(screen.queryByText('Settings saved successfully!')).not.toBeInTheDocument()
+      }, { timeout: 2000 })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

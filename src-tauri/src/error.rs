@@ -151,6 +151,13 @@ impl AppError {
     }
 }
 
+// Enable seamless conversion from API layer to internal layer
+impl From<ApiError> for AppError {
+    fn from(api_error: ApiError) -> Self {
+        AppError::General(format!("API Error {}: {}", api_error.code, api_error.message))
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApiError {
     pub code: String,

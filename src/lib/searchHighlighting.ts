@@ -55,8 +55,8 @@ export function parseSearchQuery(query: string): {
   // Remove quoted phrases from query to avoid double processing
   let cleanQuery = query.replace(/"[^"]+"/g, '')
 
-  // Match field searches (field:value)
-  const fieldMatches = cleanQuery.match(/(\w+):(\S+)/g) || []
+  // Match field searches (field:value) - Handle quoted values in original query
+  const fieldMatches = query.match(/(\w+):([^\s]+)/g) || []
   fieldMatches.forEach(match => {
     const [field, value] = match.split(':')
     fieldSearches.push({ field, value })
@@ -84,11 +84,24 @@ export function parseSearchQuery(query: string): {
 }
 
 /**
- * Escape special regex characters for safe highlighting
+ * Escape HTML entities to prevent XSS attacks
+ */
+export function escapeHtmlForHighlighting(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * Enhanced escape function for both regex and HTML safety
  * Prevents XSS attacks through malicious search queries
  */
 export function escapeRegexForHighlighting(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const htmlEscaped = escapeHtmlForHighlighting(text)
+  return htmlEscaped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 /**

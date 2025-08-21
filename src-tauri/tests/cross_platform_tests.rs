@@ -98,7 +98,7 @@ async fn test_cross_platform_settings() {
     };
     
     for shortcut in platform_shortcuts {
-        let result = settings_service.set_setting_validated("global_shortcut", shortcut).await;
+        let result = settings_service.set_setting("global_shortcut", shortcut).await;
         assert!(result.is_ok(), "Platform shortcut {} should be valid", shortcut);
         
         let retrieved = settings_service.get_setting("global_shortcut").await.unwrap();
@@ -373,15 +373,15 @@ async fn test_cross_platform_default_settings() {
     let default_shortcut = all_settings.get("global_shortcut").unwrap();
     
     if cfg!(target_os = "macos") {
-        assert!(default_shortcut.contains("Cmd") || default_shortcut.contains("⌘"));
+        assert!(default_shortcut.as_str().unwrap_or("").contains("Cmd") || default_shortcut.as_str().unwrap_or("").contains("⌘"));
     } else {
-        assert!(default_shortcut.contains("Ctrl") || default_shortcut.contains("Alt") || default_shortcut.contains("Super"));
+        assert!(default_shortcut.as_str().unwrap_or("").contains("Ctrl") || default_shortcut.as_str().unwrap_or("").contains("Alt") || default_shortcut.as_str().unwrap_or("").contains("Super"));
     }
     
     // Test that default fonts are reasonable for the platform
     let editor_font = all_settings.get("editor_font").unwrap();
-    assert!(!editor_font.is_empty());
+    assert!(!editor_font.as_str().unwrap_or("").is_empty());
     
     let ui_font = all_settings.get("ui_font").unwrap();
-    assert!(!ui_font.is_empty());
+    assert!(!ui_font.as_str().unwrap_or("").is_empty());
 }

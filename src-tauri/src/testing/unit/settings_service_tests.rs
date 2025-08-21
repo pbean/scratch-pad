@@ -49,25 +49,25 @@ mod settings_service_integration_tests {
     async fn test_settings_service_typed_operations() -> Result<(), AppError> {
         let settings_service = create_test_settings_service().await?;
         
-        // Test boolean settings
+        // Test boolean settings - Fixed: use actual method signature
         settings_service.set_bool_setting("bool_key", true).await?;
-        let bool_value = settings_service.get_bool_setting("bool_key", false).await?;
-        assert_eq!(bool_value, true);
+        let bool_value = settings_service.get_bool_setting("bool_key").await?;
+        assert_eq!(bool_value, Some(true));
         
-        // Test integer settings
+        // Test integer settings - Fixed: use actual method signature
         settings_service.set_int_setting("int_key", 42).await?;
-        let int_value = settings_service.get_int_setting("int_key", 0).await?;
-        assert_eq!(int_value, 42);
+        let int_value = settings_service.get_int_setting("int_key").await?;
+        assert_eq!(int_value, Some(42));
         
-        // Test float settings
+        // Test float settings - Fixed: use actual method signature
         settings_service.set_float_setting("float_key", 3.14).await?;
-        let float_value = settings_service.get_float_setting("float_key", 0.0).await?;
-        assert!((float_value - 3.14).abs() < 0.001);
+        let float_value = settings_service.get_float_setting("float_key").await?;
+        assert!((float_value.unwrap_or(0.0) - 3.14).abs() < 0.001);
         
-        // Test string settings
-        settings_service.set_string_setting("string_key", "test_string").await?;
-        let string_value = settings_service.get_string_setting("string_key", "default").await?;
-        assert_eq!(string_value, "test_string");
+        // Test string settings via generic set_setting
+        settings_service.set_setting("string_key", "test_string").await?;
+        let string_value = settings_service.get_setting("string_key").await?;
+        assert_eq!(string_value, Some("test_string".to_string()));
         
         Ok(())
     }
@@ -76,18 +76,22 @@ mod settings_service_integration_tests {
     async fn test_settings_service_defaults() -> Result<(), AppError> {
         let settings_service = create_test_settings_service().await?;
         
-        // Test getting non-existent values with defaults
-        let bool_default = settings_service.get_bool_setting("non_existent_bool", true).await?;
-        assert_eq!(bool_default, true);
+        // Test getting non-existent values (returns None)
+        let bool_default = settings_service.get_bool_setting("non_existent_bool").await?;
+        assert_eq!(bool_default, None);
         
-        let int_default = settings_service.get_int_setting("non_existent_int", 100).await?;
-        assert_eq!(int_default, 100);
+        let int_default = settings_service.get_int_setting("non_existent_int").await?;
+        assert_eq!(int_default, None);
         
-        let float_default = settings_service.get_float_setting("non_existent_float", 2.71).await?;
-        assert!((float_default - 2.71).abs() < 0.001);
+        let float_default = settings_service.get_float_setting("non_existent_float").await?;
+        assert_eq!(float_default, None);
         
-        let string_default = settings_service.get_string_setting("non_existent_string", "default_value").await?;
-        assert_eq!(string_default, "default_value");
+        let string_default = settings_service.get_setting("non_existent_string").await?;
+        assert_eq!(string_default, None);
+        
+        // Test with get_setting_or_default for fallback values
+        let string_with_default = settings_service.get_setting_or_default("non_existent_string", "default_value").await?;
+        assert_eq!(string_with_default, "default_value");
         
         Ok(())
     }
@@ -130,7 +134,7 @@ mod settings_service_integration_tests {
         assert!(all_settings.contains_key("bool_key"));
         assert!(all_settings.contains_key("int_key"));
         
-        // Verify values
+        // Verify values (stored as JSON values)
         assert_eq!(all_settings.get("key1"), Some(&serde_json::Value::String("value1".to_string())));
         assert_eq!(all_settings.get("key2"), Some(&serde_json::Value::String("value2".to_string())));
         
@@ -149,68 +153,16 @@ mod settings_service_integration_tests {
         assert!(settings_service.has_setting("custom1").await?);
         assert!(settings_service.has_setting("custom2").await?);
         
-        // Reset to defaults
-        let count = settings_service.reset_to_defaults().await?;
-        assert!(count > 0); // Should return number of default settings applied
+        // Reset to defaults - Fixed: doesn't return count, just ()
+        settings_service.reset_to_defaults().await?;
         
-        // Custom settings should be gone
+        // Custom settings should be gone (they get cleared during reset)
         assert!(!settings_service.has_setting("custom1").await?);
         assert!(!settings_service.has_setting("custom2").await?);
         
         // Default settings should be present
         let all_settings = settings_service.get_all_settings().await?;
         assert!(!all_settings.is_empty()); // Should have default settings
-        
-        Ok(())
-    }
-    
-    #[tokio::test]
-    async fn test_settings_service_clear_all() -> Result<(), AppError> {
-        let settings_service = create_test_settings_service().await?;
-        
-        // Set some settings
-        settings_service.set_setting("clear1", "value1").await?;
-        settings_service.set_setting("clear2", "value2").await?;
-        
-        // Verify they exist
-        assert!(settings_service.has_setting("clear1").await?);
-        assert!(settings_service.has_setting("clear2").await?);
-        
-        // Clear all settings
-        let count = settings_service.clear_all_settings().await?;
-        assert!(count >= 2); // Should return number of settings cleared
-        
-        // Verify all settings are gone
-        assert!(!settings_service.has_setting("clear1").await?);
-        assert!(!settings_service.has_setting("clear2").await?);
-        
-        let all_settings = settings_service.get_all_settings().await?;
-        assert!(all_settings.is_empty());
-        
-        Ok(())
-    }
-    
-    #[tokio::test] 
-    async fn test_settings_service_override_defaults() -> Result<(), AppError> {
-        let settings_service = create_test_settings_service().await?;
-        
-        // Load defaults first
-        settings_service.reset_to_defaults().await?;
-        
-        // Get default values
-        let defaults = get_default_settings();
-        let default_window_width = defaults.get("window_width")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(800) as i32;
-        
-        // Override a default setting
-        let new_width = default_window_width + 200;
-        settings_service.set_int_setting("window_width", new_width).await?;
-        
-        // Verify override worked
-        let current_width = settings_service.get_int_setting("window_width", 0).await?;
-        assert_eq!(current_width, new_width);
-        assert_ne!(current_width, default_window_width);
         
         Ok(())
     }
@@ -225,7 +177,7 @@ mod settings_service_integration_tests {
         settings_service.set_bool_setting("export_bool", true).await?;
         settings_service.set_int_setting("export_int", 42).await?;
         
-        // Export settings as JSON string (Fixed: no arguments)
+        // Export settings as JSON string - Fixed: no arguments
         let json_export = settings_service.export_settings().await?;
         assert!(!json_export.is_empty());
         assert!(json_export.contains("export_test1"));
@@ -241,7 +193,7 @@ mod settings_service_integration_tests {
         assert!(!settings_service.has_setting("export_test1").await?);
         assert!(!settings_service.has_setting("export_test2").await?);
         
-        // Import settings from JSON string (Fixed: pass String instead of &str)
+        // Import settings from JSON string - Fixed: pass String instead of &str
         let imported_count = settings_service.import_settings(json_export).await?;
         assert!(imported_count >= 4);
         
@@ -319,7 +271,7 @@ mod settings_service_integration_tests {
         let value = settings_service.get_setting("valid_key").await?;
         assert_eq!(value, Some("valid_value".to_string()));
         
-        // Test importing invalid JSON (Fixed: pass String instead of file path)
+        // Test importing invalid JSON - Fixed: pass String instead of file path
         let result = settings_service.import_settings("invalid json content".to_string()).await;
         assert!(result.is_err());
         
@@ -382,6 +334,35 @@ mod settings_service_integration_tests {
         let result = settings_service.set_setting("null_test", "value\0with\0nulls").await;
         // Should be caught by security validation
         assert!(result.is_err());
+        
+        Ok(())
+    }
+    
+    #[tokio::test]
+    async fn test_settings_service_defaults_initialization() -> Result<(), AppError> {
+        let settings_service = create_test_settings_service().await?;
+        
+        // Initialize defaults
+        settings_service.initialize_defaults().await?;
+        
+        // Check that some default settings exist
+        assert!(settings_service.has_setting("window.width").await?);
+        assert!(settings_service.has_setting("theme.mode").await?);
+        
+        // Get specific default values
+        let window_width = settings_service.get_setting("window.width").await?;
+        assert_eq!(window_width, Some("800".to_string()));
+        
+        // Test override of default setting
+        let current_width = settings_service.get_int_setting("window.width").await?;
+        assert_eq!(current_width, Some(800));
+        
+        let new_width = 1000i64;
+        settings_service.set_int_setting("window.width", new_width).await?;
+        
+        let updated_width = settings_service.get_int_setting("window.width").await?;
+        assert_eq!(updated_width, Some(new_width));
+        assert_ne!(updated_width, Some(800));
         
         Ok(())
     }

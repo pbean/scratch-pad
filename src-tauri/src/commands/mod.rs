@@ -31,7 +31,7 @@ pub use settings::{
 
 pub use system::{
     register_global_shortcut, unregister_global_shortcut,
-    set_window_layout, show_window, hide_window
+    toggle_window_visibility, set_window_visibility, get_global_shortcut, shutdown_application
 };
 
 pub use search::{
@@ -93,9 +93,10 @@ macro_rules! generate_command_handler {
             crate::commands::system::unregister_global_shortcut,
             
             // Window management (system domain)
-            crate::commands::system::set_window_layout,
-            crate::commands::system::show_window,
-            crate::commands::system::hide_window,
+            crate::commands::system::toggle_window_visibility,
+            crate::commands::system::set_window_visibility,
+            crate::commands::system::get_global_shortcut,
+            crate::commands::system::shutdown_application,
             
             // Shutdown operations (lifecycle domain)
             crate::commands::lifecycle::is_shutting_down,

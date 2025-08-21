@@ -4,7 +4,7 @@
 /// the command domains, preserving the exact Week 1 security framework
 /// with 95.2% test coverage.
 
-use crate::error::ApiError;
+use crate::error::AppError;
 use crate::validation::{SecurityValidator, OperationContext, OperationCapability};
 
 /// Common security validation for all IPC commands
@@ -14,12 +14,12 @@ use crate::validation::{SecurityValidator, OperationContext, OperationCapability
 pub fn validate_ipc_operation(
     security_validator: &SecurityValidator,
     capabilities: Vec<OperationCapability>
-) -> Result<OperationContext, ApiError> {
+) -> Result<OperationContext, AppError> {
     // Create IPC operation context with required capabilities
     let context = OperationContext::new_ipc(capabilities);
     
     // Validate operation context (frequency limits, capability checking)
-    security_validator.validate_operation_context(&context).map_err(|e: crate::error::AppError| -> ApiError { e.into() })?;
+    security_validator.validate_operation_context(&context)?;
     
     Ok(context)
 }
@@ -35,8 +35,8 @@ pub fn validate_note_content_secure(
     security_validator: &SecurityValidator,
     content: &str,
     context: &OperationContext
-) -> Result<(), ApiError> {
-    security_validator.validate_note_content_with_context(content, context).map_err(|e: crate::error::AppError| -> ApiError { e.into() })
+) -> Result<(), AppError> {
+    security_validator.validate_note_content_with_context(content, context)
 }
 
 /// Standard search query validation
@@ -50,8 +50,8 @@ pub fn validate_search_query_secure(
     security_validator: &SecurityValidator,
     query: &str,
     context: &OperationContext
-) -> Result<(), ApiError> {
-    security_validator.validate_search_query_with_context(query, context).map_err(|e: crate::error::AppError| -> ApiError { e.into() })
+) -> Result<(), AppError> {
+    security_validator.validate_search_query_with_context(query, context)
 }
 
 /// Standard setting validation
@@ -63,9 +63,8 @@ pub fn validate_search_query_secure(
 pub fn validate_setting_secure(
     key: &str,
     value: &str
-) -> Result<(), ApiError> {
-    crate::validation::SecurityValidator::validate_setting(key, value).map_err(|e: crate::error::AppError| -> ApiError { e.into() })
-}
+) -> Result<(), AppError> {
+    crate::validation::SecurityValidator::validate_setting(key, value)}
 
 /// Standard ID validation
 /// 
@@ -73,9 +72,8 @@ pub fn validate_setting_secure(
 /// - Negative or zero IDs
 /// - Unreasonably large IDs (potential tampering)
 /// - Integer overflow attacks
-pub fn validate_id_secure(id: i64) -> Result<(), ApiError> {
-    crate::validation::SecurityValidator::validate_id(id).map_err(|e: crate::error::AppError| -> ApiError { e.into() })
-}
+pub fn validate_id_secure(id: i64) -> Result<(), AppError> {
+    crate::validation::SecurityValidator::validate_id(id)}
 
 /// Standard pagination validation
 /// 
@@ -83,9 +81,8 @@ pub fn validate_id_secure(id: i64) -> Result<(), ApiError> {
 /// - Reasonable limits (max 1000 items)
 /// - Reasonable offsets (max 100k)
 /// - Non-zero limits
-pub fn validate_pagination_secure(offset: usize, limit: usize) -> Result<(), ApiError> {
-    crate::validation::SecurityValidator::validate_pagination(offset, limit).map_err(|e: crate::error::AppError| -> ApiError { e.into() })
-}
+pub fn validate_pagination_secure(offset: usize, limit: usize) -> Result<(), AppError> {
+    crate::validation::SecurityValidator::validate_pagination(offset, limit)}
 
 /// Standard shortcut validation
 /// 
@@ -93,9 +90,8 @@ pub fn validate_pagination_secure(offset: usize, limit: usize) -> Result<(), Api
 /// - Valid format (Modifier+Key pattern)
 /// - Length limits
 /// - Character restrictions
-pub fn validate_shortcut_secure(shortcut: &str) -> Result<(), ApiError> {
-    crate::validation::SecurityValidator::validate_shortcut(shortcut).map_err(|e: crate::error::AppError| -> ApiError { e.into() })
-}
+pub fn validate_shortcut_secure(shortcut: &str) -> Result<(), AppError> {
+    crate::validation::SecurityValidator::validate_shortcut(shortcut)}
 
 /// Performance monitoring for command execution
 /// 

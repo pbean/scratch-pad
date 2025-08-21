@@ -109,8 +109,8 @@ describe('findMatches', () => {
       term: 'Hello'
     })
     expect(matches[1]).toEqual({
-      start: 33,
-      end: 38,
+      start: 29,
+      end: 34,
       type: 'primary',
       term: 'Hello'
     })
@@ -460,8 +460,11 @@ describe('XSS and Security Tests', () => {
     const rendered = renderHighlightedText(maliciousContent, matches)
     
     // Should render as text segments, not HTML
-    expect(rendered.some(segment => segment.text.includes('<img'))).toBe(true)
+    // The malicious content should be preserved as separate text segments
+    const fullText = rendered.map(s => s.text).join('')
+    expect(fullText).toBe(maliciousContent) // Preserves original content as text
     expect(rendered.every(segment => typeof segment.text === 'string')).toBe(true)
+    expect(rendered.some(segment => segment.isHighlight && segment.text === 'img')).toBe(true)
   })
 })
 

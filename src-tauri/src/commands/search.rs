@@ -327,7 +327,7 @@ pub async fn get_boolean_search_examples(
     Ok(examples)
 }
 
-#[cfg(feature = "disabled_tests")]
+#[cfg(test)]
 #[allow(unused)]
 mod tests_disabled {
     use super::*;

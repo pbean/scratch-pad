@@ -11,6 +11,18 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn()
 }))
 
+// Mock toast hook
+const mockToast = {
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  warning: vi.fn(),
+}
+
+vi.mock('../ui/toast', () => ({
+  useToast: () => mockToast,
+}))
+
 const mockNote: Note = {
   id: 1,
   content: 'Test note content',
@@ -38,6 +50,10 @@ describe('CommandPalette', () => {
     })
     
     vi.mocked(invoke).mockClear()
+    mockToast.success.mockClear()
+    mockToast.error.mockClear()
+    mockToast.info.mockClear()
+    mockToast.warning.mockClear()
   })
 
   afterEach(() => {
@@ -260,7 +276,6 @@ describe('CommandPalette', () => {
 
   it('should handle export note command', async () => {
     vi.mocked(invoke).mockResolvedValue(undefined)
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
@@ -280,10 +295,11 @@ describe('CommandPalette', () => {
     })
     
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('Note exported to note_1.txt')
+      expect(mockToast.success).toHaveBeenCalledWith(
+        "Note exported", 
+        "Saved as note_1.txt"
+      )
     })
-    
-    consoleSpy.mockRestore()
   })
 
   it('should handle export note error', async () => {
