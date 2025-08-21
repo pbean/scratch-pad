@@ -1,7 +1,7 @@
 use crate::error::AppError;
 use crate::settings::SettingsService;
 use std::sync::Arc;
-use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Position, Size};
+use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, Position, Size};
 use tokio::sync::Mutex;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -33,7 +33,7 @@ pub struct WindowManager {
     app_handle: Option<AppHandle>,
     settings_service: Arc<SettingsService>,
     current_layout: Arc<Mutex<LayoutMode>>,
-    previous_app_focused: Arc<Mutex<bool>>,
+    _previous_app_focused: Arc<Mutex<bool>>,
     is_test_mode: bool,
 }
 
@@ -43,7 +43,7 @@ impl WindowManager {
             app_handle: Some(app_handle),
             settings_service,
             current_layout: Arc::new(Mutex::new(LayoutMode::Default)),
-            previous_app_focused: Arc::new(Mutex::new(false)),
+            _previous_app_focused: Arc::new(Mutex::new(false)),
             is_test_mode: false,
         }
     }
@@ -56,7 +56,7 @@ impl WindowManager {
             app_handle: None,
             settings_service: _settings_service,
             current_layout: Arc::new(Mutex::new(LayoutMode::Default)),
-            previous_app_focused: Arc::new(Mutex::new(false)),
+            _previous_app_focused: Arc::new(Mutex::new(false)),
             is_test_mode: true,
         })
     }

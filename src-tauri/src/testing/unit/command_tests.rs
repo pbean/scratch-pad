@@ -92,13 +92,13 @@ mod note_command_tests {
         let created_note = env.db_service.create_note("Original content".to_string()).await?;
         
         // Test successful update
-        let updated_note = env.db_service.update_note(created_note.id, "Updated content".to_string()).await?;
+        let updated_note = env.db_service.update_note_content(created_note.id, "Updated content".to_string()).await?;
         assert_eq!(updated_note.id, created_note.id);
         assert_eq!(updated_note.content, "Updated content");
         assert_ne!(updated_note.updated_at, created_note.updated_at);
         
         // Test updating non-existent note (should return error)
-        let result = env.db_service.update_note(99999, "New content".to_string()).await;
+        let result = env.db_service.update_note_content(99999, "New content".to_string()).await;
         assert!(result.is_err());
         
         Ok(())
@@ -158,11 +158,10 @@ mod note_command_tests {
         }
         
         // Test paginated retrieval
-        let (first_page, total_count) = env.db_service.get_notes_paginated(0, 5).await?;
+        let first_page = env.db_service.get_notes_paginated(0, 5).await?;
         assert_eq!(first_page.len(), 5);
-        assert!(total_count >= 10);
         
-        let (second_page, _) = env.db_service.get_notes_paginated(5, 5).await?;
+        let second_page = env.db_service.get_notes_paginated(5, 5).await?;
         assert!(second_page.len() >= 5);
         
         // Verify no overlap between pages
@@ -213,7 +212,7 @@ mod note_command_tests {
         assert_eq!(note.format, NoteFormat::PlainText); // Should default to PlainText
         
         // Update the note and check updated_at changes
-        let updated_note = env.db_service.update_note(note.id, "Updated metadata".to_string()).await?;
+        let updated_note = env.db_service.update_note_content(note.id, "Updated metadata".to_string()).await?;
         assert_ne!(updated_note.updated_at, note.updated_at);
         assert_eq!(updated_note.created_at, note.created_at); // created_at should not change
         

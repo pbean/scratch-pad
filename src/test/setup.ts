@@ -67,9 +67,12 @@ beforeAll(() => {
   console.error = (...args) => {
     if (
       typeof args[0] === 'string' && 
-      args[0].includes('The current testing environment is not configured to support act')
+      (args[0].includes('The current testing environment is not configured to support act') ||
+       args[0].includes('Warning: ReactDOM.render is no longer supported') ||
+       args[0].includes('act() is not supported') ||
+       args[0].includes('Consider adding'))
     ) {
-      return // Suppress React act() warnings
+      return // Suppress React testing warnings
     }
     originalConsoleError.apply(console, args)
   }
@@ -118,6 +121,27 @@ beforeAll(() => {
   // Mock Element.scrollIntoView
   Element.prototype.scrollIntoView = vi.fn()
   
+  // Mock focus and blur methods for all elements with proper focus tracking
+  let currentFocusedElement: Element | null = null
+  
+  Element.prototype.focus = vi.fn().mockImplementation(function(this: Element) {
+    currentFocusedElement = this
+    this.dispatchEvent(new Event('focus', { bubbles: true }))
+  })
+  
+  Element.prototype.blur = vi.fn().mockImplementation(function(this: Element) {
+    if (currentFocusedElement === this) {
+      currentFocusedElement = null
+    }
+    this.dispatchEvent(new Event('blur', { bubbles: true }))
+  })
+  
+  // Mock document.activeElement to return currently focused element
+  Object.defineProperty(document, 'activeElement', {
+    get: () => currentFocusedElement || document.body,
+    configurable: true
+  })
+  
   // Mock File.text() method
   global.File = class MockFile {
     name: string
@@ -132,6 +156,42 @@ beforeAll(() => {
     
     text() {
       return Promise.resolve(this.content)
+    }
+  } as any
+
+  // Mock CSS style computations for tests
+  global.getComputedStyle = vi.fn().mockImplementation(() => ({
+    getPropertyValue: vi.fn().mockReturnValue(''),
+    getPropertyPriority: vi.fn().mockReturnValue(''),
+    setProperty: vi.fn(),
+    removeProperty: vi.fn(),
+    cssText: '',
+    length: 0,
+    parentRule: null,
+    item: vi.fn().mockReturnValue(''),
+  }))
+
+  // Mock requestAnimationFrame and cancelAnimationFrame
+  global.requestAnimationFrame = vi.fn().mockImplementation((cb) => setTimeout(cb, 16))
+  global.cancelAnimationFrame = vi.fn().mockImplementation((id) => clearTimeout(id))
+  
+  // Enhanced keyboard event support
+  global.KeyboardEvent = class MockKeyboardEvent extends Event {
+    public key: string
+    public code: string
+    public ctrlKey: boolean
+    public shiftKey: boolean
+    public altKey: boolean
+    public metaKey: boolean
+    
+    constructor(type: string, options: any = {}) {
+      super(type, options)
+      this.key = options.key || ''
+      this.code = options.code || ''
+      this.ctrlKey = options.ctrlKey || false
+      this.shiftKey = options.shiftKey || false
+      this.altKey = options.altKey || false
+      this.metaKey = options.metaKey || false
     }
   } as any
 })
@@ -150,6 +210,12 @@ beforeEach(() => {
   testRoot.setAttribute('id', 'test-root')
   document.body.appendChild(testRoot)
   
+  // Reset any global state that might affect tests
+  if (global.performance && global.performance.mark) {
+    global.performance.mark = vi.fn()
+    global.performance.measure = vi.fn()
+  }
+  
   // Mock document.createElement for each test
   const originalCreateElement = document.createElement.bind(document)
   document.createElement = vi.fn((tagName: string) => {
@@ -161,6 +227,14 @@ beforeEach(() => {
     if (tagName === 'input') {
       const element = originalCreateElement('input')
       element.click = vi.fn()
+      return element
+    }
+    if (tagName === 'textarea') {
+      const element = originalCreateElement('textarea')
+      element.focus = vi.fn()
+      element.blur = vi.fn()
+      element.select = vi.fn()
+      element.setSelectionRange = vi.fn()
       return element
     }
     return originalCreateElement(tagName)

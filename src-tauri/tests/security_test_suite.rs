@@ -7,16 +7,16 @@
 use std::sync::Arc;
 use tempfile::NamedTempFile;
 
-use crate::models::{Note, NoteFormat};
-use crate::validation::{SecurityValidator, OperationSource, OperationCapability, OperationContext};
-use crate::database::DbService;
-use crate::search::SearchService;
-use crate::settings::SettingsService;
-use crate::plugin::PluginManager;
-use crate::shutdown::ShutdownManager;
-use crate::global_shortcut::GlobalShortcutService;
-use crate::window_manager::WindowManager;
-use crate::AppState;
+use scratch_pad_lib::models::{Note, NoteFormat};
+use scratch_pad_lib::validation::{SecurityValidator, OperationSource, OperationCapability, OperationContext};
+use scratch_pad_lib::database::DbService;
+use scratch_pad_lib::search::SearchService;
+use scratch_pad_lib::settings::SettingsService;
+use scratch_pad_lib::plugin::PluginManager;
+use scratch_pad_lib::shutdown::ShutdownManager;
+use scratch_pad_lib::global_shortcut::GlobalShortcutService;
+use scratch_pad_lib::window_manager::WindowManager;
+use scratch_pad_lib::AppState;
 
 // Helper to create an isolated test environment
 async fn create_security_test_state() -> AppState {
@@ -295,7 +295,7 @@ async fn test_export_path_validation() {
     ];
     
     for path in legitimate_paths {
-        let result = state.validator.validate_export_path(path, None);
+        let result = state.security_validator.validate_export_path(path, None);
         assert!(result.is_ok(), "Legitimate path should be accepted: {}", path);
     }
     
@@ -310,7 +310,7 @@ async fn test_export_path_validation() {
     ];
     
     for path in dangerous_paths {
-        let result = state.validator.validate_export_path(path, None);
+        let result = state.security_validator.validate_export_path(path, None);
         assert!(result.is_err(), "Dangerous path should be rejected: {}", path);
     }
 }
