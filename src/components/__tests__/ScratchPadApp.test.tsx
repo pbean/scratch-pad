@@ -9,6 +9,40 @@ import { invoke } from '@tauri-apps/api/core'
 vi.mock('@tauri-apps/api/core')
 const mockInvoke = vi.mocked(invoke)
 
+// Mock performance monitoring hooks
+vi.mock('../../hooks/usePerformanceMonitor', () => ({
+  useRenderPerformance: vi.fn(),
+  useMemoryMonitor: vi.fn(),
+  useStartupPerformance: vi.fn()
+}))
+
+// Mock memory cleanup hooks
+vi.mock('../../hooks/useMemoryCleanup', () => ({
+  useMemoryCleanup: vi.fn(),
+  useDataCleanup: vi.fn()
+}))
+
+// Mock error boundary components
+vi.mock('../error-boundary', () => ({
+  ApplicationErrorBoundary: ({ children }: any) => children,
+  ViewErrorBoundary: ({ children }: any) => children,
+  ComponentErrorBoundary: ({ children }: any) => children,
+  AsyncErrorHandler: () => null,
+  TauriErrorBoundary: ({ children }: any) => children,
+  safeInvoke: vi.fn().mockImplementation((command: string, payload?: any) => 
+    mockInvoke(command, payload)
+  )
+}))
+
+// Mock toast hook
+vi.mock('../ui/toast', () => ({
+  useToast: () => ({
+    error: vi.fn(),
+    success: vi.fn(),
+    ToastContainer: () => <div data-testid="toast-container" />
+  })
+}))
+
 // Mock child components
 vi.mock('../note-view/NoteView', () => ({
   NoteView: () => <div data-testid="note-view">Note View</div>
@@ -26,6 +60,12 @@ vi.mock('../command-palette/CommandPalette', () => ({
   CommandPalette: () => <div data-testid="command-palette">Command Palette</div>
 }))
 
+// Mock loading components
+vi.mock('../ui/loading', () => ({
+  FullPageLoading: ({ message }: any) => <div data-testid="loading">{message}</div>,
+  Skeleton: ({ width, height }: any) => <div data-testid="skeleton" style={{ width, height }} />
+}))
+
 describe('ScratchPadApp', () => {
   const user = userEvent.setup()
 
@@ -35,8 +75,9 @@ describe('ScratchPadApp', () => {
       currentView: 'note',
       error: null,
       isCommandPaletteOpen: false,
-      loadNotes: vi.fn(),
-      initializeSettings: vi.fn()
+      notes: [],
+      loadNotes: vi.fn().mockResolvedValue(undefined),
+      initializeSettings: vi.fn().mockResolvedValue(undefined)
     })
     
     mockInvoke.mockClear()
@@ -107,8 +148,8 @@ describe('ScratchPadApp', () => {
   })
 
   it('should initialize app on mount', async () => {
-    const mockLoadNotes = vi.fn()
-    const mockInitializeSettings = vi.fn()
+    const mockLoadNotes = vi.fn().mockResolvedValue(undefined)
+    const mockInitializeSettings = vi.fn().mockResolvedValue(undefined)
     
     await act(async () => {
       useScratchPadStore.setState({
@@ -125,7 +166,9 @@ describe('ScratchPadApp', () => {
   })
 
   it('should handle Escape key to hide window when no modals are open', async () => {
-    mockInvoke.mockResolvedValue(undefined)
+    const { safeInvoke } = await import('../error-boundary')
+    const mockSafeInvoke = vi.mocked(safeInvoke)
+    mockSafeInvoke.mockResolvedValue(undefined)
     
     await act(async () => {
       useScratchPadStore.setState({
@@ -138,12 +181,14 @@ describe('ScratchPadApp', () => {
     await user.keyboard('{Escape}')
     
     await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith('hide_window')
+      expect(mockSafeInvoke).toHaveBeenCalledWith('hide_window')
     })
   })
 
   it('should not hide window on Escape when command palette is open', async () => {
-    mockInvoke.mockResolvedValue(undefined)
+    const { safeInvoke } = await import('../error-boundary')
+    const mockSafeInvoke = vi.mocked(safeInvoke)
+    mockSafeInvoke.mockResolvedValue(undefined)
     
     await act(async () => {
       useScratchPadStore.setState({
@@ -156,11 +201,13 @@ describe('ScratchPadApp', () => {
     await user.keyboard('{Escape}')
     
     // Should not call hide_window when command palette is open
-    expect(mockInvoke).not.toHaveBeenCalledWith('hide_window')
+    expect(mockSafeInvoke).not.toHaveBeenCalledWith('hide_window')
   })
 
   it('should not hide window on Escape when in search-history view', async () => {
-    mockInvoke.mockResolvedValue(undefined)
+    const { safeInvoke } = await import('../error-boundary')
+    const mockSafeInvoke = vi.mocked(safeInvoke)
+    mockSafeInvoke.mockResolvedValue(undefined)
     
     await act(async () => {
       useScratchPadStore.setState({
@@ -173,11 +220,13 @@ describe('ScratchPadApp', () => {
     await user.keyboard('{Escape}')
     
     // Should not call hide_window when in search-history view
-    expect(mockInvoke).not.toHaveBeenCalledWith('hide_window')
+    expect(mockSafeInvoke).not.toHaveBeenCalledWith('hide_window')
   })
 
   it('should not hide window on Escape when in settings view', async () => {
-    mockInvoke.mockResolvedValue(undefined)
+    const { safeInvoke } = await import('../error-boundary')
+    const mockSafeInvoke = vi.mocked(safeInvoke)
+    mockSafeInvoke.mockResolvedValue(undefined)
     
     await act(async () => {
       useScratchPadStore.setState({
@@ -190,12 +239,14 @@ describe('ScratchPadApp', () => {
     await user.keyboard('{Escape}')
     
     // Should not call hide_window when in settings view
-    expect(mockInvoke).not.toHaveBeenCalledWith('hide_window')
+    expect(mockSafeInvoke).not.toHaveBeenCalledWith('hide_window')
   })
 
   it('should handle hide window error gracefully', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockInvoke.mockRejectedValue(new Error('Hide window failed'))
+    const { safeInvoke } = await import('../error-boundary')
+    const mockSafeInvoke = vi.mocked(safeInvoke)
+    mockSafeInvoke.mockRejectedValue(new Error('Hide window failed'))
     
     await act(async () => {
       useScratchPadStore.setState({
@@ -219,7 +270,7 @@ describe('ScratchPadApp', () => {
       render(<ScratchPadApp />)
     })
     
-    const appContainer = screen.getByTestId('note-view').parentElement
+    const appContainer = screen.getByTestId('note-view').parentElement?.parentElement
     
     expect(appContainer).toHaveClass('h-screen', 'w-screen', 'overflow-hidden')
   })

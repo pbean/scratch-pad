@@ -1,7 +1,7 @@
 use crate::error::AppError;
 use crate::settings::SettingsService;
 use std::sync::Arc;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
 use tokio::sync::Mutex;
 

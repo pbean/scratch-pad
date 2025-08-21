@@ -14,6 +14,17 @@ vi.mock('@tauri-apps/api/core', () => ({
 import { invoke } from '@tauri-apps/api/core'
 const mockInvoke = vi.mocked(invoke)
 
+// Mock useSmartAutoSave hook
+vi.mock('../../../hooks/useSmartAutoSave', () => ({
+  useSmartAutoSave: vi.fn(() => ({
+    saveContent: vi.fn(),
+    forceSave: vi.fn().mockResolvedValue(undefined),
+    isSaving: false,
+    lastSaved: null,
+    isIdle: false
+  }))
+}))
+
 // Mock child components
 vi.mock('../TabBar', () => ({
   TabBar: () => <div data-testid="tab-bar">Tab Bar</div>
@@ -65,6 +76,7 @@ describe('NoteView', () => {
     })
     
     mockInvoke.mockClear()
+    mockInvoke.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -414,24 +426,17 @@ describe('NoteView', () => {
   })
 
   it('should show auto-saving status', async () => {
-    const mockSaveNote = vi.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)))
-    
-    act(() => {
-      useScratchPadStore.setState({ saveNote: mockSaveNote })
+    // Mock the useSmartAutoSave hook to return isSaving: true
+    const { useSmartAutoSave } = await import('../../../hooks/useSmartAutoSave')
+    vi.mocked(useSmartAutoSave).mockReturnValue({
+      saveContent: vi.fn(),
+      forceSave: vi.fn(),
+      isSaving: true,
+      lastSaved: null,
+      isIdle: false
     })
-    
+
     render(<NoteView />)
-    
-    const textarea = screen.getByRole('textbox')
-    
-    act(() => {
-      fireEvent.change(textarea, { target: { value: 'New content' } })
-    })
-    
-    // Trigger auto-save
-    act(() => {
-      vi.advanceTimersByTime(2000)
-    })
     
     // Should show auto-saving status
     expect(screen.getByTestId('is-auto-saving')).toHaveTextContent('true')

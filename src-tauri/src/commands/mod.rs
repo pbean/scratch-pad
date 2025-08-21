@@ -1,8 +1,7 @@
 /// Command Module Organization
 /// 
-/// This module organizes all IPC command handlers by domain, providing a clean
-/// interface for the main application to import and register commands.
-/// Each domain module handles its own security validation and business logic.
+/// This module organizes all IPC command handlers by domain with proper exports.
+/// Commands are grouped by functionality with security validation and performance monitoring.
 
 pub mod notes;
 pub mod search;
@@ -12,24 +11,25 @@ pub mod lifecycle;
 pub mod diagnostics;
 pub mod shared;
 
-// Re-export all public command functions for easy access
+// Note Management Commands
 pub use notes::{
-    create_note, get_note, update_note, delete_note,
-    get_all_notes, get_notes_paginated
+    create_note, update_note, delete_note, get_note, get_notes_paginated,
+    get_all_notes
 };
 
+// Search Commands  
 pub use search::{
-    search_notes, search_notes_paginated, SearchResult,
-    search_notes_boolean_paginated, validate_boolean_search_query,
-    get_boolean_search_examples, QueryComplexity
+    search_notes, search_notes_paginated, search_notes_boolean_paginated,
+    validate_boolean_search_query
 };
 
 pub use settings::{
-    get_setting, set_setting, get_all_settings, delete_setting
+    get_setting, set_setting, get_all_settings, delete_setting,
+    save_settings, load_settings, register_global_shortcut
 };
 
 pub use system::{
-    register_global_shortcut, unregister_global_shortcut,
+    unregister_global_shortcut,
     toggle_window_visibility, show_window, hide_window, 
     is_window_visible, get_current_shortcut, shutdown_application
 };
@@ -49,34 +49,45 @@ pub use shared::{
     log_security_event
 };
 
-/// Generate the Tauri command handler with all registered commands
+/// Generates the Tauri command handler with all available commands
+/// 
+/// This macro generates the complete command handler function that includes:
+/// - All note management commands with validation
+/// - All search commands with security checks
+/// - All settings commands with proper validation
+/// - All system commands with capability verification
+/// - All lifecycle commands with shutdown coordination
+/// - All diagnostic commands with error reporting
+/// - Performance monitoring for all commands
+/// - Security logging for all operations
 #[macro_export]
 macro_rules! generate_command_handler {
     () => {
         tauri::generate_handler![
-            // Note management commands
+            // Note Management Commands
             crate::commands::notes::create_note,
-            crate::commands::notes::get_note,
             crate::commands::notes::update_note,
             crate::commands::notes::delete_note,
-            crate::commands::notes::get_all_notes,
+            crate::commands::notes::get_note,
             crate::commands::notes::get_notes_paginated,
+            crate::commands::notes::get_all_notes,
             
-            // Search commands
+            // Search Commands
             crate::commands::search::search_notes,
             crate::commands::search::search_notes_paginated,
             crate::commands::search::search_notes_boolean_paginated,
             crate::commands::search::validate_boolean_search_query,
-            crate::commands::search::get_boolean_search_examples,
             
-            // Settings commands
+            // Settings Commands
             crate::commands::settings::get_setting,
             crate::commands::settings::set_setting,
             crate::commands::settings::get_all_settings,
             crate::commands::settings::delete_setting,
+            crate::commands::settings::save_settings,
+            crate::commands::settings::load_settings,
+            crate::commands::settings::register_global_shortcut,
             
-            // System control commands
-            crate::commands::system::register_global_shortcut,
+            // System Commands  
             crate::commands::system::unregister_global_shortcut,
             crate::commands::system::toggle_window_visibility,
             crate::commands::system::show_window,
@@ -85,11 +96,11 @@ macro_rules! generate_command_handler {
             crate::commands::system::get_current_shortcut,
             crate::commands::system::shutdown_application,
             
-            // Application lifecycle commands
+            // Lifecycle Commands
             crate::commands::lifecycle::is_shutting_down,
             crate::commands::lifecycle::initiate_shutdown,
             
-            // Diagnostic commands
+            // Diagnostic Commands
             crate::commands::diagnostics::report_frontend_error,
             crate::commands::diagnostics::get_backend_error_details
         ]

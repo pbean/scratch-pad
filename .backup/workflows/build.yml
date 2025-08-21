@@ -13,10 +13,10 @@ env:
 jobs:
   test:
     name: Test Suite
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -92,8 +92,8 @@ jobs:
             target: 'aarch64-apple-darwin'
             arch: 'arm64'
             rust_target: 'aarch64-apple-darwin'
-          - platform: 'ubuntu-22.04'
-            os: 'ubuntu-22.04'
+          - platform: 'ubuntu-20.04'
+            os: 'ubuntu-20.04'
             target: 'x86_64-unknown-linux-gnu'
             arch: 'x64'
             rust_target: 'x86_64-unknown-linux-gnu'
@@ -105,7 +105,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -129,7 +129,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.platform == 'ubuntu-20.04'
         run: |
           sudo apt-get update
           
@@ -155,7 +155,7 @@ jobs:
         run: pnpm build
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0.5.14
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
@@ -175,7 +175,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -205,7 +205,7 @@ jobs:
         run: pnpm build
 
       - name: Build Universal macOS app
-        uses: tauri-apps/tauri-action@v0.5.14
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
