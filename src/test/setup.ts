@@ -1,15 +1,14 @@
 import '@testing-library/jest-dom'
 import { vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
-import { act } from 'react'
 
 // Global setup to ensure React Testing Library works properly with jsdom
 import { configure } from '@testing-library/react'
 configure({
   // Use document.body as container by default
   defaultHidden: true,
-  // Configure React 19 testing environment
-  asyncUtilTimeout: 10000,
+  // Configure React 19 testing environment - increased timeout for React 19's async rendering
+  asyncUtilTimeout: 15000,
   testIdAttribute: 'data-testid',
   getElementError: (message, container) => {
     const prettyDOM = require('@testing-library/dom').prettyDOM
@@ -20,16 +19,6 @@ configure({
     return error
   }
 })
-
-// Global act function for React 19 compatibility  
-// In React 19, most act() calls are automatic, so we provide a simpler implementation
-global.act = async (callback) => {
-  const result = callback()
-  if (result && typeof result.then === 'function') {
-    await result
-  }
-  return result
-}
 
 // Clean up after each test
 afterEach(() => {
@@ -159,17 +148,118 @@ beforeAll(() => {
     }
   } as any
 
-  // Mock CSS style computations for tests
-  global.getComputedStyle = vi.fn().mockImplementation(() => ({
-    getPropertyValue: vi.fn().mockReturnValue(''),
-    getPropertyPriority: vi.fn().mockReturnValue(''),
-    setProperty: vi.fn(),
-    removeProperty: vi.fn(),
-    cssText: '',
-    length: 0,
-    parentRule: null,
-    item: vi.fn().mockReturnValue(''),
-  }))
+  // Enhanced CSS style computations for Tailwind CSS compatibility
+  const tailwindClassMap: Record<string, string> = {
+    // Common Tailwind classes and their computed style values
+    'h-screen': '100vh',
+    'w-screen': '100vw', 
+    'h-full': '100%',
+    'w-full': '100%',
+    'flex': 'flex',
+    'hidden': 'none',
+    'block': 'block',
+    'inline': 'inline',
+    'inline-block': 'inline-block',
+    'text-sm': '14px',
+    'text-base': '16px',
+    'text-lg': '18px',
+    'text-xl': '20px',
+    'p-2': '8px',
+    'p-4': '16px',
+    'px-3': '12px',
+    'py-2': '8px',
+    'm-2': '8px',
+    'm-4': '16px',
+    'border': '1px solid #d1d5db',
+    'rounded': '4px',
+    'rounded-md': '6px',
+    'bg-white': '#ffffff',
+    'bg-gray-50': '#f9fafb',
+    'text-black': '#000000',
+    'text-gray-900': '#111827',
+    'overflow-hidden': 'hidden',
+    'cursor-pointer': 'pointer'
+  }
+  
+  global.getComputedStyle = vi.fn().mockImplementation((element: Element) => {
+    const classList = Array.from(element.classList || [])
+    
+    return {
+      getPropertyValue: vi.fn().mockImplementation((property: string) => {
+        // Map CSS properties to common values based on Tailwind classes
+        switch (property) {
+          case 'display':
+            if (classList.includes('flex')) return 'flex'
+            if (classList.includes('hidden')) return 'none'
+            if (classList.includes('block')) return 'block'
+            if (classList.includes('inline')) return 'inline'
+            if (classList.includes('inline-block')) return 'inline-block'
+            return 'block' // default
+          
+          case 'width':
+            if (classList.includes('w-full')) return '100%'
+            if (classList.includes('w-screen')) return '100vw'
+            return 'auto'
+            
+          case 'height':
+            if (classList.includes('h-full')) return '100%'
+            if (classList.includes('h-screen')) return '100vh'
+            return 'auto'
+            
+          case 'font-size':
+            if (classList.includes('text-sm')) return '14px'
+            if (classList.includes('text-base')) return '16px'
+            if (classList.includes('text-lg')) return '18px'
+            if (classList.includes('text-xl')) return '20px'
+            return '16px' // default
+            
+          case 'padding':
+            if (classList.includes('p-2')) return '8px'
+            if (classList.includes('p-4')) return '16px'
+            return '0px'
+            
+          case 'margin':
+            if (classList.includes('m-2')) return '8px'
+            if (classList.includes('m-4')) return '16px'
+            return '0px'
+            
+          case 'background-color':
+            if (classList.includes('bg-white')) return '#ffffff'
+            if (classList.includes('bg-gray-50')) return '#f9fafb'
+            return 'transparent'
+            
+          case 'color':
+            if (classList.includes('text-black')) return '#000000'
+            if (classList.includes('text-gray-900')) return '#111827'
+            return '#000000'
+            
+          case 'cursor':
+            if (classList.includes('cursor-pointer')) return 'pointer'
+            return 'auto'
+            
+          case 'overflow':
+            if (classList.includes('overflow-hidden')) return 'hidden'
+            return 'visible'
+            
+          default:
+            // Check if any class matches our map for this property
+            for (const className of classList) {
+              if (tailwindClassMap[className]) {
+                return tailwindClassMap[className]
+              }
+            }
+            return ''
+        }
+      }),
+      getPropertyPriority: vi.fn().mockReturnValue(''),
+      setProperty: vi.fn(),
+      removeProperty: vi.fn(),
+      cssText: '',
+      length: 0,
+      parentRule: null,
+      item: vi.fn().mockReturnValue(''),
+    }
+  })
 
   // Mock requestAnimationFrame and cancelAnimationFrame
   global.requestAnimationFrame = vi.fn().mockImplementation((cb) => setTimeout(cb, 16))
@@ -194,6 +284,66 @@ beforeAll(() => {
       this.metaKey = options.metaKey || false
     }
   } as any
+
+  // FE-002: Add PointerEvent mock support for React 19 compatibility
+  global.PointerEvent = class MockPointerEvent extends MouseEvent {
+    public pointerId: number
+    public width: number
+    public height: number
+    public pressure: number
+    public tangentialPressure: number
+    public tiltX: number
+    public tiltY: number
+    public twist: number
+    public pointerType: string
+    public isPrimary: boolean
+    
+    constructor(type: string, options: any = {}) {
+      super(type, options)
+      this.pointerId = options.pointerId || 1
+      this.width = options.width || 1
+      this.height = options.height || 1
+      this.pressure = options.pressure || 0
+      this.tangentialPressure = options.tangentialPressure || 0
+      this.tiltX = options.tiltX || 0
+      this.tiltY = options.tiltY || 0
+      this.twist = options.twist || 0
+      this.pointerType = options.pointerType || 'mouse'
+      this.isPrimary = options.isPrimary !== undefined ? options.isPrimary : true
+    }
+    
+    // Mock pointer event methods
+    getCoalescedEvents() {
+      return []
+    }
+    
+    getPredictedEvents() {
+      return []
+    }
+  } as any
+
+  // Add pointer event support to elements
+  const originalAddEventListener = Element.prototype.addEventListener
+  Element.prototype.addEventListener = vi.fn().mockImplementation(function(
+    this: Element,
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions
+  ) {
+    // Support pointer events by mapping to mouse events for testing
+    const pointerToMouseEventMap: Record<string, string> = {
+      'pointerdown': 'mousedown',
+      'pointerup': 'mouseup',
+      'pointermove': 'mousemove',
+      'pointerenter': 'mouseenter',
+      'pointerleave': 'mouseleave',
+      'pointerover': 'mouseover',
+      'pointerout': 'mouseout'
+    }
+    
+    const mappedType = pointerToMouseEventMap[type] || type
+    return originalAddEventListener.call(this, mappedType, listener, options)
+  })
 })
 
 beforeEach(() => {

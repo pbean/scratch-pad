@@ -425,10 +425,10 @@ mod tests_disabled {
         let app_state = create_test_app_state().await;
         
         // Test operation context validation for diagnostics operations
-        let system_context = OperationContext::new_direct(vec![OperationCapability::SystemAccess]);
+        let system_context = OperationContext::new_test(vec![OperationCapability::SystemAccess]);
         assert!(app_state.security_validator.validate_operation_context(&system_context).is_ok());
         
-        let ipc_context = OperationContext::new_ipc(vec![OperationCapability::SystemAccess]);
+        let ipc_context = OperationContext::new_test(vec![OperationCapability::SystemAccess]);
         assert!(app_state.security_validator.validate_operation_context(&ipc_context).is_ok());
     }
     

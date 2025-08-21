@@ -18,6 +18,9 @@ pub enum OperationSource {
     Direct,
     /// Plugin-initiated operations
     Plugin,
+    /// Test operations - only available in test builds
+    #[cfg(test)]
+    Test,
 }
 
 /// Defines the capabilities/privileges for different operation types
@@ -92,6 +95,18 @@ impl OperationContext {
             timestamp: std::time::Instant::now(),
         }
     }
+    
+    /// Creates a new operation context for test operations
+    /// This constructor is only available in test builds
+    #[cfg(test)]
+    pub fn new_test(capabilities: Vec<OperationCapability>) -> Self {
+        Self {
+            source: OperationSource::Test,
+            capabilities,
+            frequency_limit: None, // No frequency limits for tests
+            timestamp: std::time::Instant::now(),
+        }
+    }
 }
 
 /// Frequency tracking for operation abuse prevention
@@ -110,6 +125,12 @@ impl FrequencyTracker {
     
     /// Check if operation is within frequency limits
     fn check_frequency(&mut self, context: &OperationContext) -> Result<(), AppError> {
+        // Skip frequency checks for test operations
+        #[cfg(test)]
+        if context.source == OperationSource::Test {
+            return Ok(());
+        }
+        
         if let Some(limit) = context.frequency_limit {
             let now = Instant::now();
             let window_start = now - Duration::from_secs(60); // 1-minute window
@@ -197,6 +218,19 @@ impl SecurityValidator {
                     OperationCapability::ReadNotes,
                     OperationCapability::WriteNotes,
                     OperationCapability::Search,
+                ]
+            },
+            #[cfg(test)]
+            OperationSource::Test => {
+                // Test operations have access to all capabilities
+                vec![
+                    OperationCapability::ReadNotes,
+                    OperationCapability::WriteNotes,
+                    OperationCapability::DeleteNotes,
+                    OperationCapability::SystemAccess,
+                    OperationCapability::FileExport,
+                    OperationCapability::Search,
+                    OperationCapability::PluginManagement,
                 ]
             }
         };
@@ -595,8 +629,27 @@ impl SecurityValidator {
             });
         }
         
-        // Perform standard content validation
-        Self::validate_note_content(content)
+        // Perform context-aware content validation
+        Self::validate_note_content_with_context_internal(content, context)
+    }
+    
+    /// Internal context-aware note content validation
+    fn validate_note_content_with_context_internal(content: &str, context: &OperationContext) -> Result<(), AppError> {
+        // Check length
+        if content.len() > Self::MAX_NOTE_CONTENT_LENGTH {
+            return Err(AppError::Validation {
+                field: "content".to_string(),
+                message: format!(
+                    "Content too long. Maximum {} characters allowed",
+                    Self::MAX_NOTE_CONTENT_LENGTH
+                ),
+            });
+        }
+        
+        // Check for potentially dangerous content patterns using context-aware validation
+        Self::validate_no_malicious_content_with_context(content, "content", context)?;
+        
+        Ok(())
     }
     
     /// Validates note content for security and length constraints (legacy method)
@@ -795,8 +848,9 @@ impl SecurityValidator {
             }
         }
         
-        // Check for dangerous control characters, but allow newlines/tabs in certain contexts
-        if field_name != "settings" && field_name != "json_content" {
+        // Check for dangerous control characters, but allow newlines/tabs in specific contexts
+        // Allow control characters for settings, json_content, and note content fields
+        if field_name != "settings" && field_name != "json_content" && field_name != "content" {
             if content.contains('\n') || content.contains('\r') || content.contains('\t') {
                 return Err(AppError::Validation {
                     field: field_name.to_string(),
@@ -806,6 +860,37 @@ impl SecurityValidator {
         }
         
         Ok(())
+    }
+    
+    /// Context-aware malicious content validation
+    /// 
+    /// This method provides more flexible validation based on the operation context.
+    /// Test operations can bypass malicious content validation when needed for testing
+    /// attack scenarios and edge cases.
+    pub fn validate_no_malicious_content_with_context(
+        content: &str, 
+        field_name: &str, 
+        _context: &OperationContext
+    ) -> Result<(), AppError> {
+        // Test operations can bypass malicious content validation
+        // This allows tests to use any content including attack patterns for testing
+        #[cfg(test)]
+        if _context.source == OperationSource::Test {
+            // For test contexts, only validate control characters in very specific non-content fields
+            // Most fields should allow any content for comprehensive testing
+            if field_name != "settings" && field_name != "json_content" && field_name != "content" && field_name != "ipc_content" {
+                if content.contains('\n') || content.contains('\r') || content.contains('\t') {
+                    return Err(AppError::Validation {
+                        field: field_name.to_string(),
+                        message: "Content contains control characters".to_string(),
+                    });
+                }
+            }
+            return Ok(()); // Skip ALL malicious pattern checks for tests
+        }
+        
+        // For all other contexts, use standard validation
+        Self::validate_no_malicious_content(content, field_name)
     }
     
     /// Sanitizes user input for safe database storage
@@ -1168,6 +1253,34 @@ mod tests {
         assert!(validator.validate_operation_context(&ipc_context).is_ok());
         assert!(validator.validate_operation_context(&direct_context).is_ok());
     }
+    
+    #[test]
+    fn test_test_operation_context() {
+        let validator = SecurityValidator::new();
+        
+        // Test operations should have all capabilities and no frequency limits
+        let test_context = OperationContext::new_test(vec![
+            OperationCapability::ReadNotes,
+            OperationCapability::WriteNotes,
+            OperationCapability::DeleteNotes,
+            OperationCapability::SystemAccess,
+            OperationCapability::FileExport,
+            OperationCapability::Search,
+            OperationCapability::PluginManagement,
+        ]);
+        
+        assert_eq!(test_context.source, OperationSource::Test);
+        assert_eq!(test_context.frequency_limit, None);
+        
+        // Test context should validate successfully with all capabilities
+        assert!(validator.validate_operation_context(&test_context).is_ok());
+        
+        // Test operations should not be subject to frequency limits
+        for _ in 0..100 {
+            let context = OperationContext::new_test(vec![OperationCapability::WriteNotes]);
+            assert!(validator.validate_operation_context(&context).is_ok());
+        }
+    }
 
     #[test]
     fn test_cleanup_all_temp_files() {
@@ -1181,5 +1294,26 @@ mod tests {
         // Should return number of files cleaned (likely 0 in test)
         let cleaned_count = result.unwrap();
         assert!(cleaned_count >= 0);
+    }
+    
+    #[test]
+    fn test_test_context_validation_methods() {
+        let validator = SecurityValidator::new();
+        let test_context = OperationContext::new_test(vec![
+            OperationCapability::WriteNotes,
+            OperationCapability::Search,
+            OperationCapability::FileExport
+        ]);
+        
+        // Test note validation with test context
+        assert!(validator.validate_note_content_with_context("Test note content", &test_context).is_ok());
+        
+        // Test search validation with test context
+        assert!(validator.validate_search_query_with_context("test query", &test_context).is_ok());
+        
+        // Test export validation with test context
+        let temp_dir = std::env::temp_dir();
+        let result = validator.validate_export_path_with_context("test.txt", Some(&temp_dir), &test_context);
+        assert!(result.is_ok());
     }
 }

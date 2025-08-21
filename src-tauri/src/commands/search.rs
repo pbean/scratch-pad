@@ -448,7 +448,7 @@ mod tests_disabled {
         for injection_query in sql_injection_tests {
             // Test validation directly
             // Create operation context for validation
-            let context = OperationContext::new_direct(vec![crate::validation::OperationCapability::Search]);
+            let context = OperationContext::new_test(vec![crate::validation::OperationCapability::Search]);
             let validation_result = app_state.security_validator.validate_search_query_with_context(injection_query, &context);
             assert!(
                 validation_result.is_err(),
@@ -464,13 +464,13 @@ mod tests_disabled {
         
         // Test query validation directly
         let limit_query = "a".repeat(1000);
-        let context = OperationContext::new_direct(vec![crate::validation::OperationCapability::Search]);
+        let context = OperationContext::new_test(vec![crate::validation::OperationCapability::Search]);
         let limit_result = app_state.security_validator.validate_search_query_with_context(&limit_query, &context);
         assert!(limit_result.is_ok());
         
         // Query exceeding limit should fail
         let excessive_query = "a".repeat(1001);
-        let context = OperationContext::new_direct(vec![crate::validation::OperationCapability::Search]);
+        let context = OperationContext::new_test(vec![crate::validation::OperationCapability::Search]);
         let excessive_result = app_state.security_validator.validate_search_query_with_context(&excessive_query, &context);
         assert!(excessive_result.is_err());
     }
@@ -494,7 +494,7 @@ mod tests_disabled {
         ];
         
         for pattern in malicious_patterns {
-            let context = OperationContext::new_direct(vec![crate::validation::OperationCapability::Search]);
+            let context = OperationContext::new_test(vec![crate::validation::OperationCapability::Search]);
             let result = app_state.security_validator.validate_search_query_with_context(pattern, &context);
             assert!(
                 result.is_err(),
@@ -527,7 +527,7 @@ mod tests_disabled {
         ];
         
         for pattern in valid_patterns {
-            let context = OperationContext::new_direct(vec![crate::validation::OperationCapability::Search]);
+            let context = OperationContext::new_test(vec![crate::validation::OperationCapability::Search]);
             let validation_result = app_state.security_validator.validate_search_query_with_context(pattern, &context);
             assert!(
                 validation_result.is_ok(),
@@ -575,7 +575,7 @@ mod tests_disabled {
         ];
         
         for query in unicode_queries {
-            let context = OperationContext::new_direct(vec![crate::validation::OperationCapability::Search]);
+            let context = OperationContext::new_test(vec![crate::validation::OperationCapability::Search]);
             let validation_result = app_state.security_validator.validate_search_query_with_context(query, &context);
             assert!(
                 validation_result.is_ok(),
@@ -611,10 +611,10 @@ mod tests_disabled {
         let app_state = create_test_app_state().await;
         
         // Test operation context validation for search operations - fixed: SearchNotes -> Search
-        let search_context = OperationContext::new_direct(vec![OperationCapability::Search]);
+        let search_context = OperationContext::new_test(vec![OperationCapability::Search]);
         assert!(app_state.security_validator.validate_operation_context(&search_context).is_ok());
         
-        let ipc_context = OperationContext::new_ipc(vec![OperationCapability::Search]);
+        let ipc_context = OperationContext::new_test(vec![OperationCapability::Search]);
         assert!(app_state.security_validator.validate_operation_context(&ipc_context).is_ok());
     }
     

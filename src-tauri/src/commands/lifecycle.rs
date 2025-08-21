@@ -174,10 +174,10 @@ mod tests_disabled {
         let app_state = create_test_app_state().await;
         
         // Test operation context validation for lifecycle operations
-        let system_context = OperationContext::new_direct(vec![OperationCapability::SystemAccess]);
+        let system_context = OperationContext::new_test(vec![OperationCapability::SystemAccess]);
         assert!(app_state.security_validator.validate_operation_context(&system_context).is_ok());
         
-        let ipc_context = OperationContext::new_ipc(vec![OperationCapability::SystemAccess]);
+        let ipc_context = OperationContext::new_test(vec![OperationCapability::SystemAccess]);
         assert!(app_state.security_validator.validate_operation_context(&ipc_context).is_ok());
     }
     
@@ -210,11 +210,11 @@ mod tests_disabled {
         let app_state = create_test_app_state().await;
         
         // Test that lifecycle operations require proper capabilities
-        let context_without_system_access = OperationContext::new_direct(vec![OperationCapability::ReadNotes]);
+        let context_without_system_access = OperationContext::new_test(vec![OperationCapability::ReadNotes]);
         assert!(app_state.security_validator.validate_operation_context(&context_without_system_access).is_ok());
         
         // System access should be properly validated
-        let context_with_system_access = OperationContext::new_direct(vec![OperationCapability::SystemAccess]);
+        let context_with_system_access = OperationContext::new_test(vec![OperationCapability::SystemAccess]);
         assert!(app_state.security_validator.validate_operation_context(&context_with_system_access).is_ok());
     }
 }
