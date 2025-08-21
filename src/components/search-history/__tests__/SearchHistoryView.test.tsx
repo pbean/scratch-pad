@@ -155,8 +155,11 @@ describe('SearchHistoryView', () => {
     const firstNoteElements = screen.getAllByText('First Note')
     expect(firstNoteElements.length).toBeGreaterThanOrEqual(1) // May appear in multiple folders
     
-    expect(screen.getByText('Second note with different content')).toBeInTheDocument()
-    expect(screen.getByText('Untitled')).toBeInTheDocument()
+    const secondNoteElements = screen.getAllByText('Second note with different content')
+    expect(secondNoteElements.length).toBeGreaterThanOrEqual(1) // May appear in multiple folders
+    
+    const untitledElements = screen.getAllByText('Untitled')
+    expect(untitledElements.length).toBeGreaterThanOrEqual(1) // May appear in multiple folders
   })
 
   it('should show last modified times', async () => {
@@ -318,6 +321,10 @@ describe('SearchHistoryView', () => {
       render(<SearchHistoryView />)
     })
     
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
+    }, { timeout: 1000 })
+    
     const searchInput = screen.getByPlaceholderText('Search notes...')
     await act(async () => {
       await user.type(searchInput, 'test query')
@@ -340,6 +347,10 @@ describe('SearchHistoryView', () => {
       render(<SearchHistoryView />)
     })
     
+    await waitFor(() => {
+      expect(screen.getByRole('button')).toBeInTheDocument()
+    }, { timeout: 1000 })
+    
     await act(async () => {
       await user.click(screen.getByRole('button'))
     })
@@ -353,7 +364,9 @@ describe('SearchHistoryView', () => {
       render(<SearchHistoryView />)
     })
     
-    expect(screen.getByText('No notes available')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('No notes available')).toBeInTheDocument()
+    }, { timeout: 1000 })
   })
 
   it('should show "No notes found" in search mode with no results', async () => {
@@ -363,6 +376,10 @@ describe('SearchHistoryView', () => {
       useScratchPadStore.setState({ searchNotes: mockSearchNotes })
       render(<SearchHistoryView />)
     })
+    
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
+    }, { timeout: 1000 })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
     await act(async () => {
@@ -383,7 +400,9 @@ describe('SearchHistoryView', () => {
       render(<SearchHistoryView />)
     })
     
-    expect(screen.getByText('Use ↑↓ to navigate, Enter to open, ← → to expand/collapse')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Use ↑↓ to navigate, Enter to open, ← → to expand/collapse')).toBeInTheDocument()
+    }, { timeout: 1000 })
   })
 
   it('should handle search errors gracefully', async () => {
@@ -393,6 +412,10 @@ describe('SearchHistoryView', () => {
       useScratchPadStore.setState({ searchNotes: mockSearchNotes })
       render(<SearchHistoryView />)
     })
+    
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
+    }, { timeout: 1000 })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
     await act(async () => {
@@ -422,6 +445,10 @@ describe('SearchHistoryView', () => {
       render(<SearchHistoryView />)
     })
     
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
+    }, { timeout: 1000 })
+    
     const searchInput = screen.getByPlaceholderText('Search notes...')
     await act(async () => {
       await user.type(searchInput, 'A')
@@ -444,6 +471,10 @@ describe('SearchHistoryView', () => {
       useScratchPadStore.setState({ searchNotes: mockSearchNotes })
       render(<SearchHistoryView />)
     })
+    
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
+    }, { timeout: 1000 })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
     await act(async () => {
@@ -474,6 +505,10 @@ describe('SearchHistoryView', () => {
       })
       render(<SearchHistoryView />)
     })
+    
+    await waitFor(() => {
+      expect(screen.getByText('Load More Notes')).toBeInTheDocument()
+    }, { timeout: 1000 })
     
     const loadMoreButton = screen.getByText('Load More Notes')
     await act(async () => {

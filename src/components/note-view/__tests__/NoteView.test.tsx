@@ -230,12 +230,14 @@ describe('NoteView', () => {
       useScratchPadStore.setState({ saveNote: mockSaveNote })
     })
     
-    render(<NoteView />)
+    const { container } = render(<NoteView />)
     
     const textarea = screen.getByRole('textbox')
     
-    act(() => {
+    await act(async () => {
       fireEvent.change(textarea, { target: { value: 'Content to save' } })
+      // Allow any async state updates to complete
+      await new Promise(resolve => setTimeout(resolve, 0))
     })
     
     act(() => {

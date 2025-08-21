@@ -270,11 +270,13 @@ describe('CommandPalette', () => {
     
     await act(async () => {
       await user.click(screen.getByText('Export Note'))
-    })
-    
-    expect(invoke).toHaveBeenCalledWith('export_note', {
-      note: mockNote,
-      filePath: 'note_1.txt'
+      // Wait for the invoke promise to resolve and any subsequent state updates
+      await vi.waitFor(() => {
+        expect(invoke).toHaveBeenCalledWith('export_note', {
+          note: mockNote,
+          filePath: 'note_1.txt'
+        })
+      })
     })
     
     await waitFor(() => {
