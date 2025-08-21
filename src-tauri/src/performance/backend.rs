@@ -323,14 +323,14 @@ impl BackendPerformanceMonitor {
 /// Database metrics collector
 struct DatabaseMetricsCollector {
     operations: Vec<DatabaseOperation>,
-    start_time: Instant,
+    #[allow(dead_code)] start_time: Instant,
 }
 
 #[derive(Debug, Clone)]
 struct DatabaseOperation {
     operation: String,
     duration: Duration,
-    success: bool,
+    #[allow(dead_code)] success: bool,
     timestamp: Instant,
 }
 
@@ -394,7 +394,7 @@ impl DatabaseMetricsCollector {
 /// IPC metrics collector
 struct IpcMetricsCollector {
     commands: Vec<IpcCommand>,
-    start_time: Instant,
+    #[allow(dead_code)] start_time: Instant,
 }
 
 #[derive(Debug, Clone)]
@@ -544,9 +544,9 @@ struct SearchMetricsCollector {
 #[derive(Debug, Clone)]
 struct SearchOperation {
     query_type: String,
-    query: String,
+    #[allow(dead_code)] query: String,
     duration: Duration,
-    result_count: u32,
+    #[allow(dead_code)] result_count: u32,
     cache_hit: bool,
     timestamp: Instant,
 }

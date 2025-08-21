@@ -172,7 +172,7 @@ impl PerformanceMonitor {
     }
 
     /// Start tracking an operation
-    pub fn start_operation(&self, operation_id: String, operation_type: String) -> OperationTracker {
+    pub fn start_operation(&self, operation_id: String, operation_type: String) -> OperationTracker<'_> {
         let start_time = Instant::now();
         let start_timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

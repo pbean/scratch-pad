@@ -5,7 +5,7 @@
 /// All methods maintain exact compatibility with existing service operations.
 
 use crate::error::AppError;
-use crate::models::{Note, NoteFormat};
+use crate::models::Note;
 use crate::commands::search::QueryComplexity;
 use async_trait::async_trait;
 use std::collections::HashMap;

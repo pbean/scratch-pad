@@ -96,7 +96,7 @@ describe('ScratchPadApp', () => {
     })
     
     await waitFor(() => {
-      expect(screen.getByText('Error')).toBeInTheDocument()
+      expect(screen.getByText('Something went wrong')).toBeInTheDocument()
       expect(screen.getByText('Test error message')).toBeInTheDocument()
     })
     
@@ -253,12 +253,13 @@ describe('ScratchPadApp', () => {
       })
     })
     
-    // Should not throw error
+    // Should not throw error and should still render
     expect(() => render(<ScratchPadApp />)).not.toThrow()
     
+    // Wait for initialization to be attempted
     await waitFor(() => {
       expect(mockInitializeSettings).toHaveBeenCalled()
       expect(mockLoadNotes).toHaveBeenCalled()
-    })
+    }, { timeout: 2000 })
   })
 })

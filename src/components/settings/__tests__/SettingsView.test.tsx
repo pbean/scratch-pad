@@ -42,11 +42,23 @@ describe('SettingsView', () => {
   })
 
   it('should render loading state initially', async () => {
+    // Mock a delayed response to see loading state
+    const delayedGetAllSettings = vi.fn().mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve(mockSettings), 100))
+    )
+    useScratchPadStore.setState({ getAllSettings: delayedGetAllSettings })
+
     await act(async () => {
       render(<SettingsView />)
     })
     
+    // Should see loading state immediately
     expect(screen.getByText('Loading settings...')).toBeInTheDocument()
+    
+    // Wait for settings to load
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Ctrl+Shift+N')).toBeInTheDocument()
+    })
   })
 
   it('should load and display settings', async () => {
@@ -428,24 +440,27 @@ describe('SettingsView', () => {
       
       await waitFor(() => {
         expect(screen.getByText('Save Settings')).toBeInTheDocument()
-      }, { timeout: 5000 })
+      })
       
+      // Click save settings button
       await act(async () => {
         await user.click(screen.getByText('Save Settings'))
       })
       
+      // Wait for success message to appear
       await waitFor(() => {
         expect(screen.getByText('Settings saved successfully!')).toBeInTheDocument()
-      }, { timeout: 5000 })
-      
-      // Fast-forward time to trigger auto-hide (component uses 3000ms)
-      act(() => {
-        vi.advanceTimersByTime(3000)
       })
       
+      // Fast-forward time to trigger auto-hide (component uses 3000ms timeout)
+      await act(async () => {
+        vi.advanceTimersByTime(3100) // Slightly more than 3000ms
+      })
+      
+      // Wait for message to disappear
       await waitFor(() => {
         expect(screen.queryByText('Settings saved successfully!')).not.toBeInTheDocument()
-      }, { timeout: 2000 })
+      })
     } finally {
       vi.useRealTimers()
     }

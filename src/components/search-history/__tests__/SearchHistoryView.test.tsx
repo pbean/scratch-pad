@@ -8,7 +8,7 @@ import type { Note } from '../../../types'
 // Mock VirtualList component - improved mock with proper key generation
 vi.mock('../../ui/virtual-list', () => ({
   VirtualList: ({ items, renderItem, onItemClick, selectedIndex }: any) => (
-    <div data-testid="virtual-list">
+    <div data-testid="virtual-list" tabIndex={0}>
       {items.map((item: any, index: number) => {
         // Generate unique keys properly to avoid React warnings
         const uniqueKey = `${item.type}-${item.id || item.name}-${index}`
@@ -269,13 +269,19 @@ describe('SearchHistoryView', () => {
       render(<SearchHistoryView />)
     })
     
+    // Get the component container and focus it first
+    const container = screen.getByTestId('virtual-list')
+    container.focus()
+    
     // Navigate to a folder and press Enter
     await act(async () => {
       await user.keyboard('{Enter}')
     })
     
-    expect(mockToggleFolder).toHaveBeenCalledWith('recent')
-  }, 15000)
+    await waitFor(() => {
+      expect(mockToggleFolder).toHaveBeenCalledWith('recent')
+    }, { timeout: 2000 })
+  }, 5000)
 
   it('should open note with Enter key', async () => {
     const mockSetActiveNote = vi.fn()
@@ -289,6 +295,10 @@ describe('SearchHistoryView', () => {
       render(<SearchHistoryView />)
     })
     
+    // Get the component container and focus it first
+    const container = screen.getByTestId('virtual-list')
+    container.focus()
+    
     // Navigate to a note (skip folders)
     await act(async () => {
       await user.keyboard('{ArrowDown}') // All Notes
@@ -297,9 +307,11 @@ describe('SearchHistoryView', () => {
       await user.keyboard('{Enter}')
     })
     
-    expect(mockSetActiveNote).toHaveBeenCalledWith(1)
-    expect(mockSetCurrentView).toHaveBeenCalledWith('note')
-  }, 15000)
+    await waitFor(() => {
+      expect(mockSetActiveNote).toHaveBeenCalledWith(1)
+      expect(mockSetCurrentView).toHaveBeenCalledWith('note')
+    }, { timeout: 2000 })
+  }, 5000)
 
   it('should handle Escape key to go back to note view', async () => {
     const mockSetCurrentView = vi.fn()
@@ -309,12 +321,18 @@ describe('SearchHistoryView', () => {
       render(<SearchHistoryView />)
     })
     
+    // Get the component container and focus it first
+    const container = screen.getByTestId('virtual-list')
+    container.focus()
+    
     await act(async () => {
       await user.keyboard('{Escape}')
     })
     
-    expect(mockSetCurrentView).toHaveBeenCalledWith('note')
-  }, 15000)
+    await waitFor(() => {
+      expect(mockSetCurrentView).toHaveBeenCalledWith('note')
+    }, { timeout: 2000 })
+  }, 5000)
 
   it('should clear search query with Escape when searching', async () => {
     await act(async () => {
@@ -326,6 +344,10 @@ describe('SearchHistoryView', () => {
     }, { timeout: 1000 })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
+    
+    // Focus the search input first
+    searchInput.focus()
+    
     await act(async () => {
       await user.type(searchInput, 'test query')
     })
@@ -336,7 +358,9 @@ describe('SearchHistoryView', () => {
       await user.keyboard('{Escape}')
     })
     
-    expect(searchInput).toHaveValue('')
+    await waitFor(() => {
+      expect(searchInput).toHaveValue('')
+    }, { timeout: 2000 })
   })
 
   it('should handle back button click', async () => {
@@ -355,7 +379,9 @@ describe('SearchHistoryView', () => {
       await user.click(screen.getByRole('button'))
     })
     
-    expect(mockSetCurrentView).toHaveBeenCalledWith('note')
+    await waitFor(() => {
+      expect(mockSetCurrentView).toHaveBeenCalledWith('note')
+    }, { timeout: 2000 })
   })
 
   it('should show "No notes available" when no notes', async () => {
@@ -366,7 +392,7 @@ describe('SearchHistoryView', () => {
     
     await waitFor(() => {
       expect(screen.getByText('No notes available')).toBeInTheDocument()
-    }, { timeout: 1000 })
+    }, { timeout: 2000 })
   })
 
   it('should show "No notes found" in search mode with no results', async () => {

@@ -191,13 +191,11 @@ pub async fn delete_setting(
 mod tests {
     use super::*;
     use crate::database::DbService;
-    use crate::global_shortcut::GlobalShortcutService;
     use crate::plugin::PluginManager;
     use crate::search::SearchService;
     use crate::settings::SettingsService;
     use crate::shutdown::ShutdownManager;
     use crate::validation::SecurityValidator;
-    use crate::window_manager::WindowManager;
     use std::sync::Arc;
     use tempfile::NamedTempFile;
     

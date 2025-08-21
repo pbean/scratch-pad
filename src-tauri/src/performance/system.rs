@@ -190,7 +190,7 @@ pub struct SystemAlert {
 }
 
 pub struct SystemMonitor {
-    system: Arc<Mutex<System>>,
+    #[allow(dead_code)] system: Arc<Mutex<System>>,
     thresholds: Arc<Mutex<SystemThresholds>>,
     metrics_history: Arc<Mutex<Vec<DetailedSystemMetrics>>>,
     last_collection: Arc<Mutex<Option<Instant>>>,

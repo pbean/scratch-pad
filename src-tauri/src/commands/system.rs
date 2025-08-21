@@ -307,12 +307,10 @@ pub async fn shutdown_application(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::validation::{SecurityValidator, OperationContext};
+    use crate::validation::SecurityValidator;
     use crate::database::DbService;
     use crate::search::SearchService;
     use crate::settings::SettingsService;
-    use crate::global_shortcut::GlobalShortcutService;
-    use crate::window_manager::WindowManager;
     use crate::plugin::PluginManager;
     use crate::shutdown::ShutdownManager;
     use std::sync::Arc;

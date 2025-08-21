@@ -1042,7 +1042,7 @@ pub struct PerformanceAnalyticsEngine {
     /// Report cache
     report_cache: Arc<Mutex<HashMap<String, PerformanceAnalyticsReport>>>,
     /// Analytics models
-    models: Arc<Mutex<AnalyticsModels>>,
+    #[allow(dead_code)] models: Arc<Mutex<AnalyticsModels>>,
 }
 
 /// Analytics configuration
