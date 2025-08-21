@@ -239,6 +239,28 @@ impl ShutdownManager {
         Ok(())
     }
 
+    /// Initiate shutdown process - simple method for command handlers
+    pub async fn initiate_shutdown(&self) -> Result<(), AppError> {
+        if self.is_shutting_down() {
+            return Err(AppError::Runtime {
+                message: "Shutdown already in progress".to_string(),
+            });
+        }
+
+        // Just set the shutdown flag - the actual shutdown will be handled by signal handlers
+        // or the main application loop
+        self.is_shutting_down.store(true, Ordering::Relaxed);
+        
+        // Emit shutdown initiated status
+        self.emit_status(ShutdownStatus {
+            stage: ShutdownStage::Initiated,
+            message: "Application shutdown initiated".to_string(),
+            progress: 0,
+        }).await;
+
+        Ok(())
+    }
+
     /// Register signal handlers for graceful shutdown
     pub fn register_signal_handlers(
         &self,
@@ -345,5 +367,22 @@ mod tests {
         assert!(json.contains("saving_data"));
         assert!(json.contains("Test message"));
         assert!(json.contains("50"));
+    }
+
+    #[tokio::test]
+    async fn test_initiate_shutdown() {
+        let manager = ShutdownManager::new();
+        
+        // Should not be shutting down initially
+        assert!(!manager.is_shutting_down());
+        
+        // Initiate shutdown
+        let result = manager.initiate_shutdown().await;
+        assert!(result.is_ok());
+        assert!(manager.is_shutting_down());
+        
+        // Should fail if already shutting down
+        let result2 = manager.initiate_shutdown().await;
+        assert!(result2.is_err());
     }
 }

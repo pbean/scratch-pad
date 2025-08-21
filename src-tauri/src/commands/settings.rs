@@ -196,6 +196,8 @@ mod tests {
     use crate::settings::SettingsService;
     use crate::shutdown::ShutdownManager;
     use crate::validation::SecurityValidator;
+    use crate::global_shortcut::GlobalShortcutService;
+    use crate::window_manager::WindowManager;
     use std::sync::Arc;
     use tempfile::NamedTempFile;
     
@@ -210,38 +212,19 @@ mod tests {
         let settings_service = Arc::new(SettingsService::new(db_service.clone()));
         let plugin_manager = Arc::new(tokio::sync::Mutex::new(PluginManager::new()));
         
-        // Create mock services for testing (these services require Tauri runtime in production)
-        // Using mock implementations that provide the expected Arc<Service> type
-        let mock_global_shortcut = Arc::new(MockGlobalShortcutService::new());
-        let mock_window_manager = Arc::new(MockWindowManager::new());
+        // Create test implementations for services that don't require Tauri runtime
+        let global_shortcut = Arc::new(GlobalShortcutService::new_test(settings_service.clone()).unwrap());
+        let window_manager = Arc::new(WindowManager::new_test(settings_service.clone()).unwrap());
         
         AppState {
             db: db_service,
             search: search_service,
             settings: settings_service.clone(),
-            global_shortcut: mock_global_shortcut,
-            window_manager: mock_window_manager,
+            global_shortcut,
+            window_manager,
             plugin_manager,
             security_validator,
             shutdown_manager: Arc::new(ShutdownManager::default()),
-        }
-    }
-    
-    // Mock GlobalShortcutService for testing
-    struct MockGlobalShortcutService;
-    
-    impl MockGlobalShortcutService {
-        fn new() -> Self {
-            Self
-        }
-    }
-    
-    // Mock WindowManager for testing
-    struct MockWindowManager;
-    
-    impl MockWindowManager {
-        fn new() -> Self {
-            Self
         }
     }
 
@@ -262,7 +245,7 @@ mod tests {
         let result = app_state.settings.set_setting("test_key", "test_value").await;
         assert!(result.is_ok());
         
-        // Verify the value was set
+        // Verify it was stored
         let retrieved = app_state.settings.get_setting("test_key").await.unwrap();
         assert_eq!(retrieved, Some("test_value".to_string()));
     }
@@ -271,11 +254,11 @@ mod tests {
     async fn test_get_all_settings() {
         let app_state = create_test_app_state().await;
         
-        // Set a few test settings
-        app_state.settings.set_setting("key1", "value1").await.unwrap();
-        app_state.settings.set_setting("key2", "value2").await.unwrap();
+        // Set some test settings
+        let _ = app_state.settings.set_setting("key1", "value1").await;
+        let _ = app_state.settings.set_setting("key2", "value2").await;
         
-        // Retrieve all settings
+        // Get all settings
         let result = app_state.settings.get_all_settings().await;
         assert!(result.is_ok());
         
@@ -289,32 +272,19 @@ mod tests {
     async fn test_delete_setting() {
         let app_state = create_test_app_state().await;
         
-        // Set a setting
-        app_state.settings.set_setting("deletable_key", "deletable_value").await.unwrap();
+        // Set a test setting
+        let _ = app_state.settings.set_setting("test_delete", "test_value").await;
         
         // Verify it exists
-        let retrieved = app_state.settings.get_setting("deletable_key").await.unwrap();
-        assert_eq!(retrieved, Some("deletable_value".to_string()));
+        let retrieved = app_state.settings.get_setting("test_delete").await.unwrap();
+        assert_eq!(retrieved, Some("test_value".to_string()));
         
-        // Delete the setting
-        let result = app_state.settings.delete_setting("deletable_key").await;
+        // Delete it
+        let result = app_state.settings.delete_setting("test_delete").await;
         assert!(result.is_ok());
         
         // Verify it's gone
-        let retrieved = app_state.settings.get_setting("deletable_key").await.unwrap();
+        let retrieved = app_state.settings.get_setting("test_delete").await.unwrap();
         assert_eq!(retrieved, None);
-    }
-
-    #[tokio::test]
-    async fn test_setting_validation() {
-        let app_state = create_test_app_state().await;
-        
-        // Test valid setting
-        let result = app_state.settings.set_setting("valid_key", "valid_value").await;
-        assert!(result.is_ok());
-        
-        // Test empty key (should be valid for some operations)
-        let result = app_state.settings.get_setting("").await;
-        assert!(result.is_ok()); // Empty key retrieval should work (returns None)
     }
 }

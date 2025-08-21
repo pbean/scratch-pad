@@ -19,7 +19,7 @@ const mockToast = {
   warning: vi.fn(),
 }
 
-vi.mock('../ui/toast', () => ({
+vi.mock('../../ui/toast', () => ({
   useToast: () => mockToast,
 }))
 

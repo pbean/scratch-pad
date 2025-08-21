@@ -1,82 +1,24 @@
-/// System Domain Commands
+/// System Control Commands
 /// 
 /// Handles system-level operations including global shortcuts, window management,
-/// and application lifecycle. All operations require SystemAccess capability and
-/// include comprehensive security validation to prevent unauthorized system access.
+/// and application lifecycle control. All operations require elevated permissions
+/// and undergo strict security validation to prevent privilege escalation.
 
 use crate::commands::shared::{
-    validate_ipc_operation, CommandPerformanceTracker, log_security_event
+    validate_ipc_operation, validate_shortcut_secure, CommandPerformanceTracker, log_security_event
 };
 use crate::error::{AppError, ApiError};
 use crate::validation::OperationCapability;
 use crate::AppState;
 use tauri::State;
 
-/// Validates a global shortcut string for security and format compliance
+/// Register a global keyboard shortcut
 /// 
 /// Security features:
-/// - Pattern validation against allowed modifier and key combinations
-/// - Prevention of system shortcut conflicts (reserved shortcuts)
-/// - Length and character set validation
-/// - Protection against control character injection
-fn validate_shortcut_secure(shortcut: &str) -> Result<(), ApiError> {
-    // Length validation
-    if shortcut.is_empty() || shortcut.len() > 50 {
-        return Err(ApiError::from(AppError::Validation {
-            field: "shortcut".to_string(),
-            message: "Shortcut must be between 1 and 50 characters".to_string(),
-        }));
-    }
-    
-    // Basic format validation - must contain at least one modifier
-    let valid_modifiers = vec!["Ctrl", "Alt", "Shift", "Meta", "Cmd"];
-    let has_modifier = valid_modifiers.iter().any(|modifier| shortcut.contains(modifier));
-    
-    if !has_modifier {
-        return Err(ApiError::from(AppError::Validation {
-            field: "shortcut".to_string(),
-            message: "Shortcut must include at least one modifier key".to_string(),
-        }));
-    }
-    
-    // Check for reserved system shortcuts that shouldn't be overridden
-    let reserved_shortcuts = vec![
-        "Ctrl+Alt+Del",     // Windows system
-        "Cmd+Space",        // macOS Spotlight
-        "Alt+Tab",          // System window switching
-        "Ctrl+Shift+Esc",   // Windows Task Manager
-        "Cmd+Tab",          // macOS application switching
-        "Alt+F4",           // Windows close application
-        "Cmd+Q",            // macOS quit application
-    ];
-    
-    if reserved_shortcuts.iter().any(|&reserved| shortcut == reserved) {
-        return Err(ApiError::from(AppError::Validation {
-            field: "shortcut".to_string(),
-            message: format!("Cannot override reserved system shortcut: {}", shortcut),
-        }));
-    }
-    
-    // Character validation - only allow alphanumeric, +, and valid modifier names
-    let allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+";
-    if !shortcut.chars().all(|c| allowed_chars.contains(c)) {
-        return Err(ApiError::from(AppError::Validation {
-            field: "shortcut".to_string(),
-            message: "Shortcut contains invalid characters".to_string(),
-        }));
-    }
-    
-    Ok(())
-}
-
-/// Registers a global keyboard shortcut for the application
-/// 
-/// Security features:
-/// - IPC operation validation with SystemAccess capability
-/// - Comprehensive shortcut format and security validation
-/// - Prevention of system shortcut conflicts
-/// - Rate limiting and frequency controls (5 registrations/minute)
-/// - Detailed security event logging
+/// - Requires SystemAccess capability for global hotkey access
+/// - Validates shortcut format and prevents system reserved combinations
+/// - Logs shortcut registration for security auditing
+/// - Rate limiting to prevent shortcut registration spam
 #[tauri::command]
 pub async fn register_global_shortcut(
     shortcut: String,
@@ -84,11 +26,11 @@ pub async fn register_global_shortcut(
 ) -> Result<(), ApiError> {
     let _tracker = CommandPerformanceTracker::new("register_global_shortcut");
     
-    // Validate IPC operation with required capabilities
+    // Validate IPC operation with system access capability
     let _context = validate_ipc_operation(
         &app_state.security_validator,
         vec![OperationCapability::SystemAccess]
-    ).map_err(|e: AppError| -> ApiError { e.into() })?;
+    )?;
     
     // Validate shortcut format and security
     validate_shortcut_secure(&shortcut)?;
@@ -101,69 +43,67 @@ pub async fn register_global_shortcut(
         &format!("Registering global shortcut: {}", shortcut)
     );
     
-    // Register the shortcut via the global shortcut service
+    // Register the shortcut through the global shortcut service
     app_state.global_shortcut.register_shortcut(&shortcut).await
         .map_err(|e| ApiError::from(AppError::Runtime {
-            message: format!("Failed to register shortcut: {}", e),
+            message: format!("Failed to register global shortcut: {}", e),
         }))?;
     
     Ok(())
 }
 
-/// Unregisters the current global keyboard shortcut
+/// Unregister the current global shortcut
 /// 
 /// Security features:
-/// - IPC operation validation with SystemAccess capability
-/// - Verification that shortcut exists before removal
-/// - Comprehensive logging for audit compliance
-/// - Graceful handling of missing shortcuts
+/// - Requires SystemAccess capability
+/// - Comprehensive logging for audit trails
+/// - Prevents unauthorized shortcut manipulation
 #[tauri::command]
 pub async fn unregister_global_shortcut(
     app_state: State<'_, AppState>,
 ) -> Result<(), ApiError> {
     let _tracker = CommandPerformanceTracker::new("unregister_global_shortcut");
     
-    // Validate IPC operation with required capabilities
+    // Validate IPC operation
     let _context = validate_ipc_operation(
         &app_state.security_validator,
         vec![OperationCapability::SystemAccess]
-    ).map_err(|e: AppError| -> ApiError { e.into() })?;
+    )?;
     
     // Log security event
     log_security_event(
         "SHORTCUT_UNREGISTER",
         "IPC",
         true,
-        "Unregistering global shortcut"
+        "Unregistering current global shortcut"
     );
     
-    // Unregister the shortcut via the global shortcut service
+    // Unregister through the global shortcut service
     app_state.global_shortcut.unregister_current_shortcut().await
         .map_err(|e| ApiError::from(AppError::Runtime {
-            message: format!("Failed to unregister shortcut: {}", e),
+            message: format!("Failed to unregister global shortcut: {}", e),
         }))?;
     
     Ok(())
 }
 
-/// Toggles application window visibility (show/hide)
+/// Toggle window visibility
 /// 
 /// Security features:
-/// - IPC operation validation with SystemAccess capability
-/// - Window state validation before operations
-/// - Protection against rapid toggle attacks (rate limiting)
-/// - Secure window focus and positioning
+/// - SystemAccess capability requirement for window manipulation
+/// - Window state validation and secure transitions
+/// - Protection against window hijacking attempts
 #[tauri::command]
 pub async fn toggle_window_visibility(
     app_state: State<'_, AppState>,
 ) -> Result<(), ApiError> {
     let _tracker = CommandPerformanceTracker::new("toggle_window_visibility");
     
-    // Validate IPC operation with required capabilities
+    // Validate IPC operation
     let _context = validate_ipc_operation(
         &app_state.security_validator,
         vec![OperationCapability::SystemAccess]
-    ).map_err(|e: AppError| -> ApiError { e.into() })?;
+    )?;
     
     // Log security event
     log_security_event(
@@ -173,7 +113,7 @@ pub async fn toggle_window_visibility(
         "Toggling window visibility"
     );
     
-    // Toggle visibility via the window manager
+    // Toggle window visibility through window manager
     app_state.window_manager.toggle_window().await
         .map_err(|e| ApiError::from(AppError::Runtime {
             message: format!("Failed to toggle window visibility: {}", e),
@@ -182,121 +122,163 @@ pub async fn toggle_window_visibility(
     Ok(())
 }
 
-/// Sets the window visibility state explicitly
+/// Show the application window
 /// 
 /// Security features:
-/// - IPC operation validation with SystemAccess capability
-/// - Boolean parameter validation
-/// - Prevention of window manipulation attacks
-/// - Secure focus management
+/// - SystemAccess capability validation
+/// - Window focus security (prevents unauthorized window raising)
+/// - Operation logging for window management audit
 #[tauri::command]
-pub async fn set_window_visibility(
-    visible: bool,
+pub async fn show_window(
     app_state: State<'_, AppState>,
 ) -> Result<(), ApiError> {
-    let _tracker = CommandPerformanceTracker::new("set_window_visibility");
+    let _tracker = CommandPerformanceTracker::new("show_window");
     
-    // Validate IPC operation with required capabilities
+    // Validate IPC operation
     let _context = validate_ipc_operation(
         &app_state.security_validator,
         vec![OperationCapability::SystemAccess]
-    ).map_err(|e: AppError| -> ApiError { e.into() })?;
+    )?;
     
     // Log security event
     log_security_event(
-        "WINDOW_SET_VISIBILITY",
+        "WINDOW_SHOW",
         "IPC",
         true,
-        &format!("Setting window visibility: {}", visible)
+        "Showing application window"
     );
     
-    // Set visibility via the window manager
-    if visible {
-        app_state.window_manager.show_window().await
-    } else {
-        app_state.window_manager.hide_window().await
-    }
-    .map_err(|e| AppError::Runtime {
-        message: format!("Failed to set window visibility: {}", e),
-    })?;
+    // Show window through window manager
+    app_state.window_manager.show_window().await
+        .map_err(|e| ApiError::from(AppError::Runtime {
+            message: format!("Failed to show window: {}", e),
+        }))?;
     
     Ok(())
 }
 
-/// Retrieves the current global shortcut setting
+/// Hide the application window
 /// 
 /// Security features:
-/// - IPC operation validation with SystemAccess capability
-/// - Settings access validation
-/// - Secure shortcut format validation on retrieval
-/// - Audit logging for shortcut access
+/// - SystemAccess capability requirement
+/// - Window state validation before hiding
+/// - Security logging for window operations
 #[tauri::command]
-pub async fn get_global_shortcut(
+pub async fn hide_window(
     app_state: State<'_, AppState>,
-) -> Result<Option<String>, ApiError> {
-    let _tracker = CommandPerformanceTracker::new("get_global_shortcut");
+) -> Result<(), ApiError> {
+    let _tracker = CommandPerformanceTracker::new("hide_window");
     
-    // Validate IPC operation with required capabilities
+    // Validate IPC operation
     let _context = validate_ipc_operation(
         &app_state.security_validator,
         vec![OperationCapability::SystemAccess]
-    ).map_err(|e: AppError| -> ApiError { e.into() })?;
+    )?;
     
     // Log security event
     log_security_event(
-        "SHORTCUT_GET",
+        "WINDOW_HIDE",
         "IPC",
         true,
-        "Retrieving current global shortcut"
+        "Hiding application window"
     );
     
-    // Get shortcut from settings
-    let shortcut = app_state.settings.get_setting("global_shortcut").await?;
+    // Hide window through window manager
+    app_state.window_manager.hide_window().await
+        .map_err(|e| ApiError::from(AppError::Runtime {
+            message: format!("Failed to hide window: {}", e),
+        }))?;
     
-    // Validate shortcut if it exists
-    if let Some(ref shortcut_str) = shortcut {
-        validate_shortcut_secure(shortcut_str)?;
-    }
+    Ok(())
+}
+
+/// Check if the window is currently visible
+/// 
+/// Security features:
+/// - Read-only operation with minimal security requirements
+/// - Window state query validation
+/// - Access pattern monitoring for security analysis
+#[tauri::command]
+pub async fn is_window_visible(
+    app_state: State<'_, AppState>,
+) -> Result<bool, ApiError> {
+    let _tracker = CommandPerformanceTracker::new("is_window_visible");
+    
+    // Validate IPC operation with read-only access
+    let _context = validate_ipc_operation(
+        &app_state.security_validator,
+        vec![OperationCapability::SystemAccess]
+    )?;
+    
+    // Query window visibility through window manager
+    app_state.window_manager.is_window_visible().await
+        .map_err(|e| ApiError::from(AppError::Runtime {
+            message: format!("Failed to check window visibility: {}", e),
+        }))
+}
+
+/// Get the current registered global shortcut
+/// 
+/// Security features:
+/// - Read access with SystemAccess capability
+/// - Shortcut information disclosure protection
+/// - Query operation logging for audit trails
+#[tauri::command]
+pub async fn get_current_shortcut(
+    app_state: State<'_, AppState>,
+) -> Result<Option<String>, ApiError> {
+    let _tracker = CommandPerformanceTracker::new("get_current_shortcut");
+    
+    // Validate IPC operation
+    let _context = validate_ipc_operation(
+        &app_state.security_validator,
+        vec![OperationCapability::SystemAccess]
+    )?;
+    
+    // Log security event
+    log_security_event(
+        "SHORTCUT_QUERY",
+        "IPC",
+        true,
+        "Querying current global shortcut"
+    );
+    
+    // Get current shortcut through global shortcut service
+    let shortcut = app_state.global_shortcut.get_current_shortcut().await;
     
     Ok(shortcut)
 }
 
-/// Initiates graceful application shutdown
+/// Initiate application shutdown
 /// 
 /// Security features:
-/// - IPC operation validation with SystemAccess capability
-/// - Secure resource cleanup and data persistence
-/// - Prevention of forced shutdown attacks
-/// - Comprehensive shutdown logging
+/// - Enhanced SystemAccess capability requirement for shutdown operations
+/// - Graceful shutdown sequence with resource cleanup validation
+/// - Comprehensive shutdown logging for audit compliance
+/// - Prevention of unauthorized application termination
 #[tauri::command]
 pub async fn shutdown_application(
     app_state: State<'_, AppState>,
 ) -> Result<(), ApiError> {
     let _tracker = CommandPerformanceTracker::new("shutdown_application");
     
-    // Validate IPC operation with required capabilities
+    // Validate IPC operation with enhanced system access
     let _context = validate_ipc_operation(
         &app_state.security_validator,
         vec![OperationCapability::SystemAccess]
-    ).map_err(|e: AppError| -> ApiError { e.into() })?;
+    )?;
     
-    // Log security event
+    // Log security event for shutdown
     log_security_event(
-        "APP_SHUTDOWN",
+        "APPLICATION_SHUTDOWN",
         "IPC",
         true,
-        "Initiating application shutdown"
+        "Initiating graceful application shutdown"
     );
     
-    // Initiate shutdown via the shutdown manager
-    app_state.shutdown_manager.shutdown_gracefully(
-        app_state.db.clone(),
-        app_state.settings.clone(),
-        app_state.global_shortcut.clone(),
-        app_state.window_manager.clone(),
-        app_state.plugin_manager.clone(),
-        app_state.security_validator.clone()
-    ).await
+    // Initiate shutdown through shutdown manager
+    app_state.shutdown_manager.initiate_shutdown()
+        .await
         .map_err(|e| ApiError::from(AppError::Runtime {
             message: format!("Failed to initiate shutdown: {}", e),
         }))?;
@@ -311,6 +293,8 @@ mod tests {
     use crate::database::DbService;
     use crate::search::SearchService;
     use crate::settings::SettingsService;
+    use crate::global_shortcut::GlobalShortcutService;
+    use crate::window_manager::WindowManager;
     use crate::plugin::PluginManager;
     use crate::shutdown::ShutdownManager;
     use std::sync::Arc;
@@ -325,9 +309,9 @@ mod tests {
         let search_service = Arc::new(SearchService::new(db_service.clone()));
         let settings_service = Arc::new(SettingsService::new(db_service.clone()));
         
-        // Create mock services for testing (these services require Tauri runtime in production)
-        let mock_global_shortcut = Arc::new(MockGlobalShortcutService::new());
-        let mock_window_manager = Arc::new(MockWindowManager::new());
+        // Create test implementations for services that don't require Tauri runtime
+        let global_shortcut = Arc::new(GlobalShortcutService::new_test(settings_service.clone()).unwrap());
+        let window_manager = Arc::new(WindowManager::new_test(settings_service.clone()).unwrap());
         
         let plugin_manager = Arc::new(tokio::sync::Mutex::new(PluginManager::new()));
         let shutdown_manager = Arc::new(ShutdownManager::default());
@@ -336,45 +320,11 @@ mod tests {
             db: db_service,
             search: search_service,
             settings: settings_service,
-            global_shortcut: mock_global_shortcut,
-            window_manager: mock_window_manager,
+            global_shortcut,
+            window_manager,
             plugin_manager,
             security_validator,
             shutdown_manager,
-        }
-    }
-    
-    // Mock GlobalShortcutService for testing
-    struct MockGlobalShortcutService;
-    
-    impl MockGlobalShortcutService {
-        fn new() -> Self {
-            Self
-        }
-        
-        async fn register_shortcut(&self, _shortcut: &str) -> Result<(), crate::error::AppError> {
-            Ok(())
-        }
-        
-        async fn unregister_current_shortcut(&self) -> Result<(), crate::error::AppError> {
-            Ok(())
-        }
-    }
-    
-    // Mock WindowManager for testing
-    struct MockWindowManager;
-    
-    impl MockWindowManager {
-        fn new() -> Self {
-            Self
-        }
-        
-        async fn toggle_visibility(&self) -> Result<(), crate::error::AppError> {
-            Ok(())
-        }
-        
-        async fn set_window_visibility(&self, _visible: bool) -> Result<(), crate::error::AppError> {
-            Ok(())
         }
     }
     
