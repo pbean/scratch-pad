@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Scratch Pad Logo](src-tauri/icons/128x128.png)
+![Scratch Pad Logo](docs/128x128.png)
 
 **A floating, keyboard-driven notepad designed for developers**
 
