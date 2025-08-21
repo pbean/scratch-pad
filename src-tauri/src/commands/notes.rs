@@ -229,8 +229,8 @@ pub async fn delete_note(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::validation::{SecurityValidator, OperationContext};
     use crate::database::DbService;
+    use crate::validation::SecurityValidator;
     use crate::search::SearchService;
     use crate::settings::SettingsService;
     // Removed unused imports for services that require Tauri runtime

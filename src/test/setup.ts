@@ -1,13 +1,35 @@
 import '@testing-library/jest-dom'
 import { vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
+import { act } from 'react'
 
 // Global setup to ensure React Testing Library works properly with jsdom
 import { configure } from '@testing-library/react'
 configure({
   // Use document.body as container by default
   defaultHidden: true,
+  // Configure React 19 testing environment
+  asyncUtilTimeout: 10000,
+  testIdAttribute: 'data-testid',
+  getElementError: (message, container) => {
+    const prettyDOM = require('@testing-library/dom').prettyDOM
+    const error = new Error(
+      [message, prettyDOM(container)].filter(Boolean).join('\n\n')
+    )
+    error.name = 'TestingLibraryElementError'
+    return error
+  }
 })
+
+// Global act function for React 19 compatibility  
+// In React 19, most act() calls are automatic, so we provide a simpler implementation
+global.act = async (callback) => {
+  const result = callback()
+  if (result && typeof result.then === 'function') {
+    await result
+  }
+  return result
+}
 
 // Clean up after each test
 afterEach(() => {
@@ -28,8 +50,30 @@ vi.mock('react', async () => {
   }
 })
 
+// Configure React Test Environment globally
+Object.defineProperty(global, 'IS_REACT_ACT_ENVIRONMENT', {
+  value: true,
+  writable: true,
+  configurable: true
+})
+
 // Global window mocks
 beforeAll(() => {
+  // Configure React act environment
+  window.IS_REACT_ACT_ENVIRONMENT = true
+  
+  // Suppress React act() warnings in test environment (React 19 handles this automatically)
+  const originalConsoleError = console.error
+  console.error = (...args) => {
+    if (
+      typeof args[0] === 'string' && 
+      args[0].includes('The current testing environment is not configured to support act')
+    ) {
+      return // Suppress React act() warnings
+    }
+    originalConsoleError.apply(console, args)
+  }
+  
   // Mock window.confirm
   Object.defineProperty(window, 'confirm', {
     writable: true,

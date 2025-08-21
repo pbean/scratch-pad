@@ -110,7 +110,7 @@ pub async fn initiate_shutdown(
     }
 }
 
-#[cfg(disabled)]
+#[cfg(feature = "disabled_tests")]
 #[allow(unused)]
 mod tests_disabled {
     use super::*;

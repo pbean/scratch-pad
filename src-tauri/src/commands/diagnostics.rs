@@ -235,7 +235,7 @@ fn sanitize_for_logging(content: &str) -> String {
         .collect::<String>()
 }
 
-#[cfg(disabled)]
+#[cfg(feature = "disabled_tests")]
 #[allow(unused)]
 mod tests_disabled {
     use super::*;

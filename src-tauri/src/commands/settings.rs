@@ -123,8 +123,9 @@ pub async fn get_all_settings(
     Ok(settings)
 }
 
-#[cfg(disabled)]
-#[allow(unused)]
+// Tests disabled - these require Tauri runtime integration
+#[cfg(feature = "disabled_tests")]
+#[allow(dead_code)]
 mod tests_disabled {
     use super::*;
     use crate::validation::{SecurityValidator, OperationContext};
@@ -138,7 +139,7 @@ mod tests_disabled {
     use std::sync::Arc;
     use tempfile::NamedTempFile;
     
-    /*
+    
     async fn create_test_app_state() -> AppState {
         let temp_file = NamedTempFile::new().unwrap();
         let db_path = temp_file.path().to_string_lossy().to_string();
@@ -161,7 +162,7 @@ mod tests_disabled {
             shutdown_manager: Arc::new(ShutdownManager::default()),
         }
     }
-    */
+    
     
     #[tokio::test]
     async fn test_setting_validation() {
@@ -172,7 +173,7 @@ mod tests_disabled {
         assert!(validate_setting_secure("key$pecial", "").is_err());
     }
     
-    /*
+    
     #[tokio::test]
     async fn test_set_setting_security() {
         // let app_state = create_test_app_state().await;
@@ -195,9 +196,9 @@ mod tests_disabled {
         // let result = app_state.settings.set_setting("theme", "dark").await;
         // assert!(result.is_ok());
     }
-    */
     
-    /*
+    
+    
     #[tokio::test]
     async fn test_get_all_settings_security() {
         // let app_state = create_test_app_state().await;
@@ -210,7 +211,7 @@ mod tests_disabled {
         // Settings map can be empty or have defaults - both are valid
         assert!(settings.is_empty() || !settings.is_empty());
     }
-    */
+    
     
     #[tokio::test]
     async fn test_setting_validation_edge_cases() {
@@ -293,7 +294,7 @@ mod tests_disabled {
         }
     }
     
-    /*
+    
     #[tokio::test]
     async fn test_settings_crud_operations() {
         // let app_state = create_test_app_state().await;
@@ -315,9 +316,9 @@ mod tests_disabled {
         assert!(missing_result.is_ok());
         assert!(missing_result.unwrap().is_none());
     }
-    */
     
-    /*
+    
+    
     #[tokio::test]
     async fn test_settings_performance() {
         // let app_state = create_test_app_state().await;
@@ -341,5 +342,4 @@ mod tests_disabled {
         let duration = start.elapsed();
         assert!(duration.as_millis() < 100); // Should be very fast for small dataset
     }
-    */
 }

@@ -682,7 +682,7 @@ mod tests {
     }
 }
 
-#[cfg(disabled)]
+#[cfg(feature = "disabled_tests")]
 mod integration_tests {
     use super::*;
     use crate::database::DbService;

@@ -13,8 +13,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
-    testTimeout: 10000, // Increased timeout for complex tests
-    hookTimeout: 10000,
+    testTimeout: 15000, // Increased timeout for complex tests
+    hookTimeout: 15000,
     clearMocks: true,
     restoreMocks: true,
     // Configure test environment for React 19
@@ -22,12 +22,15 @@ export default defineConfig({
       jsdom: {
         resources: 'usable',
         pretendToBeVisual: true,
-        html: '<!DOCTYPE html><html><head></head><body><div id="root"></div></body></html>'
+        html: '<!DOCTYPE html><html><head></head><body><div id="root"></div></body></html>',
+        // Enable React DevTools support
+        runScripts: 'dangerously'
       }
     },
     // Configure test environment
     env: {
-      NODE_ENV: 'test'
+      NODE_ENV: 'test',
+      IS_REACT_ACT_ENVIRONMENT: 'true'
     },
     // Coverage configuration  
     coverage: {

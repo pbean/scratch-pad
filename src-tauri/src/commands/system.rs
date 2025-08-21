@@ -289,7 +289,7 @@ pub async fn close_application(
     Ok(())
 }
 
-#[cfg(disabled)]
+#[cfg(feature = "disabled_tests")]
 #[allow(unused)]
 mod tests_disabled {
     use super::*;
