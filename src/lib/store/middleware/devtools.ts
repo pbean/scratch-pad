@@ -23,9 +23,8 @@ type TypeSafeDevtoolsMiddleware = <
   Mps extends [StoreMutatorIdentifier, unknown][] = [],
   Mcs extends [StoreMutatorIdentifier, unknown][] = []
 >(
-  config: StateCreator<T, Mps, Mcs>,
-  options?: TypeSafeDevtoolsConfig
-) => StateCreator<T, Mps, [...Mcs, ['zustand/devtools', never]]>
+  stateCreator: StateCreator<T, Mps, Mcs>
+) => StateCreator<T, Mps, Mcs> | StateCreator<T, Mps, [...Mcs, ['zustand/devtools', never]]>
 
 /**
  * Create type-safe serializer for complex objects
@@ -273,7 +272,7 @@ export const createTypeSafeActionCreators = (sliceName: string) => {
     // Notes actions
     [`${sliceName}_setActiveNote`]: (noteId: number | null): DevtoolsAction => ({
       type: 'note_action',
-      payload: { action: 'set_active', noteId }
+      payload: { action: 'set_active', noteId: noteId ?? undefined }
     }),
     
     [`${sliceName}_createNote`]: (content?: string): DevtoolsAction => ({

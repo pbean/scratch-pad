@@ -9,7 +9,8 @@ import type {
   LayoutMode, 
   BooleanSearchResult, 
   QueryComplexity,
-  SearchResult 
+  SearchResult,
+  SearchHistoryEntry
 } from "../types"
 
 interface ScratchPadState {
@@ -35,7 +36,7 @@ interface ScratchPadState {
   searchQueryTime: number
   lastQueryComplexity: QueryComplexity | null
   recentSearches: string[]
-  searchHistory: string[]
+  searchHistory: SearchHistoryEntry[]
 
   // Performance state
   notesCount: number
@@ -69,7 +70,7 @@ interface ScratchPadState {
   getBooleanSearchExamples: () => Promise<Array<[string, string]>>
   
   // Search history management
-  addToSearchHistory: (query: string) => void
+  addToSearchHistory: (query: string, results?: Note[]) => void
   getRecentSearchSuggestions: (query: string) => string[]
   clearSearchHistory: () => void
 
@@ -316,7 +317,7 @@ export const useScratchPadStore = create<ScratchPadState>((set, get) => ({
       
       // Add to search history if not empty
       if (query.trim()) {
-        get().addToSearchHistory(query)
+        get().addToSearchHistory(query, result.notes)
       }
       
       return result
@@ -349,7 +350,7 @@ export const useScratchPadStore = create<ScratchPadState>((set, get) => ({
       
       // Add to search history if not empty
       if (query.trim()) {
-        get().addToSearchHistory(query)
+        get().addToSearchHistory(query, result.notes)
       }
       
       return result
@@ -383,24 +384,42 @@ export const useScratchPadStore = create<ScratchPadState>((set, get) => ({
   },
 
   // Search history management
-  addToSearchHistory: (query: string) => {
-    const { searchHistory } = get()
+  addToSearchHistory: (query: string, results: Note[] = []) => {
+    const { searchHistory, recentSearches } = get()
     const trimmedQuery = query.trim()
     
-    if (!trimmedQuery || searchHistory.includes(trimmedQuery)) {
+    if (!trimmedQuery) {
       return
     }
     
+    // Create new search history entry
+    const newEntry: SearchHistoryEntry = {
+      query: trimmedQuery,
+      results,
+      timestamp: Date.now(),
+      resultCount: results.length
+    }
+    
+    // Remove existing entry for this query if it exists
+    const filteredHistory = searchHistory.filter(entry => entry.query !== trimmedQuery)
+    
     // Add to beginning and limit to 50 recent searches
-    const newHistory = [trimmedQuery, ...searchHistory.filter(q => q !== trimmedQuery)].slice(0, 50)
-    set({ searchHistory: newHistory })
+    const newHistory = [newEntry, ...filteredHistory].slice(0, 50)
+    
+    // Update recent searches string array for backwards compatibility
+    const newRecentSearches = [trimmedQuery, ...recentSearches.filter(q => q !== trimmedQuery)].slice(0, 50)
+    
+    set({ 
+      searchHistory: newHistory,
+      recentSearches: newRecentSearches
+    })
   },
 
   getRecentSearchSuggestions: (query: string) => {
-    const { searchHistory } = get()
+    const { recentSearches } = get()
     const lowercaseQuery = query.toLowerCase()
     
-    return searchHistory
+    return recentSearches
       .filter(search => search.toLowerCase().includes(lowercaseQuery))
       .slice(0, 10) // Return top 10 suggestions
   },
@@ -692,5 +711,5 @@ export const useScratchPadStore = create<ScratchPadState>((set, get) => ({
       set({ error: apiError.message })
       throw error
     }
-  },
+  }
 }))

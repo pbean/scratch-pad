@@ -17,8 +17,29 @@ import type {
   PerformanceReport,
   OptimizationRecommendation,
   AnalyticsEvent,
-  RealTimeMetrics
+  RealTimeMetrics,
+  SearchStartEventData
 } from '../../types/analytics'
+
+/**
+ * Type-safe mapping from PerformanceMetrics operationType to analytics searchType
+ */
+function mapOperationTypeToSearchType(operationType: PerformanceMetrics['operationType']): SearchStartEventData['searchType'] {
+  switch (operationType) {
+    case 'simple':
+      return 'simple'
+    case 'paginated':
+      return 'paginated'
+    case 'boolean':
+      return 'boolean'
+    case 'combined':
+      return 'boolean'
+    default:
+      // Exhaustive check - TypeScript will error if we miss a case
+      const _exhaustive: never = operationType
+      throw new Error(`Unhandled operationType: ${_exhaustive}`)
+  }
+}
 
 /**
  * Main performance analytics class for tracking and analyzing performance metrics
@@ -50,7 +71,6 @@ export class PerformanceAnalytics {
   // Internal tracking
   private queryStartTimes: Map<string, number> = new Map()
   private eventListeners: Array<(event: AnalyticsEvent) => void> = []
-  private lastCleanup: number = Date.now()
   private readonly CLEANUP_INTERVAL = 5 * 60 * 1000 // 5 minutes
   private readonly MAX_METRICS_HISTORY = 1000
   
@@ -66,9 +86,8 @@ export class PerformanceAnalytics {
     const startTime = performance.now()
     this.queryStartTimes.set(queryId, startTime)
     
-    // Map operationType to searchType for analytics
-    const searchType: 'simple' | 'paginated' | 'boolean' = 
-      operationType === 'combined' ? 'boolean' : operationType
+    // Map operationType to searchType for analytics using type-safe function
+    const searchType = mapOperationTypeToSearchType(operationType)
     
     this.recordEvent({
       type: 'search_start',
@@ -126,9 +145,8 @@ export class PerformanceAnalytics {
     // Check for performance issues
     this.checkPerformanceIssues(metrics)
     
-    // Map operationType to searchType for analytics
-    const searchType: 'simple' | 'paginated' | 'boolean' = 
-      operationType === 'combined' ? 'boolean' : operationType
+    // Map operationType to searchType for analytics using type-safe function
+    const searchType = mapOperationTypeToSearchType(operationType)
     
     // Record completion event
     this.recordEvent({
@@ -156,7 +174,8 @@ export class PerformanceAnalytics {
         data: { 
           cacheKey: query, 
           hitRate: this.calculateCacheHitRate(), 
-          size: this.metrics.length 
+          size: this.metrics.length,
+          operation: 'hit' as const
         },
         source: 'system',
         eventId: crypto.randomUUID()
@@ -168,7 +187,8 @@ export class PerformanceAnalytics {
         data: { 
           cacheKey: query, 
           hitRate: this.calculateCacheHitRate(), 
-          size: this.metrics.length 
+          size: this.metrics.length,
+          operation: 'miss' as const
         },
         source: 'system',
         eventId: crypto.randomUUID()
@@ -183,7 +203,7 @@ export class PerformanceAnalytics {
    */
   getCurrentMetrics(): RealTimeMetrics {
     const recentMetrics = this.getRecentMetrics(60000) // Last minute
-    const totalMetrics = this.metrics.length
+    // const totalMetrics = this.metrics.length // Available for future use
     
     if (recentMetrics.length === 0) {
       return {
@@ -288,6 +308,66 @@ export class PerformanceAnalytics {
     return { ...this.budget }
   }
 
+  /**
+   * Update configuration
+   */
+  updateConfig(config: any): void {
+    if (config.budget) {
+      this.setPerformanceBudget(config.budget)
+    }
+    // Additional config updates can be added here
+  }
+
+  /**
+   * Register alert callback
+   */
+  onAlert(callback: (alert: PerformanceAlert) => void): () => void {
+    const listener = (event: AnalyticsEvent) => {
+      if (event.type === 'alert_triggered') {
+        const alertData = event.data as any
+        const alert: PerformanceAlert = {
+          id: alertData.alertId,
+          severity: alertData.severity,
+          type: 'query_time', // Default type, could be improved
+          message: alertData.message,
+          timestamp: event.timestamp,
+          isActive: true,
+          relatedMetric: alertData.relatedMetric
+        }
+        callback(alert)
+      }
+    }
+    this.addEventListener(listener)
+    
+    // Return cleanup function
+    return () => {
+      this.removeEventListener(listener)
+    }
+  }
+
+  /**
+   * Register metrics update callback
+   */
+  onMetricsUpdate(callback: (metrics: RealTimeMetrics) => void): () => void {
+    // Set up interval to call callback with current metrics
+    const intervalId = setInterval(() => {
+      const metrics = this.getCurrentMetrics()
+      callback(metrics)
+    }, 1000) // Update every second
+    
+    // Return cleanup function
+    return () => {
+      clearInterval(intervalId)
+    }
+  }
+
+  /**
+   * Get real-time metrics (alias for getCurrentMetrics)
+   */
+  getRealTimeMetrics(): RealTimeMetrics {
+    return this.getCurrentMetrics()
+  }
+
   // Private helper methods
 
   private recordEvent(event: AnalyticsEvent): void {
@@ -383,7 +463,7 @@ export class PerformanceAnalytics {
     })
   }
 
-  private generateSuggestion(type: PerformanceAlert['type'], metrics?: PerformanceMetrics): string {
+  private generateSuggestion(type: PerformanceAlert['type'], _metrics?: PerformanceMetrics): string {
     switch (type) {
       case 'query_time':
         return 'Consider optimizing query complexity or adding appropriate indexes'
@@ -472,7 +552,7 @@ export class PerformanceAnalytics {
       this.metrics = this.metrics.slice(-this.MAX_METRICS_HISTORY)
     }
     
-    this.lastCleanup = now
+    // Cleanup completed
   }
 }
 

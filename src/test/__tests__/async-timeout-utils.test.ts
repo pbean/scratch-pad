@@ -17,14 +17,10 @@ import {
   waitForStateUpdate,
   waitForErrorBoundary,
   waitForAnimation,
-  advanceTimersWithTimeout,
   createTimeoutPromise,
   batchWithTimeout,
   TIMEOUT_PRESETS,
-  DEFAULT_REACT19_CONFIG,
-  DEFAULT_DATABASE_CONFIG,
-  type React19TimeoutConfig,
-  type TimeoutResult
+  type React19TimeoutConfig
 } from '../async-timeout-utils'
 
 describe('React 19 Async Timeout Utilities', () => {
@@ -40,7 +36,6 @@ describe('React 19 Async Timeout Utilities', () => {
 
   describe('waitForReact19', () => {
     it('should resolve quickly for immediate operations', async () => {
-      const startTime = Date.now()
       const result = await waitForReact19(() => 'success')
       
       expect(result.success).toBe(true)

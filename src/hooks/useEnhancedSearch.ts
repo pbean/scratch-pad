@@ -11,8 +11,7 @@ import type {
   SearchResult, 
   BooleanSearchResult, 
   EnhancedSearchResult, 
-  SearchHighlightOptions, 
- 
+  SearchHighlightOptions
 } from '../types'
 import { 
   enhanceSearchResult, 
@@ -70,7 +69,7 @@ export function useEnhancedSearch(options: UseEnhancedSearchOptions = {}) {
 
   // Refs for cache and timers
   const cacheRef = useRef<SearchCache>({})
-  const debounceTimerRef = useRef<NodeJS.Timeout>()
+  const debounceTimerRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   // Combined highlight options
@@ -211,7 +210,7 @@ export function useEnhancedSearch(options: UseEnhancedSearchOptions = {}) {
     try {
       const startTime = performance.now()
       let result: SearchResult | BooleanSearchResult | null = null
-      let enhanced: EnhancedSearchResult | undefined
+      let enhanced: EnhancedSearchResult | undefined = undefined
       let wasHit = false
 
       // Check cache first
@@ -224,13 +223,13 @@ export function useEnhancedSearch(options: UseEnhancedSearchOptions = {}) {
         }
       }
 
-      // Execute search if not cached
+      // Execute search if not cached - ensure result is always assigned
       if (!wasHit) {
         abortControllerRef.current = new AbortController()
         result = await executeSearch(trimmedQuery, useBoolean, page, pageSize)
         
         // Enhance with highlighting
-        if ('complexity' in result) {
+        if (result && 'complexity' in result) {
           // BooleanSearchResult - convert to SearchResult for enhancement
           const searchResult: SearchResult = {
             notes: result.notes,
@@ -241,26 +240,35 @@ export function useEnhancedSearch(options: UseEnhancedSearchOptions = {}) {
             query_time_ms: result.query_time_ms
           }
           enhanced = enhanceSearchResult(searchResult, trimmedQuery, effectiveHighlightOptions)
-        } else {
+        } else if (result) {
           enhanced = enhanceSearchResult(result, trimmedQuery, effectiveHighlightOptions)
         }
 
         // Cache the results
-        setCachedResult(cacheKey, result, enhanced)
+        if (result) {
+          setCachedResult(cacheKey, result, enhanced)
+        }
       }
 
       const queryTime = performance.now() - startTime
       updateStats(queryTime, wasHit)
 
+      // result is guaranteed to be defined here due to the logic above
       if (result) {
-        setSearchResult('complexity' in result ? {
-        notes: result.notes,
-        total_count: result.total_count,
-        page: result.page,
-        page_size: result.page_size,
-        has_more: result.has_more,
-        query_time_ms: result.query_time_ms
-      } : result)
+        if ('complexity' in result) {
+          setSearchResult({
+            notes: result.notes,
+            total_count: result.total_count,
+            page: result.page,
+            page_size: result.page_size,
+            has_more: result.has_more,
+            query_time_ms: result.query_time_ms
+          })
+        } else {
+          setSearchResult(result)
+        }
+      } else {
+        setSearchResult(null)
       }
       
       setEnhancedResult(enhanced || null)

@@ -123,7 +123,10 @@ export function parseSettingValue<K extends SettingKey>(
   key: K,
   value: string
 ): SettingValue<K> | undefined {
-  switch (key) {
+  // Use type assertion to handle the switch statement properly
+  const settingKey = key as string
+  
+  switch (settingKey) {
     case 'window_width':
     case 'window_height':
     case 'auto_save_delay_ms':
@@ -137,7 +140,7 @@ export function parseSettingValue<K extends SettingKey>(
       return (isNaN(parsed) ? 0.6 : Math.max(0, Math.min(1, parsed))) as SettingValue<K>
     }
     
-    case 'default_note_format': {
+    case 'defaultNoteFormat': {
       const validFormats = ['plaintext', 'markdown'] as const
       return (validFormats.includes(value as any) ? value : 'plaintext') as SettingValue<K>
     }
@@ -148,20 +151,20 @@ export function parseSettingValue<K extends SettingKey>(
     }
     
     case 'theme':
-      return (value as any)
+      return value as SettingValue<K>
     
     case 'ui_font':
     case 'editor_font': {
       return value as SettingValue<K>
     }
     
-    case 'global_shortcut':
+    case 'globalShortcut':
     case 'note_directory':
-      return (value as any)
+      return value as SettingValue<K>
     
     default: {
-      // Exhaustive check - TypeScript will error if we miss a setting
-      return undefined
+      // For any other keys, try to return the value as-is
+      return value as SettingValue<K>
     }
   }
 }
@@ -172,14 +175,17 @@ export function validateSettingValue<K extends SettingKey>(
   value: SettingValue<K>
 ): ValidatedSettingValue<K> | null | undefined {
   try {
-    switch (key) {
+    // Use type assertion to handle the switch statement properly
+    const settingKey = key as string
+    
+    switch (settingKey) {
       case 'window_width':
       case 'window_height':
         return (typeof value === 'number' && value >= 100 && value <= 4000) 
           ? (value as ValidatedSettingValue<K>)
           : null
       
-      case 'auto_save_delay_ms':
+      case 'autoSaveDelay':
         return (typeof value === 'number' && value >= 100 && value <= 10000)
           ? (value as ValidatedSettingValue<K>)
           : null
@@ -194,7 +200,7 @@ export function validateSettingValue<K extends SettingKey>(
           ? (value as ValidatedSettingValue<K>)
           : null
       
-      case 'default_note_format':
+      case 'defaultNoteFormat':
         return (['plaintext', 'markdown'].includes(value as string))
           ? (value as ValidatedSettingValue<K>)
           : null
@@ -205,7 +211,7 @@ export function validateSettingValue<K extends SettingKey>(
           : null
       
       case 'theme':
-      return (value as any)
+        return value as ValidatedSettingValue<K>
       
       case 'ui_font':
       case 'editor_font':
@@ -213,12 +219,12 @@ export function validateSettingValue<K extends SettingKey>(
           ? (value as ValidatedSettingValue<K>)
           : null
       
-      case 'global_shortcut':
+      case 'globalShortcut':
       case 'note_directory':
-      return (value as any)
+        return value as ValidatedSettingValue<K>
       
       default:
-        return undefined
+        return value as ValidatedSettingValue<K>
     }
   } catch {
     return null

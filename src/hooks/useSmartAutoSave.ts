@@ -23,7 +23,7 @@ export function useSmartAutoSave({
   idleThreshold = 1500,
   fastTypingThreshold = 5
 }: SmartAutoSaveOptions): SmartAutoSaveReturn {
-  const saveTimeoutRef = useRef<number>()
+  const saveTimeoutRef = useRef<number | undefined>(undefined)
   const lastActivityRef = useRef<number>(Date.now())
   const lastContentRef = useRef<string>('')
   const typingHistoryRef = useRef<number[]>([])
@@ -167,7 +167,7 @@ export function useSmartAutoSave({
         // Attempt synchronous save on page unload
         window.clearTimeout(saveTimeoutRef.current)
         const currentContent = lastContentRef.current
-        if (currentContent && navigator.sendBeacon) {
+        if (currentContent) {
           // Use sendBeacon for reliable save on unload
           // Note: This would need a special endpoint, for now just clear timeout
           console.warn('Emergency save on page unload - content may be lost')

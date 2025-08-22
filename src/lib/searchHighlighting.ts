@@ -129,7 +129,11 @@ export function findMatches(
           start: match.index,
           end: match.index + match[0].length,
           type: termIndex === 0 ? 'primary' : 'secondary',
-          term: match[0]
+          term: match[0],
+          text: match[0],
+          startIndex: match.index,
+          endIndex: match.index + match[0].length,
+          isMatch: true
         })
 
         // Prevent infinite loop for zero-width matches
@@ -159,6 +163,9 @@ export function generateSnippets(
     const snippetText = text.slice(0, options.snippetLength)
     return [{
       text: snippetText,
+      startIndex: 0,
+      endIndex: snippetText.length,
+      highlightIndices: [],
       highlights: [],
       contextStart: 0,
       contextEnd: snippetText.length,
@@ -205,7 +212,10 @@ export function generateSnippets(
 
     snippets.push({
       text: snippetText,
-      highlights: adjustedHighlights,
+      startIndex: cleanStart,
+      endIndex: cleanEnd,
+      highlightIndices: adjustedHighlights.map(h => ({ start: h.start, end: h.end })),
+      highlights: adjustedHighlights.map(h => h.text),
       contextStart: cleanStart,
       contextEnd: cleanEnd,
       hasMoreBefore: cleanStart > 0,

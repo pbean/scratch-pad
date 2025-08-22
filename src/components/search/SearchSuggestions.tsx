@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { useScratchPadStore } from '../../lib/store'
 import { useSmartAutoSave } from '../../hooks/useSmartAutoSave'
-import type { Note, SearchHistoryEntry, isSearchHistoryEntry } from '../../types'
+import type { Note } from '../../types'
 
 // Type definitions for search suggestions
 export interface SearchSuggestion {
@@ -281,7 +281,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
         const recentSuggestions: SearchSuggestion[] = recentSearches
           .slice(0, 5)
           .map((search, index) => {
-            const historyEntry = searchHistory.find(h => isSearchHistoryEntry(h) && h.query === search)
+            const historyEntry = searchHistory.find(h => h.query === search)
             return {
               id: `recent-${index}`,
               type: 'recent' as const,
@@ -311,7 +311,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
         const matchingRecent = getRecentSearchSuggestions(searchQuery)
           .slice(0, 3)
           .map((search, index) => {
-            const historyEntry = searchHistory.find(h => isSearchHistoryEntry(h) && h.query === search)
+            const historyEntry = searchHistory.find(h => h.query === search)
             return {
               id: `recent-match-${index}`,
               type: 'recent' as const,

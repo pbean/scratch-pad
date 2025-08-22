@@ -142,7 +142,7 @@ const SearchResultItem = memo<ListChildComponentProps<SearchResultItemData>>(({ 
   const relevanceScore = useMemo(() => {
     if (!showRelevanceScore) return 0
     const titleMatches = titleHighlights.length
-    const contentMatches = snippets.reduce((sum, snippet) => sum + snippet.highlights.length, 0)
+    const contentMatches = snippets.reduce((sum, snippet) => sum + snippet.highlightIndices.length, 0)
     return Math.min(100, (titleMatches * 20) + (contentMatches * 5))
   }, [titleHighlights, snippets, showRelevanceScore])
 
@@ -203,7 +203,18 @@ const SearchResultItem = memo<ListChildComponentProps<SearchResultItemData>>(({ 
           {displaySnippets.length > 0 && (
             <div className="space-y-2">
               {displaySnippets.map((snippet, snippetIndex) => {
-                const snippetSegments = renderHighlightedText(snippet.text, snippet.highlights)
+                // Convert highlightIndices to HighlightMatch format
+                const highlightMatches = snippet.highlightIndices.map(indices => ({
+                  text: snippet.text.slice(indices.start, indices.end),
+                  startIndex: indices.start,
+                  endIndex: indices.end,
+                  start: indices.start,
+                  end: indices.end,
+                  isMatch: true,
+                  term: snippet.text.slice(indices.start, indices.end),
+                  type: 'primary' as const
+                }))
+                const snippetSegments = renderHighlightedText(snippet.text, highlightMatches)
                 
                 return (
                   <div key={snippetIndex} className="text-sm text-muted-foreground">
@@ -272,7 +283,7 @@ const SearchResultItem = memo<ListChildComponentProps<SearchResultItemData>>(({ 
           {snippets.length > 0 && (
             <div className="text-xs text-muted-foreground flex items-center gap-1">
               <Search size={12} />
-              {snippets.reduce((sum, s) => sum + s.highlights.length, 0)} match{snippets.reduce((sum, s) => sum + s.highlights.length, 0) !== 1 ? 'es' : ''}
+              {snippets.reduce((sum, s) => sum + s.highlightIndices.length, 0)} match{snippets.reduce((sum, s) => sum + s.highlightIndices.length, 0) !== 1 ? 'es' : ''}
             </div>
           )}
         </div>

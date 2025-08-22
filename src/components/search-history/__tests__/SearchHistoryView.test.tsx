@@ -53,7 +53,10 @@ const mockNote1: Note = {
   path: '/test/path1',
   is_favorite: true,
   created_at: '2024-01-01T00:00:00Z',
-  updated_at: '2024-01-01T12:00:00Z'
+  updated_at: '2024-01-01T12:00:00Z',
+  search_content: 'First note content with searchable text',
+  word_count: 7,
+  language: 'en'
 }
 
 const mockNote2: Note = {
@@ -64,7 +67,10 @@ const mockNote2: Note = {
   path: '/test/path2',
   is_favorite: false,
   created_at: '2024-01-02T00:00:00Z',
-  updated_at: '2024-01-02T08:00:00Z'
+  updated_at: '2024-01-02T08:00:00Z',
+  search_content: 'Second note with different content',
+  word_count: 6,
+  language: 'en'
 }
 
 const mockNote3: Note = {
@@ -75,7 +81,10 @@ const mockNote3: Note = {
   path: '/test/path3',
   is_favorite: false,
   created_at: '2024-01-03T00:00:00Z',
-  updated_at: '2024-01-03T16:00:00Z'
+  updated_at: '2024-01-03T16:00:00Z',
+  search_content: '',
+  word_count: 0,
+  language: null
 }
 
 describe('SearchHistoryView', () => {

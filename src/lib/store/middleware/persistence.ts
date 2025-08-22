@@ -168,7 +168,7 @@ const createNotesMerger = (): TypeSafeMerger<NotesPersistedState> => {
  * Type-safe Settings persistence configuration
  */
 const createSettingsPartializer = (): TypeSafePartializer<SettingsPersistedState> => {
-  return (state: SettingsPersistedState): SettingsPersistedState => ({
+  return (_state: SettingsPersistedState): SettingsPersistedState => ({
     isDirty: false // Always reset dirty flag on load
   })
 }
@@ -185,7 +185,7 @@ const createSettingsMerger = (): TypeSafeMerger<SettingsPersistedState> => {
  */
 const createSystemPartializer = (): TypeSafePartializer<SystemPersistedState> => {
   return (state: SystemPersistedState): SystemPersistedState => ({
-    layoutMode: (['default', 'half', 'full'] as const).includes(state.layoutMode) 
+    layoutMode: (['default', 'compact', 'expanded', 'fullscreen', 'half'] as const).includes(state.layoutMode) 
       ? state.layoutMode as LayoutMode 
       : 'default',
     isAlwaysOnTop: typeof state.isAlwaysOnTop === 'boolean' ? state.isAlwaysOnTop : false
@@ -324,7 +324,7 @@ export const createTypeSafeRehydrationHandler = <T>(
   onSuccess?: (state: T) => void,
   onError?: (error: Error) => void
 ): TypeSafeRehydrationHandler<T> => {
-  return (state?: T) => {
+  return (_state?: T) => {
     return (rehydratedState?: T, error?: Error) => {
       if (error) {
         console.error('Rehydration error:', error)
@@ -557,7 +557,7 @@ export const createTypeSafePersistenceManager = <T>(
       }
     },
     
-    migrate: async (targetVersion: number): Promise<void> => {
+    migrate: async (_targetVersion: number): Promise<void> => {
       if (!config.migrate) {
         throw new Error(`No migration function available for ${sliceType}`)
       }

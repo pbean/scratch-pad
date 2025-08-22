@@ -82,29 +82,39 @@ export function SettingsView() {
     }
 
     // Validate numeric fields
-    const windowWidth = parseInt(formData.windowWidth)
-    if (isNaN(windowWidth) || windowWidth < 400 || windowWidth > 3840) {
-      errors.windowWidth = "Window width must be between 400 and 3840 pixels"
+    if (formData.windowWidth) {
+      const windowWidth = parseInt(formData.windowWidth)
+      if (isNaN(windowWidth) || windowWidth < 400 || windowWidth > 3840) {
+        errors.windowWidth = "Window width must be between 400 and 3840 pixels"
+      }
     }
 
-    const windowHeight = parseInt(formData.windowHeight)
-    if (isNaN(windowHeight) || windowHeight < 300 || windowHeight > 2160) {
-      errors.windowHeight = "Window height must be between 300 and 2160 pixels"
+    if (formData.windowHeight) {
+      const windowHeight = parseInt(formData.windowHeight)
+      if (isNaN(windowHeight) || windowHeight < 300 || windowHeight > 2160) {
+        errors.windowHeight = "Window height must be between 300 and 2160 pixels"
+      }
     }
 
-    const autoSaveDelay = parseInt(formData.autoSaveDelay)
-    if (isNaN(autoSaveDelay) || autoSaveDelay < 100 || autoSaveDelay > 10000) {
-      errors.autoSaveDelay = "Auto-save delay must be between 100 and 10000 milliseconds"
+    if (formData.autoSaveDelay) {
+      const autoSaveDelay = parseInt(formData.autoSaveDelay)
+      if (isNaN(autoSaveDelay) || autoSaveDelay < 100 || autoSaveDelay > 10000) {
+        errors.autoSaveDelay = "Auto-save delay must be between 100 and 10000 milliseconds"
+      }
     }
 
-    const searchLimit = parseInt(formData.searchLimit)
-    if (isNaN(searchLimit) || searchLimit < 10 || searchLimit > 1000) {
-      errors.searchLimit = "Search limit must be between 10 and 1000"
+    if (formData.searchLimit) {
+      const searchLimit = parseInt(formData.searchLimit)
+      if (isNaN(searchLimit) || searchLimit < 10 || searchLimit > 1000) {
+        errors.searchLimit = "Search limit must be between 10 and 1000"
+      }
     }
 
-    const fuzzyThreshold = parseFloat(formData.fuzzySearchThreshold)
-    if (isNaN(fuzzyThreshold) || fuzzyThreshold < 0 || fuzzyThreshold > 1) {
-      errors.fuzzySearchThreshold = "Fuzzy search threshold must be between 0.0 and 1.0"
+    if (formData.fuzzySearchThreshold) {
+      const fuzzyThreshold = parseFloat(formData.fuzzySearchThreshold)
+      if (isNaN(fuzzyThreshold) || fuzzyThreshold < 0 || fuzzyThreshold > 1) {
+        errors.fuzzySearchThreshold = "Fuzzy search threshold must be between 0.0 and 1.0"
+      }
     }
 
     setValidationErrors(errors)
@@ -123,15 +133,15 @@ export function SettingsView() {
     try {
       // Save all settings
       await setSetting("global_shortcut", formData.globalShortcut)
-      await setSetting("ui_font", formData.uiFont)
-      await setSetting("editor_font", formData.editorFont)
+      if (formData.uiFont) await setSetting("ui_font", formData.uiFont)
+      if (formData.editorFont) await setSetting("editor_font", formData.editorFont)
       await setSetting("default_note_format", formData.defaultNoteFormat)
-      await setSetting("layout_mode", formData.layoutMode)
-      await setSetting("window_width", formData.windowWidth)
-      await setSetting("window_height", formData.windowHeight)
-      await setSetting("auto_save_delay_ms", formData.autoSaveDelay)
-      await setSetting("search_limit", formData.searchLimit)
-      await setSetting("fuzzy_search_threshold", formData.fuzzySearchThreshold)
+      if (formData.layoutMode) await setSetting("layout_mode", formData.layoutMode)
+      if (formData.windowWidth) await setSetting("window_width", formData.windowWidth)
+      if (formData.windowHeight) await setSetting("window_height", formData.windowHeight)
+      if (formData.autoSaveDelay) await setSetting("auto_save_delay_ms", formData.autoSaveDelay)
+      if (formData.searchLimit) await setSetting("search_limit", formData.searchLimit)
+      if (formData.fuzzySearchThreshold) await setSetting("fuzzy_search_threshold", formData.fuzzySearchThreshold)
 
       setSuccessMessage("Settings saved successfully!")
       setTimeout(() => setSuccessMessage(null), 3000)

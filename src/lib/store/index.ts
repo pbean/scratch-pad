@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import { subscribeWithSelector } from "zustand/middleware"
+import { subscribeWithSelector, devtools } from "zustand/middleware"
 
 // Import slices
 import { NotesSlice, createNotesSlice } from "./slices/notesSlice"
@@ -9,8 +9,8 @@ import { SettingsSlice, createSettingsSlice } from "./slices/settingsSlice"
 import { SystemSlice, createSystemSlice } from "./slices/systemSlice"
 
 // Import middleware
-import performanceMiddleware from "./middleware/performance"
-import createEnhancedDevtools from "./middleware/devtools"
+// import performanceMiddleware from "./middleware/performance"
+// import createEnhancedDevtools from "./middleware/devtools"
 
 // Combined store interface
 export interface ScratchPadStore extends 
@@ -35,9 +35,8 @@ export interface ScratchPadStore extends
 export const useScratchPadStore = create<ScratchPadStore>()(
   // Apply middleware in correct order
   subscribeWithSelector(
-    performanceMiddleware(
-      createEnhancedDevtools("CombinedStore")(
-        (set, get, api) => {
+    devtools(
+      (set, get, api) => {
           // Create individual slice states
           const notesSlice = createNotesSlice(set, get, api)
           const searchSlice = createSearchSlice(set, get, api)  
@@ -401,14 +400,13 @@ export const useScratchPadStore = create<ScratchPadStore>()(
               )
             }
           }
-        }
+        },
+        { name: "CombinedStore" }
       )
     )
-  )
 )
 
-// Export store type for external usage
-export type { ScratchPadStore }
+// Store type already exported as interface above
 
 // Export individual slice hooks for selective subscriptions
 export const useNotesSlice = () => useScratchPadStore(

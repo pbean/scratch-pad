@@ -31,7 +31,10 @@ const mockNote: Note = {
   path: '/test/path',
   is_favorite: false,
   created_at: '2024-01-01T00:00:00Z',
-  updated_at: '2024-01-01T00:00:00Z'
+  updated_at: '2024-01-01T00:00:00Z',
+  search_content: 'Test note content',
+  word_count: 3,
+  language: 'en'
 }
 
 describe('CommandPalette', () => {

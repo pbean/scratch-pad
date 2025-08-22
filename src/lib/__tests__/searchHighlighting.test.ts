@@ -19,6 +19,26 @@ import {
 } from '../searchHighlighting'
 import type { Note, SearchResult, HighlightMatch } from '../../types'
 
+// Test utility to create properly formatted HighlightMatch objects
+function createHighlightMatch(
+  start: number,
+  end: number,
+  type: 'primary' | 'secondary',
+  term: string,
+  text?: string
+): HighlightMatch {
+  return {
+    start,
+    end,
+    type,
+    term,
+    text: text || term,
+    startIndex: start,
+    endIndex: end,
+    isMatch: true
+  }
+}
+
 describe('parseSearchQuery', () => {
   it('should parse simple terms', () => {
     const result = parseSearchQuery('hello world test')
@@ -162,7 +182,7 @@ describe('generateSnippets', () => {
 
   it('should generate snippets around matches', () => {
     const matches: HighlightMatch[] = [
-      { start: 12, end: 17, type: 'primary', term: 'dolor' }
+      createHighlightMatch(12, 17, 'primary', 'dolor')
     ]
     const snippets = generateSnippets(longText, matches, DEFAULT_HIGHLIGHT_OPTIONS)
     
@@ -173,8 +193,8 @@ describe('generateSnippets', () => {
 
   it('should handle multiple nearby matches', () => {
     const matches: HighlightMatch[] = [
-      { start: 12, end: 17, type: 'primary', term: 'dolor' },
-      { start: 22, end: 25, type: 'secondary', term: 'sit' }
+      createHighlightMatch(12, 17, 'primary', 'dolor'),
+      createHighlightMatch(22, 25, 'secondary', 'sit')
     ]
     const snippets = generateSnippets(longText, matches, DEFAULT_HIGHLIGHT_OPTIONS)
     
@@ -186,7 +206,7 @@ describe('generateSnippets', () => {
   it('should respect snippet length limits', () => {
     const shortOptions = { ...DEFAULT_HIGHLIGHT_OPTIONS, snippetLength: 50 }
     const matches: HighlightMatch[] = [
-      { start: 12, end: 17, type: 'primary', term: 'dolor' }
+      createHighlightMatch(12, 17, 'primary', 'dolor')
     ]
     const snippets = generateSnippets(longText, matches, shortOptions)
     
@@ -195,10 +215,10 @@ describe('generateSnippets', () => {
 
   it('should respect maximum snippet count', () => {
     const matches: HighlightMatch[] = [
-      { start: 12, end: 17, type: 'primary', term: 'dolor' },
-      { start: 100, end: 105, type: 'primary', term: 'magna' },
-      { start: 200, end: 205, type: 'primary', term: 'minim' },
-      { start: 300, end: 305, type: 'primary', term: 'nulla' }
+      createHighlightMatch(12, 17, 'primary', 'dolor'),
+      createHighlightMatch(100, 105, 'primary', 'magna'),
+      createHighlightMatch(200, 205, 'primary', 'minim'),
+      createHighlightMatch(300, 305, 'primary', 'nulla')
     ]
     const limitedOptions = { ...DEFAULT_HIGHLIGHT_OPTIONS, maxSnippets: 2 }
     const snippets = generateSnippets(longText, matches, limitedOptions)
@@ -216,7 +236,7 @@ describe('generateSnippets', () => {
 
   it('should indicate when there is more content', () => {
     const matches: HighlightMatch[] = [
-      { start: longText.length - 10, end: longText.length - 5, type: 'primary', term: 'test' }
+      createHighlightMatch(longText.length - 10, longText.length - 5, 'primary', 'test')
     ]
     const snippets = generateSnippets(longText, matches, DEFAULT_HIGHLIGHT_OPTIONS)
     
@@ -233,8 +253,8 @@ describe('renderHighlightedText', () => {
 
   it('should render text with highlights', () => {
     const highlights: HighlightMatch[] = [
-      { start: 0, end: 5, type: 'primary', term: 'hello' },
-      { start: 6, end: 11, type: 'secondary', term: 'world' }
+      createHighlightMatch(0, 5, 'primary', 'hello'),
+      createHighlightMatch(6, 11, 'secondary', 'world')
     ]
     const result = renderHighlightedText('hello world', highlights)
     
@@ -247,8 +267,8 @@ describe('renderHighlightedText', () => {
 
   it('should handle overlapping highlights', () => {
     const highlights: HighlightMatch[] = [
-      { start: 0, end: 8, type: 'primary', term: 'hello wo' },
-      { start: 6, end: 11, type: 'secondary', term: 'world' }
+      createHighlightMatch(0, 8, 'primary', 'hello wo'),
+      createHighlightMatch(6, 11, 'secondary', 'world')
     ]
     const result = renderHighlightedText('hello world', highlights)
     
@@ -258,8 +278,8 @@ describe('renderHighlightedText', () => {
 
   it('should handle highlights at text boundaries', () => {
     const highlights: HighlightMatch[] = [
-      { start: 0, end: 5, type: 'primary', term: 'hello' },
-      { start: 6, end: 11, type: 'secondary', term: 'world' }
+      createHighlightMatch(0, 5, 'primary', 'hello'),
+      createHighlightMatch(6, 11, 'secondary', 'world')
     ]
     const result = renderHighlightedText('hello world', highlights)
     
@@ -277,7 +297,10 @@ describe('findTitleMatches', () => {
     path: '/notes/test',
     is_favorite: false,
     created_at: '2024-01-01T00:00:00Z',
-    updated_at: '2024-01-01T00:00:00Z'
+    updated_at: '2024-01-01T00:00:00Z',
+    search_content: 'This is the content of the note with some test data.',
+    word_count: 12,
+    language: 'en'
   }
 
   it('should find matches in note nickname', () => {
@@ -310,7 +333,10 @@ describe('enhanceSearchResult', () => {
         path: '/programming/js',
         is_favorite: true,
         created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z'
+        updated_at: '2024-01-01T00:00:00Z',
+        search_content: 'This is a test note with some content about JavaScript programming.',
+        word_count: 12,
+        language: 'en'
       },
       {
         id: 2,
@@ -320,7 +346,10 @@ describe('enhanceSearchResult', () => {
         path: '/testing/qa',
         is_favorite: false,
         created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z'
+        updated_at: '2024-01-01T00:00:00Z',
+        search_content: 'Another note about testing and quality assurance in software development.',
+        word_count: 11,
+        language: 'en'
       }
     ],
     total_count: 2,
@@ -377,7 +406,10 @@ describe('batchProcessSearchResults', () => {
     path: `/notes/test-${i + 1}`,
     is_favorite: i % 3 === 0,
     created_at: '2024-01-01T00:00:00Z',
-    updated_at: '2024-01-01T00:00:00Z'
+    updated_at: '2024-01-01T00:00:00Z',
+    search_content: `This is test note ${i + 1} with various content about programming and testing.`,
+    word_count: 12,
+    language: 'en'
   }))
 
   it('should process all notes in batches', () => {
@@ -416,7 +448,10 @@ describe('batchProcessSearchResults', () => {
       path: `/notes/${i}`,
       is_favorite: false,
       created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z'
+      updated_at: '2024-01-01T00:00:00Z',
+      search_content: `Content ${i} with test data and programming information.`,
+      word_count: 8,
+      language: 'en'
     }))
 
     const startTime = performance.now()

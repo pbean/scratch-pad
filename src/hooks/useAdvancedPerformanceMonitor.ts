@@ -135,7 +135,6 @@ class PerformanceCollector {
     budgetViolations: 0,
     errorSamples: []
   }
-  private _lastReportTime = 0 // eslint-disable-line @typescript-eslint/no-unused-vars
   private reportingInterval = 30000 // 30 seconds
 
   public static getInstance(): PerformanceCollector {
@@ -271,7 +270,7 @@ class PerformanceCollector {
       try {
         const metrics = await this.getCurrentMetrics()
         await this.reportToBackend(metrics)
-        this._lastReportTime = Date.now()
+        // Report completed successfully
       } catch (error) {
         console.warn('Failed to report performance metrics:', error)
       }

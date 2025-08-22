@@ -215,7 +215,13 @@ export const AdvancedSearchBar: React.FC<AdvancedSearchBarProps> = ({
         queryTime,
         resultCount: filteredResults.length,
         cacheHit: queryTime < 50, // Assume cache hit if very fast
-        suggestions: suggestions.slice(0, 3)
+        timestamp: Date.now(),
+        suggestions: suggestions.slice(0, 3).map((text, index) => ({
+          id: `suggestion-${index}`,
+          text,
+          type: 'completion' as const,
+          priority: index
+        }))
       }
 
       setSearchState(prev => ({

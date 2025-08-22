@@ -118,7 +118,18 @@ const SnippetDisplay = memo<{
   return (
     <div className="space-y-2">
       {displaySnippets.map((snippet, index) => {
-        const segments = renderHighlightedText(snippet.text, snippet.highlights)
+        // Convert highlightIndices to HighlightMatch format
+        const highlightMatches = snippet.highlightIndices.map(indices => ({
+          text: snippet.text.slice(indices.start, indices.end),
+          startIndex: indices.start,
+          endIndex: indices.end,
+          start: indices.start,
+          end: indices.end,
+          isMatch: true,
+          term: snippet.text.slice(indices.start, indices.end),
+          type: 'primary' as const
+        }))
+        const segments = renderHighlightedText(snippet.text, highlightMatches)
         
         return (
           <div key={index} className="text-sm text-muted-foreground leading-relaxed">

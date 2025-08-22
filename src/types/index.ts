@@ -1,9 +1,15 @@
 import type { ReactNode } from 'react'
 
+// View types for navigation
+export type View = 'note' | 'search-history' | 'settings'
+
+// Layout mode for window management - updated to include all test values
+export type LayoutMode = 'default' | 'compact' | 'expanded' | 'fullscreen' | 'half'
+
 // Core note type
 export interface Note {
   id: number
-  nickname: string | null
+  nickname?: string | null  // Made properly optional
   content: string
   search_content: string
   word_count: number
@@ -12,6 +18,7 @@ export interface Note {
   is_favorite: boolean
   created_at: string
   updated_at: string
+  path?: string  // Added for test compatibility
 }
 
 export interface SearchResult {
@@ -63,6 +70,11 @@ export interface SearchSnippet {
   startIndex: number
   endIndex: number
   highlightIndices: Array<{ start: number; end: number }>
+  highlights: string[]  // Required, with default empty array
+  hasMoreBefore?: boolean  // Added for compatibility
+  hasMoreAfter?: boolean  // Added for compatibility
+  contextStart: number  // Added for searchHighlighting.ts compatibility
+  contextEnd?: number   // Added for searchHighlighting.ts compatibility
 }
 
 export interface HighlightMatch {
@@ -71,6 +83,31 @@ export interface HighlightMatch {
   endIndex: number
   isMatch: boolean
   relevanceScore?: number
+  start: number  // Required for test compatibility
+  end: number    // Added missing 'end' property
+  term: string   // Required for test compatibility
+  type: 'exact' | 'partial' | 'fuzzy' | 'primary' | 'secondary'  // Updated to include all test values
+}
+
+// Helper type for creating HighlightMatch objects from different formats
+export type HighlightMatchLike = Partial<HighlightMatch> & (
+  | { start: number; end: number; type: string; term: string }
+  | { startIndex: number; endIndex: number; text: string; isMatch: boolean }
+)
+
+// Utility function to normalize HighlightMatch objects
+export function normalizeHighlightMatch(match: HighlightMatchLike): HighlightMatch {
+  return {
+    text: match.text || '',
+    startIndex: match.startIndex ?? match.start ?? 0,
+    endIndex: match.endIndex ?? match.end ?? 0,
+    isMatch: match.isMatch ?? true,
+    relevanceScore: match.relevanceScore,
+    start: match.start ?? match.startIndex ?? 0,
+    end: match.end ?? match.endIndex ?? 0,
+    term: match.term || '',
+    type: (match.type as any) || 'primary'
+  }
 }
 
 export interface SearchHighlightResult {
@@ -134,6 +171,7 @@ export interface Command {
   shortcut?: string
   category?: string
   action: () => void | Promise<void>
+  disabled?: boolean  // Added for compatibility
 }
 
 export interface Settings {
@@ -226,6 +264,77 @@ export interface PerformanceMetrics {
   resultCount: number
   cacheHit: boolean
   memoryUsage?: number
+}
+
+// Search Performance Metrics interface
+export interface SearchPerformanceMetrics {
+  queryTime: number
+  resultCount: number
+  cacheHit: boolean
+  timestamp: number
+  query?: string
+  complexity?: QueryComplexity
+  suggestions?: Suggestion[]
+}
+
+// Settings Form Data interface
+export interface SettingsFormData {
+  theme?: 'light' | 'dark' | 'system'
+  autoSave?: boolean
+  autoSaveDelay?: string  // Form field (string that gets converted to number)
+  showLineNumbers?: boolean
+  wordWrap?: boolean
+  fontSize?: number
+  fontFamily?: string
+  globalShortcut: string
+  saveOnBlur?: boolean
+  confirmDelete?: boolean
+  showWordCount?: boolean
+  enableSpellCheck?: boolean
+  defaultNoteFormat: NoteFormat
+  note_directory?: string
+  // Additional properties for the settings form
+  windowWidth?: string  // Form field (string that gets converted to number)
+  windowHeight?: string  // Form field (string that gets converted to number) 
+  uiFont?: string
+  editorFont?: string
+  layoutMode?: string
+  searchLimit?: string
+  fuzzySearchThreshold?: string
+  searchHighlighting?: {
+    enabled: boolean
+    maxSnippets: number
+    contextLength: number
+  }
+  performance?: {
+    enableAnalytics: boolean
+    enableCaching: boolean
+    cacheMaxAge: number
+    maxCacheSize: number
+  }
+  security?: {
+    encryptNotes: boolean
+    requirePassword: boolean
+    sessionTimeout: number
+  }
+  accessibility?: {
+    highContrast: boolean
+    reduceMotion: boolean
+    screenReaderOptimized: boolean
+  }
+}
+
+// Performance Analytics interface (placeholder for missing implementation)
+export interface PerformanceAnalytics {
+  track(event: string, data?: any): void
+  updateConfig(config: any): void
+  onAlert(callback: (alert: any) => void): () => void
+  onMetricsUpdate(callback: (metrics: any) => void): () => void
+  getRealTimeMetrics(): any
+  start(): void
+  stop(): void
+  reset(): void
+  getMetrics(): PerformanceMetrics
 }
 
 export interface BackupInfo {
