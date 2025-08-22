@@ -28,7 +28,7 @@ jobs:
         run: pnpm audit --audit-level high || echo "Moderate vulnerabilities found but continuing"
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit --version 0.20.0
+        run: cargo install cargo-audit --version 0.21.2
 
       - name: Run cargo audit
         working-directory: src-tauri
