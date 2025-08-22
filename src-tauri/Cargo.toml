@@ -20,8 +20,7 @@ default = []
 performance-tracking = []
 
 [build-dependencies]
-# Fix: Align tauri-build version with tauri runtime version
-tauri-build = { version = "2.8.2", features = [] }
+tauri-build = { version = "2.4.0", features = [] }
 
 [dependencies]
 # Fix: Use consistent tauri version across all components
