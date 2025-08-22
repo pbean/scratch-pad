@@ -62,7 +62,7 @@ impl QueryParser {
     pub fn new() -> Self {
         Self {
             and_pattern: regex::Regex::new(r"\bAND\b").unwrap(),
-            or_pattern: regex::Regex::new(r"\bOR\b").unwrap(), 
+            or_pattern: regex::Regex::new(r"\bOR\b").unwrap(),
             not_pattern: regex::Regex::new(r"\bNOT\b").unwrap(),
             phrase_pattern: regex::Regex::new(r#""([^"]+)""#).unwrap(),
             field_pattern: regex::Regex::new(r"(\w+):(\w+)").unwrap(),
@@ -112,7 +112,9 @@ impl QueryParser {
         // Check for field queries
         for cap in self.field_pattern.captures_iter(query) {
             if let (Some(field), Some(value)) = (cap.get(1), cap.get(2)) {
-                parsed.field_filters.insert(field.as_str().to_string(), value.as_str().to_string());
+                parsed
+                    .field_filters
+                    .insert(field.as_str().to_string(), value.as_str().to_string());
                 parsed.complexity += 1;
                 parsed.has_field_searches = true;
             }
@@ -129,22 +131,22 @@ impl QueryParser {
 
     fn convert_to_fts5(&self, query: &str) -> Result<String, AppError> {
         let mut fts_query = query.to_string();
-        
+
         // Convert Boolean operators to FTS5 format
         fts_query = self.and_pattern.replace_all(&fts_query, "AND").to_string();
         fts_query = self.or_pattern.replace_all(&fts_query, "OR").to_string();
         fts_query = self.not_pattern.replace_all(&fts_query, "NOT").to_string();
-        
+
         // Handle phrase queries (already in correct format)
         // Handle field queries (FTS5 doesn't support field queries directly, so we'll handle them in post-processing)
-        
+
         Ok(fts_query)
     }
 
     fn calculate_nesting_depth(&self, query: &str) -> u32 {
         let mut depth: u32 = 0; // Fixed: specify type explicitly
         let mut max_depth: u32 = 0; // Fixed: specify type explicitly
-        
+
         for ch in query.chars() {
             match ch {
                 '(' => {
@@ -157,7 +159,7 @@ impl QueryParser {
                 _ => {}
             }
         }
-        
+
         max_depth
     }
 }
@@ -205,7 +207,11 @@ impl SearchService {
         let mut scored_notes: Vec<(Note, i64)> = all_notes
             .into_iter()
             .filter_map(|note| {
-                if let Some(score) = fuzzy_matcher::FuzzyMatcher::fuzzy_match(&self.fuzzy_matcher, &note.content, query) {
+                if let Some(score) = fuzzy_matcher::FuzzyMatcher::fuzzy_match(
+                    &self.fuzzy_matcher,
+                    &note.content,
+                    query,
+                ) {
                     Some((note, score))
                 } else {
                     None
@@ -234,8 +240,11 @@ impl SearchService {
 
         // Use FTS5 for fast full-text search
         let offset = page * page_size;
-        let (notes, total_count_i64) = self.db_service.search_notes_paginated(query, offset as i64, page_size as i64).await?;
-        
+        let (notes, total_count_i64) = self
+            .db_service
+            .search_notes_paginated(query, offset as i64, page_size as i64)
+            .await?;
+
         // Fix: Convert i64 to usize safely
         let total_count = total_count_i64.max(0) as usize;
 
@@ -267,19 +276,22 @@ impl SearchService {
 
         // Parse the Boolean query
         let parsed_query = self.query_parser.parse(query)?;
-        
+
         // Use the FTS5-compatible query for database search
         let offset = page * page_size;
-        let (mut notes, total_count_i64) = self.db_service.search_notes_paginated(&parsed_query.fts_query, offset as i64, page_size as i64).await?;
-        
+        let (mut notes, total_count_i64) = self
+            .db_service
+            .search_notes_paginated(&parsed_query.fts_query, offset as i64, page_size as i64)
+            .await?;
+
         // Fix: Convert i64 to usize safely
         let total_count = total_count_i64.max(0) as usize;
-        
+
         // Apply field filters if any
         if !parsed_query.field_filters.is_empty() {
             notes = self.apply_field_filters(notes, &parsed_query.field_filters);
         }
-        
+
         // Create complexity analysis from parsed query
         let complexity = QueryValidation {
             is_valid: true,
@@ -322,7 +334,8 @@ impl SearchService {
                 // Check complexity limits
                 if parsed.complexity > 10 {
                     is_valid = false;
-                    error_message = Some("Query too complex. Please simplify your search.".to_string());
+                    error_message =
+                        Some("Query too complex. Please simplify your search.".to_string());
                     suggested_query = Some(self.simplify_query(query));
                 }
 
@@ -364,20 +377,48 @@ impl SearchService {
     /// Fixed: Return Vec<(String, String)> to match command expectation
     pub fn get_boolean_search_examples(&self) -> Vec<(String, String)> {
         vec![
-            ("rust AND programming".to_string(), "Find notes containing both 'rust' and 'programming'".to_string()),
-            ("javascript OR typescript".to_string(), "Find notes containing either 'javascript' or 'typescript'".to_string()),
-            ("project NOT archived".to_string(), "Find notes containing 'project' but not 'archived'".to_string()),
-            ("\"exact phrase\"".to_string(), "Find notes containing the exact phrase 'exact phrase'".to_string()),
-            ("content:rust".to_string(), "Find notes where the content field contains 'rust'".to_string()),
-            ("(rust OR python) AND tutorial".to_string(), "Find notes containing 'tutorial' and either 'rust' or 'python'".to_string()),
-            ("path:documentation".to_string(), "Find notes where the path contains 'documentation'".to_string()),
-            ("nickname:\"API Guide\"".to_string(), "Find notes where the nickname is 'API Guide'".to_string()),
+            (
+                "rust AND programming".to_string(),
+                "Find notes containing both 'rust' and 'programming'".to_string(),
+            ),
+            (
+                "javascript OR typescript".to_string(),
+                "Find notes containing either 'javascript' or 'typescript'".to_string(),
+            ),
+            (
+                "project NOT archived".to_string(),
+                "Find notes containing 'project' but not 'archived'".to_string(),
+            ),
+            (
+                "\"exact phrase\"".to_string(),
+                "Find notes containing the exact phrase 'exact phrase'".to_string(),
+            ),
+            (
+                "content:rust".to_string(),
+                "Find notes where the content field contains 'rust'".to_string(),
+            ),
+            (
+                "(rust OR python) AND tutorial".to_string(),
+                "Find notes containing 'tutorial' and either 'rust' or 'python'".to_string(),
+            ),
+            (
+                "path:documentation".to_string(),
+                "Find notes where the path contains 'documentation'".to_string(),
+            ),
+            (
+                "nickname:\"API Guide\"".to_string(),
+                "Find notes where the nickname is 'API Guide'".to_string(),
+            ),
         ]
     }
 
     // Private helper methods
-    
-    fn apply_field_filters(&self, notes: Vec<Note>, filters: &HashMap<String, String>) -> Vec<Note> {
+
+    fn apply_field_filters(
+        &self,
+        notes: Vec<Note>,
+        filters: &HashMap<String, String>,
+    ) -> Vec<Note> {
         notes
             .into_iter()
             .filter(|note| {
@@ -418,7 +459,7 @@ impl SearchService {
             .replace(" AND ", " ")
             .replace(" OR ", " ")
             .replace(" NOT ", " ");
-        
+
         // Take first few words
         simplified
             .split_whitespace()
@@ -444,7 +485,7 @@ mod tests {
     async fn test_search_service_creation() {
         let db_service = create_test_db();
         let search_service = SearchService::new(db_service);
-        
+
         // Test basic functionality
         let result = search_service.search_notes("test").await;
         assert!(result.is_ok());
@@ -453,7 +494,7 @@ mod tests {
     #[tokio::test]
     async fn test_query_parser() {
         let parser = QueryParser::new();
-        
+
         // Test simple query
         let result = parser.parse("rust programming");
         assert!(result.is_ok());
@@ -522,7 +563,7 @@ mod tests {
         assert!(examples.iter().any(|(query, _)| query.contains("AND")));
         assert!(examples.iter().any(|(query, _)| query.contains("OR")));
         assert!(examples.iter().any(|(query, _)| query.contains("NOT")));
-        
+
         // Test that all examples have descriptions
         for (query, description) in &examples {
             assert!(!query.is_empty());
@@ -588,11 +629,9 @@ mod tests {
         }
 
         // Test pagination
-        let result = search_service
-            .search_notes_paginated("rust", 0, 10)
-            .await;
+        let result = search_service.search_notes_paginated("rust", 0, 10).await;
         assert!(result.is_ok());
-        
+
         let (notes, total_count) = result.unwrap();
         assert!(notes.len() <= 10);
         assert!(total_count >= 10);
@@ -613,70 +652,117 @@ mod tests {
         ];
 
         for (content, _path) in test_notes {
-            let _ = search_service.db_service.create_note(content.to_string()).await?;
+            let _ = search_service
+                .db_service
+                .create_note(content.to_string())
+                .await?;
         }
 
         // Test 1: Basic search
         let basic_results = search_service.search_notes("programming").await?;
-        assert!(basic_results.len() >= 2, "Should find multiple programming notes");
+        assert!(
+            basic_results.len() >= 2,
+            "Should find multiple programming notes"
+        );
 
         // Test 2: Paginated search
-        let (notes, total_count) = search_service.search_notes_paginated("programming", 0, 1).await?;
+        let (notes, total_count) = search_service
+            .search_notes_paginated("programming", 0, 1)
+            .await?;
         assert_eq!(notes.len().min(1), notes.len(), "Should respect page size");
         assert!(total_count > 0, "Should have results");
 
         // Test 3: Boolean search
-        let (notes, total_count, complexity) = search_service.search_notes_boolean_paginated("programming AND rust", 0, 10).await?;
+        let (notes, total_count, complexity) = search_service
+            .search_notes_boolean_paginated("programming AND rust", 0, 10)
+            .await?;
         assert!(notes.len() <= 10, "Should respect page size");
         assert!(complexity.operator_count > 0, "Should detect operators");
 
         // Test 4: Query validation
         let validation = search_service.validate_boolean_search_query("rust AND programming")?;
-        assert!(validation.is_valid, "Valid Boolean query should pass validation");
-        assert!(validation.complexity_score > 0, "Boolean query should have complexity");
+        assert!(
+            validation.is_valid,
+            "Valid Boolean query should pass validation"
+        );
+        assert!(
+            validation.complexity_score > 0,
+            "Boolean query should have complexity"
+        );
         assert!(validation.term_count >= 2, "Should count terms");
 
         // Test 5: Search examples
         let examples = search_service.get_boolean_search_examples();
         assert!(!examples.is_empty(), "Should provide search examples");
-        assert!(examples.iter().any(|(query, _)| query.contains("AND")), "Should include AND examples");
+        assert!(
+            examples.iter().any(|(query, _)| query.contains("AND")),
+            "Should include AND examples"
+        );
 
         Ok(())
     }
 
-    #[tokio::test] 
+    #[tokio::test]
     async fn test_advanced_search_integration() -> Result<(), AppError> {
         let db_service = create_test_db();
         let search_service = SearchService::new(db_service.clone());
 
         // Create test data with rich metadata
-        let _ = search_service.db_service.create_note("Advanced Rust programming techniques".to_string()).await?;
-        let _ = search_service.db_service.create_note("JavaScript ES6 features and async patterns".to_string()).await?;
-        let _ = search_service.db_service.create_note("Database design patterns".to_string()).await?;
-        let _ = search_service.db_service.create_note("Python and machine learning tutorial".to_string()).await?;
+        let _ = search_service
+            .db_service
+            .create_note("Advanced Rust programming techniques".to_string())
+            .await?;
+        let _ = search_service
+            .db_service
+            .create_note("JavaScript ES6 features and async patterns".to_string())
+            .await?;
+        let _ = search_service
+            .db_service
+            .create_note("Database design patterns".to_string())
+            .await?;
+        let _ = search_service
+            .db_service
+            .create_note("Python and machine learning tutorial".to_string())
+            .await?;
 
         // Test complex Boolean queries
         let complex_query = "(rust OR javascript) AND programming";
-        let (notes, _total_count, complexity) = search_service.search_notes_boolean_paginated(&complex_query, 0, 10).await?;
+        let (notes, _total_count, complexity) = search_service
+            .search_notes_boolean_paginated(&complex_query, 0, 10)
+            .await?;
         assert!(notes.len() >= 0, "Complex Boolean query should execute");
-        assert!(complexity.operator_count >= 2, "Should detect multiple operators");
+        assert!(
+            complexity.operator_count >= 2,
+            "Should detect multiple operators"
+        );
 
         // Test phrase search
         let phrase_query = "\"machine learning\"";
-        let (notes, _total_count, complexity) = search_service.search_notes_boolean_paginated(&phrase_query, 0, 10).await?;
+        let (notes, _total_count, complexity) = search_service
+            .search_notes_boolean_paginated(&phrase_query, 0, 10)
+            .await?;
         assert!(notes.len() >= 0, "Phrase search should execute");
-        assert!(complexity.has_phrase_searches, "Should detect phrase search");
+        assert!(
+            complexity.has_phrase_searches,
+            "Should detect phrase search"
+        );
 
         // Test field search (simulated - actual field search would need full implementation)
         let field_query = "content:rust";
         let validation = search_service.validate_boolean_search_query(&field_query)?;
         assert!(validation.is_valid, "Field query should be valid");
-        assert!(validation.has_field_searches, "Should detect field searches");
+        assert!(
+            validation.has_field_searches,
+            "Should detect field searches"
+        );
 
         // Test query complexity limits
         let complex_query = "((rust AND programming) OR (javascript AND async)) AND (database OR machine) NOT archived";
         let validation = search_service.validate_boolean_search_query(&complex_query)?;
-        assert!(validation.complexity_score > 5, "Complex query should have high complexity score");
+        assert!(
+            validation.complexity_score > 5,
+            "Complex query should have high complexity score"
+        );
 
         Ok(())
     }

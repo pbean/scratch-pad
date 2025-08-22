@@ -1,16 +1,16 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::time::timeout;
 use tauri::{AppHandle, Emitter};
+use tokio::time::timeout;
 
 use crate::database::DbService;
-use crate::settings::SettingsService;
-use crate::global_shortcut::GlobalShortcutService;
-use crate::window_manager::WindowManager;
-use crate::plugin::PluginManager;
-use crate::validation::SecurityValidator;
 use crate::error::AppError;
+use crate::global_shortcut::GlobalShortcutService;
+use crate::plugin::PluginManager;
+use crate::settings::SettingsService;
+use crate::validation::SecurityValidator;
+use crate::window_manager::WindowManager;
 
 /// Graceful shutdown manager for the application
 #[derive(Debug)]
@@ -93,16 +93,18 @@ impl ShutdownManager {
                 eprintln!("Warning: Failed to emit shutdown status: {}", e);
             }
         }
-        
-        println!("Shutdown: {} - {}", 
-                 match status.stage {
-                     ShutdownStage::Initiated => "Initiated",
-                     ShutdownStage::SavingData => "Saving Data",
-                     ShutdownStage::CleaningResources => "Cleaning Resources",
-                     ShutdownStage::Finalizing => "Finalizing",
-                     ShutdownStage::Complete => "Complete",
-                 },
-                 status.message);
+
+        println!(
+            "Shutdown: {} - {}",
+            match status.stage {
+                ShutdownStage::Initiated => "Initiated",
+                ShutdownStage::SavingData => "Saving Data",
+                ShutdownStage::CleaningResources => "Cleaning Resources",
+                ShutdownStage::Finalizing => "Finalizing",
+                ShutdownStage::Complete => "Complete",
+            },
+            status.message
+        );
     }
 
     /// Perform graceful shutdown with timeout
@@ -123,7 +125,8 @@ impl ShutdownManager {
             stage: ShutdownStage::Initiated,
             message: "Graceful shutdown initiated".to_string(),
             progress: 10,
-        }).await;
+        })
+        .await;
 
         // Execute shutdown with timeout
         let shutdown_result = timeout(
@@ -135,8 +138,9 @@ impl ShutdownManager {
                 window_manager,
                 plugin_manager,
                 _security_validator,
-            )
-        ).await;
+            ),
+        )
+        .await;
 
         match shutdown_result {
             Ok(result) => {
@@ -144,7 +148,8 @@ impl ShutdownManager {
                     stage: ShutdownStage::Complete,
                     message: "Graceful shutdown completed successfully".to_string(),
                     progress: 100,
-                }).await;
+                })
+                .await;
                 result
             }
             Err(_) => {
@@ -153,12 +158,13 @@ impl ShutdownManager {
                     stage: ShutdownStage::Complete,
                     message: "Shutdown timeout reached, forcing exit".to_string(),
                     progress: 100,
-                }).await;
-                
+                })
+                .await;
+
                 // Allow a brief moment for the event to be sent
                 tokio::time::sleep(Duration::from_millis(100)).await;
-                Err(AppError::Runtime { 
-                    message: "Shutdown timeout exceeded".to_string() 
+                Err(AppError::Runtime {
+                    message: "Shutdown timeout exceeded".to_string(),
                 })
             }
         }
@@ -174,19 +180,19 @@ impl ShutdownManager {
         plugin_manager: Arc<tokio::sync::Mutex<PluginManager>>,
         _security_validator: Arc<SecurityValidator>,
     ) -> Result<(), AppError> {
-        
         // Stage 1: Save pending data
         self.emit_status(ShutdownStatus {
             stage: ShutdownStage::SavingData,
             message: "Saving pending data and settings".to_string(),
             progress: 25,
-        }).await;
+        })
+        .await;
 
         // Wait for any pending database operations and flush data
         if let Ok(conn) = db_service.get_connection() {
             // Force WAL checkpoint to ensure all data is written
             let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
-            
+
             // Optimize database before shutdown
             let _ = conn.execute_batch("PRAGMA optimize;");
         }
@@ -201,7 +207,8 @@ impl ShutdownManager {
             stage: ShutdownStage::CleaningResources,
             message: "Cleaning up system resources".to_string(),
             progress: 50,
-        }).await;
+        })
+        .await;
 
         // Unregister global shortcuts
         if let Err(e) = global_shortcut_service.cleanup().await {
@@ -227,7 +234,8 @@ impl ShutdownManager {
             stage: ShutdownStage::Finalizing,
             message: "Finalizing shutdown process".to_string(),
             progress: 75,
-        }).await;
+        })
+        .await;
 
         // Hide window gracefully
         if let Err(e) = window_manager.hide_window().await {
@@ -251,13 +259,14 @@ impl ShutdownManager {
         // Just set the shutdown flag - the actual shutdown will be handled by signal handlers
         // or the main application loop
         self.is_shutting_down.store(true, Ordering::Relaxed);
-        
+
         // Emit shutdown initiated status
         self.emit_status(ShutdownStatus {
             stage: ShutdownStage::Initiated,
             message: "Application shutdown initiated".to_string(),
             progress: 0,
-        }).await;
+        })
+        .await;
 
         Ok(())
     }
@@ -288,19 +297,22 @@ impl ShutdownManager {
 
         let _ = ctrlc::set_handler(move || {
             println!("Received interrupt signal, initiating graceful shutdown...");
-            
+
             // Create a new Tokio runtime for the shutdown process since we're in a signal handler
             let rt = tokio::runtime::Runtime::new().unwrap();
-            
+
             rt.block_on(async {
-                if let Err(e) = shutdown_manager.shutdown_gracefully(
-                    db_clone.clone(),
-                    settings_clone.clone(),
-                    shortcut_clone.clone(),
-                    window_clone.clone(),
-                    plugin_clone.clone(),
-                    validator_clone.clone(),
-                ).await {
+                if let Err(e) = shutdown_manager
+                    .shutdown_gracefully(
+                        db_clone.clone(),
+                        settings_clone.clone(),
+                        shortcut_clone.clone(),
+                        window_clone.clone(),
+                        plugin_clone.clone(),
+                        validator_clone.clone(),
+                    )
+                    .await
+                {
                     eprintln!("Shutdown error: {}", e);
                     std::process::exit(1);
                 } else {
@@ -319,7 +331,7 @@ impl ShutdownManager {
     }
 }
 
-// Note: Tauri command handlers for is_shutting_down and initiate_shutdown 
+// Note: Tauri command handlers for is_shutting_down and initiate_shutdown
 // have been moved to src/commands/lifecycle.rs as part of the modular architecture
 
 #[cfg(test)]
@@ -346,11 +358,11 @@ mod tests {
     fn test_shutdown_flag() {
         let manager = ShutdownManager::new();
         let flag = manager.get_shutdown_flag();
-        
+
         // Initially not shutting down
         assert!(!manager.is_shutting_down());
         assert!(!flag.load(Ordering::Relaxed));
-        
+
         // Set shutdown flag
         flag.store(true, Ordering::Relaxed);
         assert!(manager.is_shutting_down());
@@ -373,15 +385,15 @@ mod tests {
     #[tokio::test]
     async fn test_initiate_shutdown() {
         let manager = ShutdownManager::new();
-        
+
         // Should not be shutting down initially
         assert!(!manager.is_shutting_down());
-        
+
         // Initiate shutdown
         let result = manager.initiate_shutdown().await;
         assert!(result.is_ok());
         assert!(manager.is_shutting_down());
-        
+
         // Should fail if already shutting down
         let result2 = manager.initiate_shutdown().await;
         assert!(result2.is_err());

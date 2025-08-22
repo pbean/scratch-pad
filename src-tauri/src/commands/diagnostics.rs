@@ -1,18 +1,17 @@
 /// Diagnostics Domain Commands
-/// 
+///
 /// Handles error reporting and system diagnostics with security validation.
 /// These commands help with debugging and monitoring while maintaining security.
-
 use crate::commands::shared::{
-    validate_ipc_operation, CommandPerformanceTracker, log_security_event
+    log_security_event, validate_ipc_operation, CommandPerformanceTracker,
 };
 use crate::error::ApiError;
 use crate::validation::OperationCapability;
 use crate::AppState;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{State, AppHandle};
-use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, State};
 
 /// Frontend error report structure
 #[derive(Serialize, Deserialize, Debug)]
@@ -45,23 +44,24 @@ pub async fn report_frontend_error(
     state: State<'_, AppState>,
 ) -> Result<String, ApiError> {
     let _tracker = CommandPerformanceTracker::new("report_frontend_error");
-    
+
     // Validate IPC operation with system access capability for error reporting
     let _context = validate_ipc_operation(
-        &state.security_validator, 
-        vec![OperationCapability::SystemAccess]
-    ).map_err(|e| ApiError {
+        &state.security_validator,
+        vec![OperationCapability::SystemAccess],
+    )
+    .map_err(|e| ApiError {
         code: "IPC_VALIDATION_FAILED".to_string(),
         message: format!("IPC validation failed: {}", e),
     })?;
 
     // Validate error report content for security
     validate_error_content(&error_report.message, "message")?;
-    
+
     if let Some(ref stack) = error_report.stack_trace {
         validate_error_content(stack, "stack_trace")?;
     }
-    
+
     if let Some(ref component) = error_report.component_name {
         validate_error_content(component, "component_name")?;
     }
@@ -71,12 +71,15 @@ pub async fn report_frontend_error(
         "frontend_error_reported",
         "IPC",
         true,
-        &format!("Error ID: {} | Type: {}", error_report.error_id, error_report.error_type),
+        &format!(
+            "Error ID: {} | Type: {}",
+            error_report.error_id, error_report.error_type
+        ),
     );
 
     // Create sanitized version for logging
     let sanitized_message = sanitize_for_logging(&error_report.message);
-    
+
     // In a production system, this would be sent to a logging service
     println!(
         "Frontend Error [{}]: {} | Component: {:?} | Type: {}",
@@ -86,7 +89,10 @@ pub async fn report_frontend_error(
         error_report.error_type
     );
 
-    Ok(format!("Error report {} processed successfully", error_report.error_id))
+    Ok(format!(
+        "Error report {} processed successfully",
+        error_report.error_id
+    ))
 }
 
 /// Get backend error details for debugging
@@ -97,12 +103,13 @@ pub async fn get_backend_error_details(
     state: State<'_, AppState>,
 ) -> Result<BackendErrorDetails, ApiError> {
     let _tracker = CommandPerformanceTracker::new("get_backend_error_details");
-    
+
     // Validate IPC operation with system access capability for diagnostics
     let _context = validate_ipc_operation(
-        &state.security_validator, 
-        vec![OperationCapability::SystemAccess]
-    ).map_err(|e| ApiError {
+        &state.security_validator,
+        vec![OperationCapability::SystemAccess],
+    )
+    .map_err(|e| ApiError {
         code: "IPC_VALIDATION_FAILED".to_string(),
         message: format!("IPC validation failed: {}", e),
     })?;
@@ -134,20 +141,35 @@ pub async fn get_backend_error_details(
 fn validate_error_content(content: &str, _field_name: &str) -> Result<(), ApiError> {
     // Check for script injection patterns
     let dangerous_patterns = [
-        "<script", "</script>", "javascript:", "vbscript:",
-        "eval(", "exec(", "system(",
-        // Command injection patterns  
-        "rm -rf", "del ", "cmd.exe", "powershell",
+        "<script",
+        "</script>",
+        "javascript:",
+        "vbscript:",
+        "eval(",
+        "exec(",
+        "system(",
+        // Command injection patterns
+        "rm -rf",
+        "del ",
+        "cmd.exe",
+        "powershell",
         // Network patterns
-        "http://", "https://", "ftp://",
+        "http://",
+        "https://",
+        "ftp://",
         // Sensitive file patterns - handle both escaped and unescaped paths
-        "/etc/passwd", "/etc/shadow", "windows\\system32", "windows/system32",
+        "/etc/passwd",
+        "/etc/shadow",
+        "windows\\system32",
+        "windows/system32",
         // Code execution patterns
-        "__import__", "require(", "process.env",
+        "__import__",
+        "require(",
+        "process.env",
     ];
-    
+
     let content_lower = content.to_lowercase();
-    
+
     for pattern in &dangerous_patterns {
         if content_lower.contains(pattern) {
             return Err(ApiError {
@@ -156,7 +178,7 @@ fn validate_error_content(content: &str, _field_name: &str) -> Result<(), ApiErr
             });
         }
     }
-    
+
     Ok(())
 }
 
@@ -169,7 +191,7 @@ fn sanitize_for_logging(content: &str) -> String {
     } else {
         content.to_string()
     };
-    
+
     // Remove newlines and control characters
     content
         .chars()
@@ -206,17 +228,21 @@ mod tests_disabled {
             "cmd.exe /c dir",
             "powershell -c Get-Process",
             "/etc/passwd",
-            "C:\\Windows\\System32",  // Single backslash version
-            "C:/Windows/System32",   // Forward slash version  
+            "C:\\Windows\\System32", // Single backslash version
+            "C:/Windows/System32",   // Forward slash version
             "windows\\system32",     // Lower case versions
             "windows/system32",
         ];
-        
+
         for pattern in malicious_patterns {
             let result = validate_error_content(pattern, "test");
-            assert!(result.is_err(), "Malicious pattern should be rejected: {}", pattern);
+            assert!(
+                result.is_err(),
+                "Malicious pattern should be rejected: {}",
+                pattern
+            );
         }
-        
+
         // Test valid content
         let valid_content = vec![
             "TypeError: Cannot read property 'length' of undefined",
@@ -224,24 +250,28 @@ mod tests_disabled {
             "Error at Component.render (app.js:123:45)",
             "Network request failed with status 404",
         ];
-        
+
         for content in valid_content {
             let result = validate_error_content(content, "test");
-            assert!(result.is_ok(), "Valid content should be accepted: {}", content);
+            assert!(
+                result.is_ok(),
+                "Valid content should be accepted: {}",
+                content
+            );
         }
     }
-    
+
     #[tokio::test]
     async fn test_sanitization_for_logging() {
         // Test content sanitization
         let test_content = "Error\nwith\ttabs\rand\rcarriage\nreturns";
         let sanitized = sanitize_for_logging(test_content);
-        
+
         // Should remove newlines, tabs, and carriage returns
         assert!(!sanitized.contains('\n'));
         assert!(!sanitized.contains('\t'));
         assert!(!sanitized.contains('\r'));
-        
+
         // Test length truncation
         let long_content = "a".repeat(300);
         let sanitized_long = sanitize_for_logging(&long_content);
@@ -254,7 +284,7 @@ mod tests_disabled {
         // Test empty content
         let result = validate_error_content("", "test");
         assert!(result.is_ok(), "Empty content should be accepted");
-        
+
         // Test very long content (but not malicious)
         let long_content = "a".repeat(1000);
         let result = validate_error_content(&long_content, "test");

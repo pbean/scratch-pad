@@ -1,19 +1,18 @@
 /// Comprehensive Performance Monitoring Module
-/// 
+///
 /// Implements comprehensive performance monitoring for both backend and frontend
 /// with real-time metrics collection, analysis, and optimization recommendations.
-/// 
+///
 /// Week 3 Day 9 Implementation: Task 9.1 - Performance Metrics
-
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+pub mod analytics;
 pub mod backend;
 pub mod frontend;
 pub mod system;
-pub mod analytics;
 
 /// Performance metrics for a single operation
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -172,7 +171,11 @@ impl PerformanceMonitor {
     }
 
     /// Start tracking an operation
-    pub fn start_operation(&self, operation_id: String, operation_type: String) -> OperationTracker<'_> {
+    pub fn start_operation(
+        &self,
+        operation_id: String,
+        operation_type: String,
+    ) -> OperationTracker<'_> {
         let start_time = Instant::now();
         let start_timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -206,7 +209,7 @@ impl PerformanceMonitor {
         // Add to history
         if let Ok(mut history) = self.operation_history.lock() {
             history.push_back(metrics.clone());
-            
+
             // Keep only last 1000 operations
             if history.len() > 1000 {
                 history.pop_front();
@@ -221,7 +224,7 @@ impl PerformanceMonitor {
     pub fn record_system_metrics(&self, metrics: SystemMetrics) {
         if let Ok(mut history) = self.system_history.lock() {
             history.push_back(metrics.clone());
-            
+
             // Keep only last 1000 metrics
             if history.len() > 1000 {
                 history.pop_front();
@@ -241,7 +244,8 @@ impl PerformanceMonitor {
 
     /// Get active performance alerts
     pub fn get_active_alerts(&self) -> Vec<PerformanceAlert> {
-        self.alerts.lock()
+        self.alerts
+            .lock()
             .map(|alerts| alerts.iter().filter(|a| a.is_active).cloned().collect())
             .unwrap_or_default()
     }
@@ -251,7 +255,8 @@ impl PerformanceMonitor {
         let cutoff_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_millis() as u64 - (period_hours * 3600 * 1000);
+            .as_millis() as u64
+            - (period_hours * 3600 * 1000);
 
         let history = self.operation_history.lock().unwrap();
         let relevant_ops: Vec<_> = history
@@ -280,9 +285,11 @@ impl PerformanceMonitor {
         let successful_ops = relevant_ops.iter().filter(|op| op.success).count() as u64;
         let success_rate = successful_ops as f64 / total_operations as f64;
 
-        let avg_duration = relevant_ops.iter()
+        let avg_duration = relevant_ops
+            .iter()
             .map(|op| op.duration_ms as f64)
-            .sum::<f64>() / total_operations as f64;
+            .sum::<f64>()
+            / total_operations as f64;
 
         // Calculate 95th percentile
         let mut durations: Vec<_> = relevant_ops.iter().map(|op| op.duration_ms).collect();
@@ -311,7 +318,8 @@ impl PerformanceMonitor {
 
     /// Get current performance budget
     pub fn get_budget(&self) -> PerformanceBudget {
-        self.budget.lock()
+        self.budget
+            .lock()
             .map(|budget| budget.clone())
             .unwrap_or_default()
     }
@@ -326,12 +334,14 @@ impl PerformanceMonitor {
     /// Check for budget violations and create alerts
     fn check_budget_violations(&self, metrics: &OperationMetrics) {
         let budget = self.get_budget();
-        
+
         if metrics.duration_ms > budget.max_operation_duration_ms {
             self.create_alert(
                 AlertLevel::Warning,
-                format!("Operation '{}' exceeded duration budget ({} ms > {} ms)", 
-                       metrics.operation_type, metrics.duration_ms, budget.max_operation_duration_ms),
+                format!(
+                    "Operation '{}' exceeded duration budget ({} ms > {} ms)",
+                    metrics.operation_type, metrics.duration_ms, budget.max_operation_duration_ms
+                ),
                 Some(metrics.clone()),
                 Some("Consider optimizing the operation or increasing the budget".to_string()),
             );
@@ -341,13 +351,15 @@ impl PerformanceMonitor {
     /// Check for system-level alerts
     fn check_system_alerts(&self, metrics: &SystemMetrics) {
         let budget = self.get_budget();
-        
+
         if let Some(cpu_usage) = metrics.cpu_usage {
             if cpu_usage > budget.max_cpu_usage_percent {
                 self.create_alert(
                     AlertLevel::Warning,
-                    format!("CPU usage exceeded budget ({:.1}% > {:.1}%)", 
-                           cpu_usage, budget.max_cpu_usage_percent),
+                    format!(
+                        "CPU usage exceeded budget ({:.1}% > {:.1}%)",
+                        cpu_usage, budget.max_cpu_usage_percent
+                    ),
                     None,
                     Some("Monitor system load and consider optimizations".to_string()),
                 );
@@ -357,8 +369,10 @@ impl PerformanceMonitor {
         if metrics.memory_usage > budget.max_memory_usage_bytes {
             self.create_alert(
                 AlertLevel::Error,
-                format!("Memory usage exceeded budget ({} bytes > {} bytes)", 
-                       metrics.memory_usage, budget.max_memory_usage_bytes),
+                format!(
+                    "Memory usage exceeded budget ({} bytes > {} bytes)",
+                    metrics.memory_usage, budget.max_memory_usage_bytes
+                ),
                 None,
                 Some("Check for memory leaks and optimize memory usage".to_string()),
             );
@@ -388,7 +402,7 @@ impl PerformanceMonitor {
 
         if let Ok(mut alerts) = self.alerts.lock() {
             alerts.push(alert);
-            
+
             // Keep only last 100 alerts
             if alerts.len() > 100 {
                 alerts.remove(0);
@@ -402,13 +416,14 @@ impl PerformanceMonitor {
             return 100;
         }
 
-        let avg_duration = operations.iter()
+        let avg_duration = operations
+            .iter()
             .map(|op| op.duration_ms as f64)
-            .sum::<f64>() / operations.len() as f64;
+            .sum::<f64>()
+            / operations.len() as f64;
 
-        let success_rate = operations.iter()
-            .filter(|op| op.success)
-            .count() as f64 / operations.len() as f64;
+        let success_rate =
+            operations.iter().filter(|op| op.success).count() as f64 / operations.len() as f64;
 
         // Calculate score based on duration and success rate
         let duration_score = if avg_duration < 25.0 {
@@ -436,7 +451,8 @@ impl PerformanceMonitor {
         }
 
         // Calculate average memory usage change
-        let memory_changes: Vec<_> = operations.iter()
+        let memory_changes: Vec<_> = operations
+            .iter()
             .filter_map(|op| {
                 if let (Some(start), Some(end)) = (op.memory_usage_start, op.memory_usage_end) {
                     Some(end as i64 - start as i64)
@@ -451,15 +467,19 @@ impl PerformanceMonitor {
         }
 
         let avg_change = memory_changes.iter().sum::<i64>() as f64 / memory_changes.len() as f64;
-        
+
         // Score based on memory growth
-        if avg_change < 1024.0 { // < 1KB growth
+        if avg_change < 1024.0 {
+            // < 1KB growth
             100
-        } else if avg_change < 10240.0 { // < 10KB growth
+        } else if avg_change < 10240.0 {
+            // < 10KB growth
             90
-        } else if avg_change < 102400.0 { // < 100KB growth
+        } else if avg_change < 102400.0 {
+            // < 100KB growth
             75
-        } else if avg_change < 1048576.0 { // < 1MB growth
+        } else if avg_change < 1048576.0 {
+            // < 1MB growth
             60
         } else {
             40
@@ -560,14 +580,14 @@ pub fn get_performance_monitor() -> &'static PerformanceMonitor {
 /// Initialize performance monitoring system
 pub fn initialize_performance_monitoring() {
     let _monitor = get_performance_monitor();
-    
+
     // Start background metrics collection
     tokio::spawn(async {
         let mut interval = tokio::time::interval(Duration::from_secs(30));
-        
+
         loop {
             interval.tick().await;
-            
+
             // Collect system metrics
             let timestamp = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -577,8 +597,8 @@ pub fn initialize_performance_monitoring() {
             let system_metrics = SystemMetrics {
                 timestamp,
                 memory_usage: get_performance_monitor().get_memory_usage().unwrap_or(0),
-                cpu_usage: None, // Would be populated with actual CPU usage
-                active_db_connections: 1, // Placeholder
+                cpu_usage: None,           // Would be populated with actual CPU usage
+                active_db_connections: 1,  // Placeholder
                 operations_in_progress: 0, // Would be tracked
                 cache_stats: CacheMetrics {
                     total_entries: 0,
@@ -610,9 +630,9 @@ mod tests {
     fn test_operation_tracking() {
         let monitor = PerformanceMonitor::new();
         let tracker = monitor.start_operation("test_op".to_string(), "test".to_string());
-        
+
         tracker.complete_success();
-        
+
         let summary = monitor.get_performance_summary(1);
         assert_eq!(summary.total_operations, 1);
         assert_eq!(summary.success_rate, 1.0);
@@ -627,10 +647,10 @@ mod tests {
             target_cache_hit_rate: 0.9,
             max_cpu_usage_percent: 70.0,
         };
-        
+
         monitor.update_budget(new_budget.clone());
         let retrieved_budget = monitor.get_budget();
-        
+
         assert_eq!(retrieved_budget.max_operation_duration_ms, 200);
         assert_eq!(retrieved_budget.target_cache_hit_rate, 0.9);
     }
@@ -638,7 +658,7 @@ mod tests {
     #[test]
     fn test_performance_score_calculation() {
         let monitor = PerformanceMonitor::new();
-        
+
         // Create test operations
         let operations = vec![
             OperationMetrics {
@@ -664,10 +684,10 @@ mod tests {
                 context: HashMap::new(),
             },
         ];
-        
+
         let ops_refs: Vec<_> = operations.iter().collect();
         let score = monitor.calculate_performance_score(&ops_refs);
-        
+
         // Should get a high score for fast, successful operations
         assert!(score >= 90);
     }
@@ -675,25 +695,23 @@ mod tests {
     #[test]
     fn test_memory_efficiency_calculation() {
         let monitor = PerformanceMonitor::new();
-        
+
         // Create test operations with minimal memory growth
-        let operations = vec![
-            OperationMetrics {
-                operation_id: "1".to_string(),
-                operation_type: "test".to_string(),
-                start_timestamp: 1000,
-                duration_ms: 25,
-                success: true,
-                error_message: None,
-                memory_usage_start: Some(1000),
-                memory_usage_end: Some(1100), // 100 bytes growth
-                context: HashMap::new(),
-            },
-        ];
-        
+        let operations = vec![OperationMetrics {
+            operation_id: "1".to_string(),
+            operation_type: "test".to_string(),
+            start_timestamp: 1000,
+            duration_ms: 25,
+            success: true,
+            error_message: None,
+            memory_usage_start: Some(1000),
+            memory_usage_end: Some(1100), // 100 bytes growth
+            context: HashMap::new(),
+        }];
+
         let ops_refs: Vec<_> = operations.iter().collect();
         let score = monitor.calculate_memory_efficiency_score(&ops_refs);
-        
+
         // Should get high score for minimal memory growth
         assert!(score >= 90);
     }
@@ -701,7 +719,7 @@ mod tests {
     #[test]
     fn test_alert_generation() {
         let monitor = PerformanceMonitor::new();
-        
+
         // Set a low budget threshold
         monitor.update_budget(PerformanceBudget {
             max_operation_duration_ms: 10,
@@ -709,7 +727,7 @@ mod tests {
             target_cache_hit_rate: 0.9,
             max_cpu_usage_percent: 50.0,
         });
-        
+
         // Create an operation that exceeds the budget
         let slow_operation = OperationMetrics {
             operation_id: "slow_op".to_string(),
@@ -722,9 +740,9 @@ mod tests {
             memory_usage_end: Some(100),
             context: HashMap::new(),
         };
-        
+
         monitor.record_operation(slow_operation);
-        
+
         let alerts = monitor.get_active_alerts();
         assert!(!alerts.is_empty());
         assert!(alerts[0].message.contains("exceeded duration budget"));

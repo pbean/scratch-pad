@@ -1,12 +1,11 @@
 /// Notes Domain Commands
-/// 
+///
 /// Handles all note-related IPC operations with comprehensive security validation.
 /// This module preserves the exact functionality and security patterns from the
 /// monolithic implementation while providing better organization.
-
 use crate::commands::shared::{
-    validate_ipc_operation, validate_note_content_secure, validate_id_secure,
-    validate_pagination_secure, CommandPerformanceTracker, log_security_event
+    log_security_event, validate_id_secure, validate_ipc_operation, validate_note_content_secure,
+    validate_pagination_secure, CommandPerformanceTracker,
 };
 use crate::error::ApiError;
 use crate::models::Note;
@@ -15,7 +14,7 @@ use crate::AppState;
 use tauri::State;
 
 /// Creates a new note with security validation
-/// 
+///
 /// Security features preserved:
 /// - IPC operation context validation with WriteNotes capability
 /// - Content validation (1MB limit, malicious pattern detection)
@@ -27,89 +26,84 @@ pub async fn create_note(
     app_state: State<'_, AppState>,
 ) -> Result<Note, ApiError> {
     let _tracker = CommandPerformanceTracker::new("create_note");
-    
+
     // Validate IPC operation with required capabilities
     let context = validate_ipc_operation(
         &app_state.security_validator,
-        vec![OperationCapability::WriteNotes]
+        vec![OperationCapability::WriteNotes],
     )?;
-    
+
     // Validate note content with security context
     validate_note_content_secure(&app_state.security_validator, &content, &context)?;
-    
+
     // Log security event for audit trail
     log_security_event(
         "NOTE_CREATE",
         "IPC",
         true,
-        &format!("Creating note with {} characters", content.len())
+        &format!("Creating note with {} characters", content.len()),
     );
-    
+
     // Create note using database service
     let note = app_state.db.create_note(content).await?;
-    
+
     Ok(note)
 }
 
 /// Retrieves a single note by ID with security validation
-/// 
+///
 /// Security features preserved:
 /// - IPC operation context validation with ReadNotes capability
 /// - ID validation (positive integers, reasonable bounds)
 /// - Frequency limit enforcement
 /// - Performance monitoring
 #[tauri::command]
-pub async fn get_note(
-    id: i64,
-    app_state: State<'_, AppState>,
-) -> Result<Option<Note>, ApiError> {
+pub async fn get_note(id: i64, app_state: State<'_, AppState>) -> Result<Option<Note>, ApiError> {
     let _tracker = CommandPerformanceTracker::new("get_note");
-    
+
     // Validate IPC operation with required capabilities
     let _context = validate_ipc_operation(
         &app_state.security_validator,
-        vec![OperationCapability::ReadNotes]
+        vec![OperationCapability::ReadNotes],
     )?;
-    
+
     // Validate ID parameter
     validate_id_secure(id)?;
-    
+
     // Retrieve note from database
     let note = app_state.db.get_note(id).await?;
-    
+
     Ok(note)
 }
 
 /// Retrieves all notes with security validation (Fixed: now passes required parameters)
-/// 
+///
 /// Security features preserved:
 /// - IPC operation context validation with ReadNotes capability
 /// - Frequency limit enforcement
 /// - Performance monitoring
 /// - Memory usage consideration for large datasets
 #[tauri::command]
-pub async fn get_all_notes(
-    app_state: State<'_, AppState>
-) -> Result<Vec<Note>, ApiError> {
+pub async fn get_all_notes(app_state: State<'_, AppState>) -> Result<Vec<Note>, ApiError> {
     let _tracker = CommandPerformanceTracker::new("get_all_notes");
-    
+
     // Validate IPC operation with required capabilities
     let _context = validate_ipc_operation(
         &app_state.security_validator,
-        vec![OperationCapability::ReadNotes]
+        vec![OperationCapability::ReadNotes],
     )?;
-    
+
     // Log security event
     log_security_event("NOTE_LIST_ALL", "IPC", true, "Retrieving all notes");
-    
+
     // Retrieve all notes from database (Fixed: pass None, None for no pagination)
     let notes = app_state.db.get_all_notes().await?;
-    
+
     Ok(notes)
 }
 
 /// Retrieves paginated notes with security validation (Fixed: correct parameter types and method call)
-/// 
+///
 /// Security features preserved:
 /// - IPC operation context validation with ReadNotes capability
 /// - Pagination parameter validation (limits: max 1000, max offset 100k)
@@ -117,37 +111,37 @@ pub async fn get_all_notes(
 /// - Performance monitoring
 #[tauri::command]
 pub async fn get_notes_paginated(
-    offset: i64,  // Fixed: i64 instead of usize to match database method
-    limit: i64,   // Fixed: i64 instead of usize to match database method
+    offset: i64, // Fixed: i64 instead of usize to match database method
+    limit: i64,  // Fixed: i64 instead of usize to match database method
     app_state: State<'_, AppState>,
 ) -> Result<Vec<Note>, ApiError> {
     let _tracker = CommandPerformanceTracker::new("get_notes_paginated");
-    
+
     // Validate IPC operation with required capabilities
     let _context = validate_ipc_operation(
         &app_state.security_validator,
-        vec![OperationCapability::ReadNotes]
+        vec![OperationCapability::ReadNotes],
     )?;
-    
+
     // Validate pagination parameters (convert to usize for validation)
     validate_pagination_secure(offset as usize, limit as usize)?;
-    
+
     // Log security event
     log_security_event(
-        "NOTE_LIST_PAGINATED", 
-        "IPC", 
-        true, 
-        &format!("Retrieving {} notes at offset {}", limit, offset)
+        "NOTE_LIST_PAGINATED",
+        "IPC",
+        true,
+        &format!("Retrieving {} notes at offset {}", limit, offset),
     );
-    
+
     // Retrieve paginated notes from database (Fixed: pass i64 parameters)
     let notes = app_state.db.get_notes_paginated(offset, limit).await?;
-    
+
     Ok(notes)
 }
 
 /// Updates an existing note with security validation (Fixed: correct method signature)
-/// 
+///
 /// Security features preserved:
 /// - IPC operation context validation with WriteNotes capability
 /// - Note content validation (1MB limit, malicious pattern detection)
@@ -156,40 +150,40 @@ pub async fn get_notes_paginated(
 /// - Performance monitoring
 #[tauri::command]
 pub async fn update_note(
-    id: i64,      // Fixed: separate id parameter
-    content: String,  // Fixed: separate content parameter
+    id: i64,         // Fixed: separate id parameter
+    content: String, // Fixed: separate content parameter
     app_state: State<'_, AppState>,
 ) -> Result<Note, ApiError> {
     let _tracker = CommandPerformanceTracker::new("update_note");
-    
+
     // Validate IPC operation with required capabilities
     let context = validate_ipc_operation(
         &app_state.security_validator,
-        vec![OperationCapability::WriteNotes]
+        vec![OperationCapability::WriteNotes],
     )?;
-    
+
     // Validate note ID
     validate_id_secure(id)?;
-    
+
     // Validate note content with security context
     validate_note_content_secure(&app_state.security_validator, &content, &context)?;
-    
+
     // Log security event
     log_security_event(
         "NOTE_UPDATE",
         "IPC",
         true,
-        &format!("Updating note {} with {} characters", id, content.len())
+        &format!("Updating note {} with {} characters", id, content.len()),
     );
-    
+
     // Update note using database service (Fixed: pass id and content separately)
     let updated_note = app_state.db.update_note_content(id, content).await?;
-    
+
     Ok(updated_note)
 }
 
 /// Deletes a note with security validation
-/// 
+///
 /// Security features preserved:
 /// - IPC operation context validation with DeleteNotes capability
 /// - ID validation (positive integers, reasonable bounds)
@@ -197,32 +191,29 @@ pub async fn update_note(
 /// - Performance monitoring
 /// - Audit logging for delete operations
 #[tauri::command]
-pub async fn delete_note(
-    id: i64,
-    app_state: State<'_, AppState>,
-) -> Result<(), ApiError> {
+pub async fn delete_note(id: i64, app_state: State<'_, AppState>) -> Result<(), ApiError> {
     let _tracker = CommandPerformanceTracker::new("delete_note");
-    
+
     // Validate IPC operation with required capabilities
     let _context = validate_ipc_operation(
         &app_state.security_validator,
-        vec![OperationCapability::DeleteNotes]
+        vec![OperationCapability::DeleteNotes],
     )?;
-    
+
     // Validate ID parameter
     validate_id_secure(id)?;
-    
+
     // Log security event for delete operation
     log_security_event(
         "NOTE_DELETE",
         "IPC",
         true,
-        &format!("Deleting note with ID {}", id)
+        &format!("Deleting note with ID {}", id),
     );
-    
+
     // Delete note from database
     app_state.db.delete_note(id).await?;
-    
+
     Ok(())
 }
 
@@ -230,30 +221,30 @@ pub async fn delete_note(
 mod tests {
     use super::*;
     use crate::database::DbService;
-    use crate::validation::SecurityValidator;
     use crate::search::SearchService;
     use crate::settings::SettingsService;
+    use crate::validation::SecurityValidator;
     // Removed unused imports for services that require Tauri runtime
     use std::sync::Arc;
     use tempfile::NamedTempFile;
-    
+
     // Test-specific AppState that only includes components we can test
     struct TestAppState {
         pub db: Arc<DbService>,
-        pub search: Arc<SearchService>, 
+        pub search: Arc<SearchService>,
         pub settings: Arc<SettingsService>,
         pub security_validator: Arc<SecurityValidator>,
     }
-    
+
     async fn create_test_app_state() -> TestAppState {
         let temp_file = NamedTempFile::new().unwrap();
         let db_path = temp_file.path().to_string_lossy().to_string();
-        
+
         let db_service = Arc::new(DbService::new(&db_path).unwrap());
         let security_validator = Arc::new(SecurityValidator::new());
         let search_service = Arc::new(SearchService::new(db_service.clone()));
         let settings_service = Arc::new(SettingsService::new(db_service.clone()));
-        
+
         // For testing, we'll create a minimal AppState with placeholder services
         // that don't require Tauri runtime initialization
         TestAppState {
@@ -269,7 +260,7 @@ mod tests {
         let app_state = create_test_app_state().await;
         // For now, test the underlying database directly since State wrapping is complex
         let result = app_state.db.create_note("Test content".to_string()).await;
-        
+
         // This test would normally pass with proper security setup
         assert!(result.is_ok() || result.is_err()); // Either outcome is fine for compilation test
     }
@@ -278,9 +269,15 @@ mod tests {
     async fn test_update_note_command() {
         let app_state = create_test_app_state().await;
         // Create a note first
-        let created = app_state.db.create_note("Initial content".to_string()).await;
+        let created = app_state
+            .db
+            .create_note("Initial content".to_string())
+            .await;
         if let Ok(note) = created {
-            let result = app_state.db.update_note_content(note.id, "Updated content".to_string()).await;
+            let result = app_state
+                .db
+                .update_note_content(note.id, "Updated content".to_string())
+                .await;
             assert!(result.is_ok() || result.is_err()); // Either outcome is fine for compilation test
         }
     }

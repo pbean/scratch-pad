@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH, Duration, Instant};
-use serde::{Serialize, Deserialize};
-use sysinfo::{System, ProcessesToUpdate};
 use crate::error::AppError;
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use sysinfo::{ProcessesToUpdate, System};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemMetrics {
@@ -28,7 +28,7 @@ pub struct DetailedSystemMetrics {
 pub struct CpuMetrics {
     pub overall_usage: f32,
     pub per_core_usage: Vec<f32>,
-    pub frequency: Option<u64>, // MHz
+    pub frequency: Option<u64>,   // MHz
     pub temperature: Option<f32>, // Celsius
     pub load_average: Option<LoadAverage>,
 }
@@ -42,9 +42,9 @@ pub struct LoadAverage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryMetrics {
-    pub total: u64,       // bytes
-    pub used: u64,        // bytes
-    pub available: u64,   // bytes
+    pub total: u64,     // bytes
+    pub used: u64,      // bytes
+    pub available: u64, // bytes
     pub usage_percent: f64,
     pub swap_total: u64,
     pub swap_used: u64,
@@ -59,8 +59,8 @@ pub struct DiskMetrics {
     pub write_bytes: u64,
     pub read_ops: u64,
     pub write_ops: u64,
-    pub read_time: u64,   // milliseconds
-    pub write_time: u64,  // milliseconds
+    pub read_time: u64,  // milliseconds
+    pub write_time: u64, // milliseconds
     pub disks: Vec<DiskInfo>,
 }
 
@@ -100,7 +100,7 @@ pub struct NetworkInterface {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessMetrics {
     pub cpu_usage: f32,
-    pub memory_usage: u64,     // bytes
+    pub memory_usage: u64, // bytes
     pub memory_percent: f32,
     pub disk_read: u64,
     pub disk_written: u64,
@@ -124,13 +124,13 @@ pub struct PlatformInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemThresholds {
-    pub cpu_warning: f32,      // %
-    pub cpu_critical: f32,     // %
-    pub memory_warning: f64,   // %
-    pub memory_critical: f64,  // %
-    pub disk_warning: f64,     // %
-    pub disk_critical: f64,    // %
-    pub response_warning: u64, // ms
+    pub cpu_warning: f32,       // %
+    pub cpu_critical: f32,      // %
+    pub memory_warning: f64,    // %
+    pub memory_critical: f64,   // %
+    pub disk_warning: f64,      // %
+    pub disk_critical: f64,     // %
+    pub response_warning: u64,  // ms
     pub response_critical: u64, // ms
 }
 
@@ -143,8 +143,8 @@ impl Default for SystemThresholds {
             memory_critical: 95.0,
             disk_warning: 85.0,
             disk_critical: 95.0,
-            response_warning: 1000,   // 1 second
-            response_critical: 5000,  // 5 seconds
+            response_warning: 1000,  // 1 second
+            response_critical: 5000, // 5 seconds
         }
     }
 }
@@ -162,7 +162,7 @@ pub struct SystemAnalysis {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceUtilization {
-    pub cpu_status: String,      // "low", "normal", "high", "critical"
+    pub cpu_status: String, // "low", "normal", "high", "critical"
     pub memory_status: String,
     pub disk_status: String,
     pub network_status: String,
@@ -171,7 +171,7 @@ pub struct ResourceUtilization {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrendAnalysis {
-    pub cpu_trend: String,       // "improving", "stable", "degrading"
+    pub cpu_trend: String, // "improving", "stable", "degrading"
     pub memory_trend: String,
     pub disk_trend: String,
     pub performance_trend: String,
@@ -180,8 +180,8 @@ pub struct TrendAnalysis {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemAlert {
-    pub level: String,           // "info", "warning", "error", "critical"
-    pub category: String,        // "cpu", "memory", "disk", "network", "process"
+    pub level: String,    // "info", "warning", "error", "critical"
+    pub category: String, // "cpu", "memory", "disk", "network", "process"
     pub message: String,
     pub timestamp: u64,
     pub metric_value: Option<f64>,
@@ -190,7 +190,8 @@ pub struct SystemAlert {
 }
 
 pub struct SystemMonitor {
-    #[allow(dead_code)] system: Arc<Mutex<System>>,
+    #[allow(dead_code)]
+    system: Arc<Mutex<System>>,
     thresholds: Arc<Mutex<SystemThresholds>>,
     metrics_history: Arc<Mutex<Vec<DetailedSystemMetrics>>>,
     last_collection: Arc<Mutex<Option<Instant>>>,
@@ -201,7 +202,7 @@ impl SystemMonitor {
     pub fn new() -> Result<Self, AppError> {
         let mut system = System::new_all();
         system.refresh_all();
-        
+
         Ok(Self {
             system: Arc::new(Mutex::new(system)),
             thresholds: Arc::new(Mutex::new(SystemThresholds::default())),
@@ -214,14 +215,17 @@ impl SystemMonitor {
     /// Get current system metrics
     pub async fn get_system_metrics(&self) -> Result<SystemMetrics, AppError> {
         let detailed = self.get_detailed_metrics().await?;
-        
+
         Ok(SystemMetrics {
             cpu_usage: detailed.cpu.overall_usage,
             memory_usage: detailed.memory.usage_percent,
             disk_usage: if detailed.disk_io.disks.is_empty() {
                 0.0
             } else {
-                detailed.disk_io.disks.iter()
+                detailed
+                    .disk_io
+                    .disks
+                    .iter()
                     .map(|disk| disk.usage_percent)
                     .fold(0.0f64, |acc, x| acc.max(x))
             },
@@ -234,9 +238,10 @@ impl SystemMonitor {
     pub async fn get_detailed_metrics(&self) -> Result<DetailedSystemMetrics, AppError> {
         // Check if we should collect new metrics (throttle to avoid excessive system calls)
         let should_collect = {
-            let last_collection = self.last_collection.lock()
-                .map_err(|e| AppError::Runtime { message: format!("Lock error: {}", e) })?;
-            
+            let last_collection = self.last_collection.lock().map_err(|e| AppError::Runtime {
+                message: format!("Lock error: {}", e),
+            })?;
+
             match *last_collection {
                 Some(last) => last.elapsed() >= Duration::from_secs(1),
                 None => true,
@@ -245,34 +250,38 @@ impl SystemMonitor {
 
         if should_collect {
             let metrics = Self::collect_system_metrics(&self.platform_info).await?;
-            
+
             // Update history
             {
-                let mut history = self.metrics_history.lock()
-                    .map_err(|e| AppError::Runtime { message: format!("Lock error: {}", e) })?;
-                
+                let mut history = self.metrics_history.lock().map_err(|e| AppError::Runtime {
+                    message: format!("Lock error: {}", e),
+                })?;
+
                 history.push(metrics.clone());
-                
+
                 // Keep only last 1000 entries (about 16 minutes at 1 second intervals)
                 if history.len() > 1000 {
-                    let len = history.len(); 
+                    let len = history.len();
                     history.drain(0..len - 1000);
                 }
             }
-            
+
             // Update last collection time
             {
-                let mut last_collection = self.last_collection.lock()
-                    .map_err(|e| AppError::Runtime { message: format!("Lock error: {}", e) })?;
+                let mut last_collection =
+                    self.last_collection.lock().map_err(|e| AppError::Runtime {
+                        message: format!("Lock error: {}", e),
+                    })?;
                 *last_collection = Some(Instant::now());
             }
-            
+
             Ok(metrics)
         } else {
             // Return most recent from history
-            let history = self.metrics_history.lock()
-                .map_err(|e| AppError::Runtime { message: format!("Lock error: {}", e) })?;
-            
+            let history = self.metrics_history.lock().map_err(|e| AppError::Runtime {
+                message: format!("Lock error: {}", e),
+            })?;
+
             if let Some(latest) = history.last() {
                 Ok(latest.clone())
             } else {
@@ -291,7 +300,8 @@ impl SystemMonitor {
             .saturating_sub(minutes * 60 * 1000);
 
         if let Ok(history) = self.metrics_history.lock() {
-            history.iter()
+            history
+                .iter()
                 .filter(|m| m.timestamp >= cutoff_time)
                 .cloned()
                 .collect()
@@ -306,7 +316,9 @@ impl SystemMonitor {
             *current_thresholds = thresholds;
             Ok(())
         } else {
-            Err(AppError::Runtime { message: "Failed to update thresholds".to_string() })
+            Err(AppError::Runtime {
+                message: "Failed to update thresholds".to_string(),
+            })
         }
     }
 
@@ -325,43 +337,62 @@ impl SystemMonitor {
     /// Analyze system performance
     pub fn analyze_performance(&self) -> Result<SystemAnalysis, AppError> {
         let recent_metrics = self.get_recent_metrics(60); // Last hour
-        
+
         if recent_metrics.is_empty() {
             return Err(AppError::Validation {
                 field: "system_metrics".to_string(),
-                message: "No system metrics available for analysis".to_string()
+                message: "No system metrics available for analysis".to_string(),
             });
         }
 
-        let thresholds = self.thresholds.lock()
-            .map_err(|e| AppError::Runtime { message: format!("Lock error: {}", e) })?;
+        let thresholds = self.thresholds.lock().map_err(|e| AppError::Runtime {
+            message: format!("Lock error: {}", e),
+        })?;
 
         let latest = recent_metrics.last().unwrap();
-        
+
         // Calculate performance score
         let cpu_score = Self::calculate_resource_score(latest.cpu.overall_usage as f64, 100.0);
         let memory_score = Self::calculate_resource_score(latest.memory.usage_percent, 100.0);
         let disk_score = if latest.disk_io.disks.is_empty() {
             100.0
         } else {
-            latest.disk_io.disks.iter()
+            latest
+                .disk_io
+                .disks
+                .iter()
                 .map(|disk| Self::calculate_resource_score(disk.usage_percent, 100.0))
                 .fold(0.0f64, |acc, x| acc.min(x))
         };
-        
+
         let performance_score = (cpu_score + memory_score + disk_score) / 3.0;
-        
+
         // Determine resource utilization status
         let resource_utilization = ResourceUtilization {
-            cpu_status: Self::get_status_from_usage(latest.cpu.overall_usage as f64, thresholds.cpu_warning as f64, thresholds.cpu_critical as f64),
-            memory_status: Self::get_status_from_usage(latest.memory.usage_percent, thresholds.memory_warning, thresholds.memory_critical),
+            cpu_status: Self::get_status_from_usage(
+                latest.cpu.overall_usage as f64,
+                thresholds.cpu_warning as f64,
+                thresholds.cpu_critical as f64,
+            ),
+            memory_status: Self::get_status_from_usage(
+                latest.memory.usage_percent,
+                thresholds.memory_warning,
+                thresholds.memory_critical,
+            ),
             disk_status: if latest.disk_io.disks.is_empty() {
                 "normal".to_string()
             } else {
-                let max_disk_usage = latest.disk_io.disks.iter()
+                let max_disk_usage = latest
+                    .disk_io
+                    .disks
+                    .iter()
                     .map(|disk| disk.usage_percent)
                     .fold(0.0f64, |acc, x| acc.max(x));
-                Self::get_status_from_usage(max_disk_usage, thresholds.disk_warning, thresholds.disk_critical)
+                Self::get_status_from_usage(
+                    max_disk_usage,
+                    thresholds.disk_warning,
+                    thresholds.disk_critical,
+                )
             },
             network_status: "normal".to_string(), // Simplified for now
             overall_status: Self::get_overall_status(performance_score),
@@ -369,13 +400,14 @@ impl SystemMonitor {
 
         // Generate trend analysis
         let trend_analysis = Self::analyze_trends(&recent_metrics);
-        
+
         // Generate bottlenecks and recommendations
-        let (bottlenecks, recommendations) = Self::identify_bottlenecks_and_recommendations(&latest, &thresholds);
-        
+        let (bottlenecks, recommendations) =
+            Self::identify_bottlenecks_and_recommendations(&latest, &thresholds);
+
         // Generate alerts
         let alerts = Self::generate_alerts(&latest, &thresholds);
-        
+
         Ok(SystemAnalysis {
             overall_health: resource_utilization.overall_status.clone(),
             performance_score,
@@ -388,36 +420,41 @@ impl SystemMonitor {
     }
 
     /// Collect system metrics from the OS
-    async fn collect_system_metrics(platform_info: &Arc<Mutex<Option<PlatformInfo>>>) -> Result<DetailedSystemMetrics, AppError> {
+    async fn collect_system_metrics(
+        platform_info: &Arc<Mutex<Option<PlatformInfo>>>,
+    ) -> Result<DetailedSystemMetrics, AppError> {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map_err(|e| AppError::Runtime { message: format!("Time error: {}", e) })?
+            .map_err(|e| AppError::Runtime {
+                message: format!("Time error: {}", e),
+            })?
             .as_millis() as u64;
 
         // Get or create platform info
         let platform = {
-            let mut platform_guard = platform_info.lock()
-                .map_err(|e| AppError::Runtime { message: format!("Lock error: {}", e) })?;
-            
+            let mut platform_guard = platform_info.lock().map_err(|e| AppError::Runtime {
+                message: format!("Lock error: {}", e),
+            })?;
+
             if platform_guard.is_none() {
                 *platform_guard = Some(Self::collect_platform_info()?);
             }
-            
+
             platform_guard.as_ref().unwrap().clone()
         };
 
         // Collect CPU metrics
         let cpu = Self::collect_cpu_metrics().await?;
-        
+
         // Collect memory metrics
         let memory = Self::collect_memory_metrics()?;
-        
+
         // Collect disk I/O metrics
         let disk_io = Self::collect_disk_metrics()?;
-        
+
         // Collect network metrics (optional)
         let network = Self::collect_network_metrics().ok();
-        
+
         // Collect process metrics
         let process = Self::collect_process_metrics()?;
 
@@ -436,22 +473,24 @@ impl SystemMonitor {
     fn collect_platform_info() -> Result<PlatformInfo, AppError> {
         // This would use platform-specific APIs to gather system information
         // For now, provide a basic implementation
-        
+
         let os_name = std::env::consts::OS.to_string();
         let architecture = std::env::consts::ARCH.to_string();
         let hostname = hostname::get()
-            .map_err(|e| AppError::Runtime { message: format!("Failed to get hostname: {}", e) })?
+            .map_err(|e| AppError::Runtime {
+                message: format!("Failed to get hostname: {}", e),
+            })?
             .to_string_lossy()
             .to_string();
-        
+
         Ok(PlatformInfo {
             os_name,
             os_version: "unknown".to_string(), // Would query OS version
             architecture,
             hostname,
             cpu_cores: num_cpus::get() as u32,
-            cpu_model: None, // Would query CPU model
-            boot_time: None, // Would query system boot time
+            cpu_model: None,      // Would query CPU model
+            boot_time: None,      // Would query system boot time
             kernel_version: None, // Would query kernel version
         })
     }
@@ -460,23 +499,23 @@ impl SystemMonitor {
     async fn collect_cpu_metrics() -> Result<CpuMetrics, AppError> {
         // This is a simplified implementation
         // A real implementation would use platform-specific APIs
-        
+
         let mut system = System::new();
         system.refresh_cpu_all();
-        
+
         // Wait a bit for CPU usage calculation
         tokio::time::sleep(Duration::from_millis(200)).await;
         system.refresh_cpu_all();
-        
+
         let cpus = system.cpus();
         let overall_usage = cpus.iter().map(|cpu| cpu.cpu_usage()).sum::<f32>() / cpus.len() as f32;
         let per_core_usage: Vec<f32> = cpus.iter().map(|cpu| cpu.cpu_usage()).collect();
-        
+
         Ok(CpuMetrics {
             overall_usage,
             per_core_usage,
             frequency: cpus.first().map(|cpu| cpu.frequency()),
-            temperature: None, // Would require platform-specific implementation
+            temperature: None,  // Would require platform-specific implementation
             load_average: None, // Would use getloadavg on Unix systems
         })
     }
@@ -485,7 +524,7 @@ impl SystemMonitor {
     fn collect_memory_metrics() -> Result<MemoryMetrics, AppError> {
         let mut system = System::new();
         system.refresh_memory();
-        
+
         let total = system.total_memory();
         let used = system.used_memory();
         let available = system.available_memory();
@@ -494,7 +533,7 @@ impl SystemMonitor {
         } else {
             0.0
         };
-        
+
         let swap_total = system.total_swap();
         let swap_used = system.used_swap();
         let swap_usage_percent = if swap_total > 0 {
@@ -502,7 +541,7 @@ impl SystemMonitor {
         } else {
             0.0
         };
-        
+
         Ok(MemoryMetrics {
             total,
             used,
@@ -550,9 +589,9 @@ impl SystemMonitor {
     fn collect_process_metrics() -> Result<ProcessMetrics, AppError> {
         let mut system = System::new();
         system.refresh_processes(ProcessesToUpdate::All, true);
-        
+
         let pid = std::process::id();
-        
+
         if let Some(process) = system.process(sysinfo::Pid::from(pid as usize)) {
             let start_time = process.start_time();
             let uptime = SystemTime::now()
@@ -560,7 +599,7 @@ impl SystemMonitor {
                 .map(|d| d.as_secs())
                 .unwrap_or(0)
                 .saturating_sub(start_time);
-            
+
             Ok(ProcessMetrics {
                 cpu_usage: process.cpu_usage(),
                 memory_usage: process.memory(),
@@ -571,7 +610,7 @@ impl SystemMonitor {
                 },
                 disk_read: process.disk_usage().read_bytes,
                 disk_written: process.disk_usage().written_bytes,
-                thread_count: 1, // Would use platform-specific APIs
+                thread_count: 1,    // Would use platform-specific APIs
                 handle_count: None, // Windows specific
                 start_time,
                 uptime,
@@ -599,7 +638,11 @@ impl SystemMonitor {
     }
 
     /// Get status from usage percentage
-    fn get_status_from_usage(usage: f64, warning_threshold: f64, critical_threshold: f64) -> String {
+    fn get_status_from_usage(
+        usage: f64,
+        warning_threshold: f64,
+        critical_threshold: f64,
+    ) -> String {
         if usage >= critical_threshold {
             "critical".to_string()
         } else if usage >= warning_threshold {
@@ -638,14 +681,30 @@ impl SystemMonitor {
             };
         }
 
-        let first_half = &metrics[0..metrics.len()/2];
-        let second_half = &metrics[metrics.len()/2..];
+        let first_half = &metrics[0..metrics.len() / 2];
+        let second_half = &metrics[metrics.len() / 2..];
 
-        let first_cpu_avg = first_half.iter().map(|m| m.cpu.overall_usage as f64).sum::<f64>() / first_half.len() as f64;
-        let second_cpu_avg = second_half.iter().map(|m| m.cpu.overall_usage as f64).sum::<f64>() / second_half.len() as f64;
+        let first_cpu_avg = first_half
+            .iter()
+            .map(|m| m.cpu.overall_usage as f64)
+            .sum::<f64>()
+            / first_half.len() as f64;
+        let second_cpu_avg = second_half
+            .iter()
+            .map(|m| m.cpu.overall_usage as f64)
+            .sum::<f64>()
+            / second_half.len() as f64;
 
-        let first_memory_avg = first_half.iter().map(|m| m.memory.usage_percent).sum::<f64>() / first_half.len() as f64;
-        let second_memory_avg = second_half.iter().map(|m| m.memory.usage_percent).sum::<f64>() / second_half.len() as f64;
+        let first_memory_avg = first_half
+            .iter()
+            .map(|m| m.memory.usage_percent)
+            .sum::<f64>()
+            / first_half.len() as f64;
+        let second_memory_avg = second_half
+            .iter()
+            .map(|m| m.memory.usage_percent)
+            .sum::<f64>()
+            / second_half.len() as f64;
 
         let cpu_trend = Self::determine_trend(first_cpu_avg, second_cpu_avg);
         let memory_trend = Self::determine_trend(first_memory_avg, second_memory_avg);
@@ -673,7 +732,7 @@ impl SystemMonitor {
     /// Determine trend direction
     fn determine_trend(first_avg: f64, second_avg: f64) -> String {
         let change_percent = ((second_avg - first_avg) / first_avg) * 100.0;
-        
+
         if change_percent > 10.0 {
             "degrading".to_string() // Higher usage is worse
         } else if change_percent < -10.0 {
@@ -685,8 +744,8 @@ impl SystemMonitor {
 
     /// Identify bottlenecks and generate recommendations
     fn identify_bottlenecks_and_recommendations(
-        metrics: &DetailedSystemMetrics, 
-        thresholds: &SystemThresholds
+        metrics: &DetailedSystemMetrics,
+        thresholds: &SystemThresholds,
     ) -> (Vec<String>, Vec<String>) {
         let mut bottlenecks = Vec::new();
         let mut recommendations = Vec::new();
@@ -694,7 +753,8 @@ impl SystemMonitor {
         // CPU analysis
         if metrics.cpu.overall_usage >= thresholds.cpu_critical {
             bottlenecks.push("CPU usage is critically high".to_string());
-            recommendations.push("Consider closing unnecessary applications or upgrading CPU".to_string());
+            recommendations
+                .push("Consider closing unnecessary applications or upgrading CPU".to_string());
         } else if metrics.cpu.overall_usage >= thresholds.cpu_warning {
             bottlenecks.push("CPU usage is high".to_string());
             recommendations.push("Monitor CPU-intensive processes".to_string());
@@ -710,10 +770,13 @@ impl SystemMonitor {
         }
 
         // Disk analysis
-        let max_disk_usage = metrics.disk_io.disks.iter()
+        let max_disk_usage = metrics
+            .disk_io
+            .disks
+            .iter()
             .map(|disk| disk.usage_percent)
             .fold(0.0f64, |acc, x| acc.max(x));
-        
+
         if max_disk_usage >= thresholds.disk_critical {
             bottlenecks.push("Disk space is critically low".to_string());
             recommendations.push("Free up disk space immediately".to_string());
@@ -727,8 +790,8 @@ impl SystemMonitor {
 
     /// Generate performance alerts
     fn generate_alerts(
-        metrics: &DetailedSystemMetrics, 
-        thresholds: &SystemThresholds
+        metrics: &DetailedSystemMetrics,
+        thresholds: &SystemThresholds,
     ) -> Vec<SystemAlert> {
         let mut alerts = Vec::new();
         let timestamp = metrics.timestamp;
@@ -738,7 +801,10 @@ impl SystemMonitor {
             alerts.push(SystemAlert {
                 level: "critical".to_string(),
                 category: "cpu".to_string(),
-                message: format!("CPU usage is critically high at {:.1}%", metrics.cpu.overall_usage),
+                message: format!(
+                    "CPU usage is critically high at {:.1}%",
+                    metrics.cpu.overall_usage
+                ),
                 timestamp,
                 metric_value: Some(metrics.cpu.overall_usage as f64),
                 threshold_value: Some(thresholds.cpu_critical as f64),
@@ -761,7 +827,10 @@ impl SystemMonitor {
             alerts.push(SystemAlert {
                 level: "critical".to_string(),
                 category: "memory".to_string(),
-                message: format!("Memory usage is critically high at {:.1}%", metrics.memory.usage_percent),
+                message: format!(
+                    "Memory usage is critically high at {:.1}%",
+                    metrics.memory.usage_percent
+                ),
                 timestamp,
                 metric_value: Some(metrics.memory.usage_percent),
                 threshold_value: Some(thresholds.memory_critical),
@@ -771,7 +840,10 @@ impl SystemMonitor {
             alerts.push(SystemAlert {
                 level: "warning".to_string(),
                 category: "memory".to_string(),
-                message: format!("Memory usage is high at {:.1}%", metrics.memory.usage_percent),
+                message: format!(
+                    "Memory usage is high at {:.1}%",
+                    metrics.memory.usage_percent
+                ),
                 timestamp,
                 metric_value: Some(metrics.memory.usage_percent),
                 threshold_value: Some(thresholds.memory_warning),
@@ -786,7 +858,7 @@ impl SystemMonitor {
 /// Get the global system monitor instance
 pub fn get_system_monitor() -> Result<Arc<SystemMonitor>, AppError> {
     static SYSTEM_MONITOR: std::sync::OnceLock<Arc<SystemMonitor>> = std::sync::OnceLock::new();
-    
+
     let monitor = SYSTEM_MONITOR.get_or_init(|| {
         SystemMonitor::new().map(Arc::new).unwrap_or_else(|_| {
             // Fallback: create a basic system monitor
@@ -799,7 +871,7 @@ pub fn get_system_monitor() -> Result<Arc<SystemMonitor>, AppError> {
             })
         })
     });
-    
+
     Ok(monitor.clone())
 }
 
@@ -825,10 +897,22 @@ mod tests {
 
     #[test]
     fn test_get_status_from_usage() {
-        assert_eq!(SystemMonitor::get_status_from_usage(95.0, 80.0, 90.0), "critical");
-        assert_eq!(SystemMonitor::get_status_from_usage(85.0, 80.0, 90.0), "high");
-        assert_eq!(SystemMonitor::get_status_from_usage(60.0, 80.0, 90.0), "normal");
-        assert_eq!(SystemMonitor::get_status_from_usage(30.0, 80.0, 90.0), "low");
+        assert_eq!(
+            SystemMonitor::get_status_from_usage(95.0, 80.0, 90.0),
+            "critical"
+        );
+        assert_eq!(
+            SystemMonitor::get_status_from_usage(85.0, 80.0, 90.0),
+            "high"
+        );
+        assert_eq!(
+            SystemMonitor::get_status_from_usage(60.0, 80.0, 90.0),
+            "normal"
+        );
+        assert_eq!(
+            SystemMonitor::get_status_from_usage(30.0, 80.0, 90.0),
+            "low"
+        );
     }
 
     #[test]

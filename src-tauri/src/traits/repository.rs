@@ -1,9 +1,8 @@
 /// Repository Traits for Database Operations
-/// 
+///
 /// These traits define the contract for data persistence operations, enabling
 /// better testing through dependency injection and cleaner separation of concerns.
 /// All methods maintain exact compatibility with existing database operations.
-
 use crate::error::AppError;
 use crate::models::{Note, Setting};
 use async_trait::async_trait;
@@ -13,28 +12,33 @@ use async_trait::async_trait;
 pub trait NoteRepository: Send + Sync {
     /// Create a new note with the given content
     async fn create_note(&self, content: String) -> Result<Note, AppError>;
-    
+
     /// Get a note by its ID
     async fn get_note(&self, id: i64) -> Result<Option<Note>, AppError>;
-    
+
     /// Update an existing note's content
     async fn update_note(&self, id: i64, content: String) -> Result<Note, AppError>;
-    
+
     /// Delete a note by its ID
     async fn delete_note(&self, id: i64) -> Result<(), AppError>;
-    
+
     /// Get all notes with optional pagination
     async fn get_all_notes(&self) -> Result<Vec<Note>, AppError>;
-    
+
     /// Get notes with pagination (alias for frontend compatibility)
     async fn get_notes_paginated(&self, offset: i64, limit: i64) -> Result<Vec<Note>, AppError>;
-    
+
     /// Search notes using FTS5 full-text search
     async fn search_notes(&self, query: &str) -> Result<Vec<Note>, AppError>;
-    
+
     /// Search notes with pagination and return total count
-    async fn search_notes_paginated(&self, query: &str, offset: i64, limit: i64) -> Result<(Vec<Note>, i64), AppError>;
-    
+    async fn search_notes_paginated(
+        &self,
+        query: &str,
+        offset: i64,
+        limit: i64,
+    ) -> Result<(Vec<Note>, i64), AppError>;
+
     /// Check database connection health
     async fn health_check(&self) -> Result<bool, AppError>;
 }
@@ -44,16 +48,16 @@ pub trait NoteRepository: Send + Sync {
 pub trait SettingsRepository: Send + Sync {
     /// Get a setting value by key
     async fn get_setting(&self, key: &str) -> Result<Option<String>, AppError>;
-    
+
     /// Set a setting value
     async fn set_setting(&self, key: &str, value: &str) -> Result<(), AppError>;
-    
+
     /// Get all settings
     async fn get_all_settings(&self) -> Result<Vec<Setting>, AppError>;
-    
+
     /// Delete a setting by key
     async fn delete_setting(&self, key: &str) -> Result<(), AppError>;
-    
+
     /// Clear all settings
     async fn clear_all_settings(&self) -> Result<(), AppError>;
 }
@@ -68,19 +72,19 @@ pub trait SearchRepository: Send + Sync {
         page: usize,
         page_size: usize,
     ) -> Result<(Vec<Note>, usize), AppError>;
-    
+
     /// Search notes by path prefix
     async fn search_by_path(&self, path_prefix: &str) -> Result<Vec<Note>, AppError>;
-    
+
     /// Search favorite/pinned notes
     async fn search_favorites(&self) -> Result<Vec<Note>, AppError>;
-    
+
     /// Search recent notes (updated within N days)
     async fn search_recent(&self, days: u32) -> Result<Vec<Note>, AppError>;
-    
+
     /// Get search suggestions based on partial query
     async fn get_search_suggestions(&self, partial_query: &str) -> Result<Vec<String>, AppError>;
-    
+
     /// Advanced search with multiple criteria
     async fn advanced_search(
         &self,
@@ -94,7 +98,7 @@ pub trait SearchRepository: Send + Sync {
 }
 
 /// Implementation of all repository traits for DbService
-/// 
+///
 /// This provides trait implementations for the existing DbService, maintaining
 /// exact backward compatibility while enabling dependency injection.
 use crate::database::DbService;
@@ -104,35 +108,40 @@ impl NoteRepository for DbService {
     async fn create_note(&self, content: String) -> Result<Note, AppError> {
         self.create_note(content).await
     }
-    
+
     async fn get_note(&self, id: i64) -> Result<Option<Note>, AppError> {
         self.get_note(id).await
     }
-    
+
     async fn update_note(&self, id: i64, content: String) -> Result<Note, AppError> {
         self.update_note_content(id, content).await
     }
-    
+
     async fn delete_note(&self, id: i64) -> Result<(), AppError> {
         self.delete_note(id).await
     }
-    
+
     async fn get_all_notes(&self) -> Result<Vec<Note>, AppError> {
         self.get_all_notes().await
     }
-    
+
     async fn get_notes_paginated(&self, offset: i64, limit: i64) -> Result<Vec<Note>, AppError> {
         self.get_notes_paginated(offset, limit).await
     }
-    
+
     async fn search_notes(&self, query: &str) -> Result<Vec<Note>, AppError> {
         self.search_notes(query).await
     }
-    
-    async fn search_notes_paginated(&self, query: &str, offset: i64, limit: i64) -> Result<(Vec<Note>, i64), AppError> {
+
+    async fn search_notes_paginated(
+        &self,
+        query: &str,
+        offset: i64,
+        limit: i64,
+    ) -> Result<(Vec<Note>, i64), AppError> {
         self.search_notes_paginated(query, offset, limit).await
     }
-    
+
     async fn health_check(&self) -> Result<bool, AppError> {
         self.health_check().await
     }
@@ -143,19 +152,19 @@ impl SettingsRepository for DbService {
     async fn get_setting(&self, key: &str) -> Result<Option<String>, AppError> {
         self.get_setting(key).await
     }
-    
+
     async fn set_setting(&self, key: &str, value: &str) -> Result<(), AppError> {
         self.set_setting(key, value).await
     }
-    
+
     async fn get_all_settings(&self) -> Result<Vec<Setting>, AppError> {
         self.get_all_settings().await
     }
-    
+
     async fn delete_setting(&self, key: &str) -> Result<(), AppError> {
         self.delete_setting(key).await
     }
-    
+
     async fn clear_all_settings(&self) -> Result<(), AppError> {
         self.clear_all_settings().await
     }
@@ -170,22 +179,24 @@ impl SearchRepository for DbService {
         page_size: usize,
     ) -> Result<(Vec<Note>, usize), AppError> {
         let offset = page * page_size;
-        let (notes, total) = self.search_notes_paginated(fts5_query, offset as i64, page_size as i64).await?;
+        let (notes, total) = self
+            .search_notes_paginated(fts5_query, offset as i64, page_size as i64)
+            .await?;
         Ok((notes, total as usize))
     }
-    
+
     async fn search_by_path(&self, path_prefix: &str) -> Result<Vec<Note>, AppError> {
         // For MVP, search by content that might contain path-like strings
         self.search_notes(path_prefix).await
     }
-    
+
     async fn search_favorites(&self) -> Result<Vec<Note>, AppError> {
         let conn = self.get_connection()?;
-        
+
         let mut stmt = conn.prepare(
             "SELECT id, content, created_at, updated_at, is_pinned FROM notes WHERE is_pinned = 1 ORDER BY updated_at DESC"
         )?;
-        
+
         let rows = stmt.query_map([], |row| {
             let id: i64 = row.get(0)?;
             Ok(Note {
@@ -199,25 +210,25 @@ impl SearchRepository for DbService {
                 path: format!("/note/{}", id),
             })
         })?;
-        
+
         let mut notes = Vec::new();
         for note_result in rows {
             notes.push(note_result?);
         }
-        
+
         Ok(notes)
     }
-    
+
     async fn search_recent(&self, days: u32) -> Result<Vec<Note>, AppError> {
         let conn = self.get_connection()?;
-        
+
         let cutoff_date = chrono::Utc::now() - chrono::Duration::days(days as i64);
         let cutoff_str = cutoff_date.format("%Y-%m-%d %H:%M:%S").to_string();
-        
+
         let mut stmt = conn.prepare(
             "SELECT id, content, created_at, updated_at, is_pinned FROM notes WHERE updated_at >= ?1 ORDER BY updated_at DESC"
         )?;
-        
+
         let rows = stmt.query_map(rusqlite::params![cutoff_str], |row| {
             let id: i64 = row.get(0)?;
             Ok(Note {
@@ -231,35 +242,38 @@ impl SearchRepository for DbService {
                 path: format!("/note/{}", id),
             })
         })?;
-        
+
         let mut notes = Vec::new();
         for note_result in rows {
             notes.push(note_result?);
         }
-        
+
         Ok(notes)
     }
-    
+
     async fn get_search_suggestions(&self, partial_query: &str) -> Result<Vec<String>, AppError> {
         // Basic implementation: split content into words and find matches
         let conn = self.get_connection()?;
-        
+
         let mut stmt = conn.prepare(
-            "SELECT DISTINCT content FROM notes WHERE content LIKE ?1 ORDER BY content LIMIT 10"
+            "SELECT DISTINCT content FROM notes WHERE content LIKE ?1 ORDER BY content LIMIT 10",
         )?;
-        
+
         let search_pattern = format!("%{}%", partial_query);
         let rows = stmt.query_map(rusqlite::params![search_pattern], |row| {
             let content: String = row.get(0)?;
             Ok(content)
         })?;
-        
+
         let mut suggestions = Vec::new();
         for content_result in rows {
             let content = content_result?;
             // Extract words from content that start with the partial query
             for word in content.split_whitespace() {
-                if word.to_lowercase().starts_with(&partial_query.to_lowercase()) {
+                if word
+                    .to_lowercase()
+                    .starts_with(&partial_query.to_lowercase())
+                {
                     suggestions.push(word.to_string());
                     if suggestions.len() >= 10 {
                         break;
@@ -267,12 +281,12 @@ impl SearchRepository for DbService {
                 }
             }
         }
-        
+
         suggestions.sort();
         suggestions.dedup();
         Ok(suggestions)
     }
-    
+
     async fn advanced_search(
         &self,
         query: Option<&str>,
@@ -283,10 +297,11 @@ impl SearchRepository for DbService {
         date_to: Option<&str>,
     ) -> Result<Vec<Note>, AppError> {
         let conn = self.get_connection()?;
-        
-        let mut sql = "SELECT id, content, created_at, updated_at, is_pinned FROM notes WHERE 1=1".to_string();
+
+        let mut sql = "SELECT id, content, created_at, updated_at, is_pinned FROM notes WHERE 1=1"
+            .to_string();
         let mut params: Vec<String> = Vec::new();
-        
+
         // Add query filter
         if let Some(q) = query {
             if !q.is_empty() {
@@ -373,7 +388,10 @@ mod tests {
         assert_eq!(retrieved.content, "Test content");
 
         // Test update
-        let updated = repo.update_note(note.id, "Updated content".to_string()).await.unwrap();
+        let updated = repo
+            .update_note(note.id, "Updated content".to_string())
+            .await
+            .unwrap();
         assert_eq!(updated.content, "Updated content");
 
         // Test search
@@ -415,8 +433,11 @@ mod tests {
 
         // Create test data first
         let note_repo: &dyn NoteRepository = db_service.as_ref();
-        let _note = note_repo.create_note("Test favorite note".to_string()).await.unwrap();
-        
+        let _note = note_repo
+            .create_note("Test favorite note".to_string())
+            .await
+            .unwrap();
+
         // Test search suggestions
         let suggestions = repo.get_search_suggestions("Test").await.unwrap();
         // Suggestions may be empty if no matches, but should not error
@@ -426,39 +447,48 @@ mod tests {
         let (_results, count) = repo.execute_fts5_search("Test", 0, 10).await.unwrap();
         assert!(count >= 0);
     }
-    
+
     #[tokio::test]
     async fn test_parallel_repository_isolation() {
         // Test that repository traits work correctly with isolated databases
-        let handles: Vec<_> = (0..3).map(|i| {
-            tokio::spawn(async move {
-                let test_db = TestDatabaseFactory::create_memory_db().await.unwrap();
-                let db_service = test_db.db();
-                let repo: &dyn NoteRepository = db_service.as_ref();
-                
-                // Create note specific to this instance
-                let note = repo.create_note(format!("Repository test note {}", i)).await.unwrap();
-                
-                // Verify only this note exists in this database
-                let all_notes = repo.get_all_notes().await.unwrap();
-                assert_eq!(all_notes.len(), 1);
-                assert_eq!(all_notes[0].content, format!("Repository test note {}", i));
-                
-                (test_db.test_id, note.id)
+        let handles: Vec<_> = (0..3)
+            .map(|i| {
+                tokio::spawn(async move {
+                    let test_db = TestDatabaseFactory::create_memory_db().await.unwrap();
+                    let db_service = test_db.db();
+                    let repo: &dyn NoteRepository = db_service.as_ref();
+
+                    // Create note specific to this instance
+                    let note = repo
+                        .create_note(format!("Repository test note {}", i))
+                        .await
+                        .unwrap();
+
+                    // Verify only this note exists in this database
+                    let all_notes = repo.get_all_notes().await.unwrap();
+                    assert_eq!(all_notes.len(), 1);
+                    assert_eq!(all_notes[0].content, format!("Repository test note {}", i));
+
+                    (test_db.test_id, note.id)
+                })
             })
-        }).collect();
-        
+            .collect();
+
         let mut results = Vec::new();
         for handle in handles {
             results.push(handle.await.unwrap());
         }
-        
+
         // Verify all test databases have unique IDs
         let test_ids: Vec<u64> = results.iter().map(|(test_id, _)| *test_id).collect();
         let mut unique_test_ids = test_ids.clone();
         unique_test_ids.sort();
         unique_test_ids.dedup();
-        
-        assert_eq!(unique_test_ids.len(), test_ids.len(), "All test databases should have unique IDs");
+
+        assert_eq!(
+            unique_test_ids.len(),
+            test_ids.len(),
+            "All test databases should have unique IDs"
+        );
     }
 }

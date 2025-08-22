@@ -1,13 +1,12 @@
 /// Performance Analytics and Reporting Module
-/// 
+///
 /// Provides comprehensive performance analytics, trend analysis, and automated
 /// optimization recommendations based on collected performance data.
-/// 
+///
 /// Week 3 Day 9 Implementation: Performance Analytics
-
-use super::backend::{BackendMetrics, get_backend_monitor};
-use super::frontend::{FrontendAnalysis, get_frontend_monitor};
-use super::system::{SystemAnalysis, get_system_monitor};
+use super::backend::{get_backend_monitor, BackendMetrics};
+use super::frontend::{get_frontend_monitor, FrontendAnalysis};
+use super::system::{get_system_monitor, SystemAnalysis};
 use crate::error::AppError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -1042,7 +1041,8 @@ pub struct PerformanceAnalyticsEngine {
     /// Report cache
     report_cache: Arc<Mutex<HashMap<String, PerformanceAnalyticsReport>>>,
     /// Analytics models
-    #[allow(dead_code)] models: Arc<Mutex<AnalyticsModels>>,
+    #[allow(dead_code)]
+    models: Arc<Mutex<AnalyticsModels>>,
 }
 
 /// Analytics configuration
@@ -1140,29 +1140,36 @@ impl PerformanceAnalyticsEngine {
     }
 
     /// Generate comprehensive performance analytics report
-    pub async fn generate_report(&self, period_hours: Option<u32>) -> Result<PerformanceAnalyticsReport, AppError> {
+    pub async fn generate_report(
+        &self,
+        period_hours: Option<u32>,
+    ) -> Result<PerformanceAnalyticsReport, AppError> {
         let analysis_period = {
-            let config = self.config.lock()
-                .map_err(|e| AppError::Runtime { message: format!("Config lock error: {}", e) })?;
+            let config = self.config.lock().map_err(|e| AppError::Runtime {
+                message: format!("Config lock error: {}", e),
+            })?;
             period_hours.unwrap_or(config.analysis_period_hours)
         };
-        let report_id = format!("report_{}_{}", analysis_period, chrono::Utc::now().timestamp());
-        
+        let report_id = format!(
+            "report_{}_{}",
+            analysis_period,
+            chrono::Utc::now().timestamp()
+        );
+
         // Check cache first
         if let Ok(cache) = self.report_cache.lock() {
             if let Some(cached_report) = cache.get(&report_id) {
                 return Ok(cached_report.clone());
             }
         }
-        
-        
+
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis() as u64;
-        
+
         let period_start = timestamp - (analysis_period as u64 * 3600 * 1000);
-        
+
         // Generate report metadata
         let metadata = ReportMetadata {
             report_id: report_id.clone(),
@@ -1173,21 +1180,33 @@ impl PerformanceAnalyticsEngine {
             report_version: "1.0.0".to_string(),
             confidence_level: 0.85,
         };
-        
+
         // Collect data from all monitors
         let backend_metrics = get_backend_monitor().get_metrics()?;
         let frontend_analysis = get_frontend_monitor().analyze_performance().ok();
         let system_analysis = get_system_monitor()?.analyze_performance()?;
-        
+
         // Generate comprehensive analysis
-        let executive_summary = self.generate_executive_summary(&backend_metrics, &frontend_analysis, &system_analysis)?;
+        let executive_summary = self.generate_executive_summary(
+            &backend_metrics,
+            &frontend_analysis,
+            &system_analysis,
+        )?;
         let backend_analysis = self.generate_backend_analysis(&backend_metrics)?;
-        let cross_component_analysis = self.generate_cross_component_analysis(&backend_metrics, &frontend_analysis, &system_analysis)?;
+        let cross_component_analysis = self.generate_cross_component_analysis(
+            &backend_metrics,
+            &frontend_analysis,
+            &system_analysis,
+        )?;
         let trends = self.generate_trends_analysis(analysis_period).await?;
-        let recommendations = self.generate_optimization_recommendations(&backend_metrics, &frontend_analysis, &system_analysis)?;
+        let recommendations = self.generate_optimization_recommendations(
+            &backend_metrics,
+            &frontend_analysis,
+            &system_analysis,
+        )?;
         let benchmarks = self.generate_performance_benchmarks(&backend_metrics)?;
         let risk_assessment = self.generate_risk_assessment(&backend_metrics, &system_analysis)?;
-        
+
         let report = PerformanceAnalyticsReport {
             metadata,
             executive_summary,
@@ -1200,16 +1219,16 @@ impl PerformanceAnalyticsEngine {
             benchmarks,
             risk_assessment,
         };
-        
+
         // Cache the report
         if let Ok(mut cache) = self.report_cache.lock() {
             cache.insert(report_id, report.clone());
-            
+
             // Clean up old cache entries
             let cutoff_time = timestamp - 3600000; // 1 hour
             cache.retain(|_, report| report.metadata.generated_at > cutoff_time);
         }
-        
+
         Ok(report)
     }
 
@@ -1222,11 +1241,14 @@ impl PerformanceAnalyticsEngine {
     ) -> Result<ExecutiveSummary, AppError> {
         // Calculate overall performance score
         let backend_score = self.calculate_backend_score(backend_metrics);
-        let frontend_score = frontend_analysis.as_ref().map(|f| f.performance_score as f64).unwrap_or(80.0);
+        let frontend_score = frontend_analysis
+            .as_ref()
+            .map(|f| f.performance_score as f64)
+            .unwrap_or(80.0);
         let system_score = system_analysis.performance_score as f64;
-        
+
         let overall_score = ((backend_score + frontend_score + system_score) / 3.0) as u8;
-        
+
         let status = match overall_score {
             90..=100 => "excellent",
             80..=89 => "good",
@@ -1234,31 +1256,62 @@ impl PerformanceAnalyticsEngine {
             50..=69 => "poor",
             _ => "critical",
         };
-        
+
         let mut key_findings = Vec::new();
         let mut critical_issues = Vec::new();
         let mut improvements = Vec::new();
-        
+
         // Analyze backend performance
         if backend_metrics.database.avg_query_time_ms > 100.0 {
             critical_issues.push("Database queries exceeding 100ms threshold".to_string());
         } else if backend_metrics.database.avg_query_time_ms < 50.0 {
             improvements.push("Database performance is excellent".to_string());
         }
-        
-        key_findings.push(format!("Average database query time: {:.1}ms", backend_metrics.database.avg_query_time_ms));
-        key_findings.push(format!("IPC command processing: {:.1}ms average", backend_metrics.ipc.avg_processing_time_ms));
-        key_findings.push(format!("System health score: {}/100", system_analysis.performance_score));
-        
+
+        key_findings.push(format!(
+            "Average database query time: {:.1}ms",
+            backend_metrics.database.avg_query_time_ms
+        ));
+        key_findings.push(format!(
+            "IPC command processing: {:.1}ms average",
+            backend_metrics.ipc.avg_processing_time_ms
+        ));
+        key_findings.push(format!(
+            "System health score: {}/100",
+            system_analysis.performance_score
+        ));
+
         // Business impact assessment
         let business_impact = BusinessImpact {
-            user_experience: if overall_score >= 80 { "positive" } else if overall_score >= 60 { "neutral" } else { "negative" }.to_string(),
-            productivity: if backend_metrics.ipc.avg_processing_time_ms < 50.0 { "positive" } else { "neutral" }.to_string(),
-            resource_efficiency: if system_analysis.performance_score >= 70.0 { "positive" } else { "neutral" }.to_string(),
+            user_experience: if overall_score >= 80 {
+                "positive"
+            } else if overall_score >= 60 {
+                "neutral"
+            } else {
+                "negative"
+            }
+            .to_string(),
+            productivity: if backend_metrics.ipc.avg_processing_time_ms < 50.0 {
+                "positive"
+            } else {
+                "neutral"
+            }
+            .to_string(),
+            resource_efficiency: if system_analysis.performance_score >= 70.0 {
+                "positive"
+            } else {
+                "neutral"
+            }
+            .to_string(),
             cost_implications: "minimal".to_string(),
-            scalability: if system_analysis.performance_score >= 80.0 { "good" } else { "needs_attention" }.to_string(),
+            scalability: if system_analysis.performance_score >= 80.0 {
+                "good"
+            } else {
+                "needs_attention"
+            }
+            .to_string(),
         };
-        
+
         Ok(ExecutiveSummary {
             overall_score,
             status: status.to_string(),
@@ -1272,7 +1325,7 @@ impl PerformanceAnalyticsEngine {
     /// Calculate backend performance score
     fn calculate_backend_score(&self, metrics: &BackendMetrics) -> f64 {
         let mut score: f64 = 100.0;
-        
+
         // Database performance impact (40%)
         let db_score = if metrics.database.avg_query_time_ms < 50.0 {
             1.0
@@ -1284,7 +1337,7 @@ impl PerformanceAnalyticsEngine {
             0.3
         };
         score *= 0.6 + (db_score * 0.4);
-        
+
         // IPC performance impact (30%)
         let ipc_score = if metrics.ipc.avg_processing_time_ms < 25.0 {
             1.0
@@ -1296,17 +1349,19 @@ impl PerformanceAnalyticsEngine {
             0.3
         };
         score *= 0.7 + (ipc_score * 0.3);
-        
+
         // Memory efficiency impact (20%)
-        let memory_score = if metrics.memory.growth_rate_bytes_per_min < 1024.0 * 1024.0 { // < 1MB/min
+        let memory_score = if metrics.memory.growth_rate_bytes_per_min < 1024.0 * 1024.0 {
+            // < 1MB/min
             1.0
-        } else if metrics.memory.growth_rate_bytes_per_min < 5.0 * 1024.0 * 1024.0 { // < 5MB/min
+        } else if metrics.memory.growth_rate_bytes_per_min < 5.0 * 1024.0 * 1024.0 {
+            // < 5MB/min
             0.8
         } else {
             0.5
         };
         score *= 0.8 + (memory_score * 0.2);
-        
+
         // Security overhead impact (10%)
         let security_score = if metrics.ipc.security_overhead_ms < 5.0 {
             1.0
@@ -1316,14 +1371,17 @@ impl PerformanceAnalyticsEngine {
             0.6
         };
         score *= 0.9 + (security_score * 0.1);
-        
+
         score.max(0.0).min(100.0)
     }
 
     /// Generate backend-specific analysis
-    fn generate_backend_analysis(&self, metrics: &BackendMetrics) -> Result<BackendAnalysis, AppError> {
+    fn generate_backend_analysis(
+        &self,
+        metrics: &BackendMetrics,
+    ) -> Result<BackendAnalysis, AppError> {
         let performance_score = self.calculate_backend_score(metrics) as u8;
-        
+
         // Database performance analysis
         let database_performance = DatabasePerformanceAnalysis {
             avg_query_time_ms: metrics.database.avg_query_time_ms,
@@ -1342,19 +1400,24 @@ impl PerformanceAnalyticsEngine {
             },
             slow_queries: Vec::new(), // Would be populated from actual slow query data
         };
-        
+
         // IPC performance analysis
         let ipc_performance = IpcPerformanceAnalysis {
             avg_processing_time_ms: metrics.ipc.avg_processing_time_ms,
             throughput_cps: 60.0 / metrics.ipc.avg_processing_time_ms * 1000.0, // Commands per second
-            error_rate: metrics.ipc.error_rates.values().sum::<f64>() / metrics.ipc.error_rates.len().max(1) as f64,
+            error_rate: metrics.ipc.error_rates.values().sum::<f64>()
+                / metrics.ipc.error_rates.len().max(1) as f64,
             top_commands: Vec::new(), // Would be populated from command frequency data
             command_performance: HashMap::new(), // Would be populated from detailed metrics
         };
-        
+
         // Search performance analysis
         let search_performance = SearchPerformanceAnalysis {
-            performance_score: if metrics.search.cache_performance.hit_rate > 0.8 { 90 } else { 75 },
+            performance_score: if metrics.search.cache_performance.hit_rate > 0.8 {
+                90
+            } else {
+                75
+            },
             simple_search: SearchTypeAnalysis {
                 avg_response_time_ms: 45.0, // Placeholder
                 p95_response_time_ms: 80.0,
@@ -1402,11 +1465,16 @@ impl PerformanceAnalyticsEngine {
                 ],
             },
         };
-        
+
         // Memory efficiency analysis
         let memory_efficiency = MemoryEfficiencyAnalysis {
-            utilization_score: if metrics.memory.growth_rate_bytes_per_min < 1024.0 * 1024.0 { 90 } else { 70 },
-            growth_rate_mb_per_hour: metrics.memory.growth_rate_bytes_per_min * 60.0 / (1024.0 * 1024.0),
+            utilization_score: if metrics.memory.growth_rate_bytes_per_min < 1024.0 * 1024.0 {
+                90
+            } else {
+                70
+            },
+            growth_rate_mb_per_hour: metrics.memory.growth_rate_bytes_per_min * 60.0
+                / (1024.0 * 1024.0),
             leak_indicators: Vec::new(), // Would be populated from memory analysis
             optimization_opportunities: vec![
                 "Monitor search result caching efficiency".to_string(),
@@ -1414,19 +1482,25 @@ impl PerformanceAnalyticsEngine {
             ],
             gc_efficiency: None, // Rust doesn't have traditional GC
         };
-        
+
         // Security overhead analysis
         let security_overhead = SecurityOverheadAnalysis {
             avg_validation_time_ms: metrics.ipc.security_overhead_ms,
-            overhead_percentage: (metrics.ipc.security_overhead_ms / metrics.ipc.avg_processing_time_ms) * 100.0,
+            overhead_percentage: (metrics.ipc.security_overhead_ms
+                / metrics.ipc.avg_processing_time_ms)
+                * 100.0,
             efficiency_by_operation: HashMap::new(), // Would be populated from detailed metrics
-            performance_score: if metrics.ipc.security_overhead_ms < 5.0 { 95 } else { 80 },
+            performance_score: if metrics.ipc.security_overhead_ms < 5.0 {
+                95
+            } else {
+                80
+            },
             optimizations: vec![
                 "Security validation is efficiently implemented".to_string(),
                 "Consider caching validation results for repeated operations".to_string(),
             ],
         };
-        
+
         Ok(BackendAnalysis {
             performance_score,
             database_performance,
@@ -1449,13 +1523,13 @@ impl PerformanceAnalyticsEngine {
             // Simple correlation based on performance scores
             let backend_score = self.calculate_backend_score(backend_metrics);
             let frontend_score = frontend.performance_score as f64;
-            
+
             // Calculate correlation (simplified)
             (backend_score * frontend_score) / 10000.0 * 2.0 - 1.0
         } else {
             0.0
         };
-        
+
         let correlation_strength = if correlation_coefficient.abs() > 0.7 {
             "strong"
         } else if correlation_coefficient.abs() > 0.4 {
@@ -1463,7 +1537,7 @@ impl PerformanceAnalyticsEngine {
         } else {
             "weak"
         };
-        
+
         let frontend_backend_correlation = ComponentCorrelation {
             correlation_coefficient,
             correlation_strength: correlation_strength.to_string(),
@@ -1479,17 +1553,24 @@ impl PerformanceAnalyticsEngine {
                     source_component: "backend_search".to_string(),
                     target_component: "database_fts".to_string(),
                     dependency_strength: 1.0,
-                    performance_impact: "Critical - search performance directly affects user experience".to_string(),
-                    optimization_opportunity: Some("Optimize FTS5 queries and indexing".to_string()),
+                    performance_impact:
+                        "Critical - search performance directly affects user experience".to_string(),
+                    optimization_opportunity: Some(
+                        "Optimize FTS5 queries and indexing".to_string(),
+                    ),
                 },
             ],
             optimization_impact: Vec::new(),
         };
-        
+
         // System impact analysis
         let system_impact_analysis = SystemImpactAnalysis {
             cpu_impact: ResourceImpact {
-                severity: if system_analysis.resource_utilization.cpu_status == "high" { "high".to_string() } else { "minimal".to_string() },
+                severity: if system_analysis.resource_utilization.cpu_status == "high" {
+                    "high".to_string()
+                } else {
+                    "minimal".to_string()
+                },
                 degradation_percentage: 5.0,
                 threshold_analysis: ThresholdAnalysis {
                     current_utilization: 25.0, // Placeholder
@@ -1504,7 +1585,11 @@ impl PerformanceAnalyticsEngine {
                 ],
             },
             memory_impact: ResourceImpact {
-                severity: if system_analysis.resource_utilization.memory_status == "high" { "moderate".to_string() } else { "minimal".to_string() },
+                severity: if system_analysis.resource_utilization.memory_status == "high" {
+                    "moderate".to_string()
+                } else {
+                    "minimal".to_string()
+                },
                 degradation_percentage: 3.0,
                 threshold_analysis: ThresholdAnalysis {
                     current_utilization: 35.0,
@@ -1519,7 +1604,11 @@ impl PerformanceAnalyticsEngine {
                 ],
             },
             io_impact: ResourceImpact {
-                severity: if system_analysis.resource_utilization.disk_status == "high" { "moderate".to_string() } else { "low".to_string() },
+                severity: if system_analysis.resource_utilization.disk_status == "high" {
+                    "moderate".to_string()
+                } else {
+                    "low".to_string()
+                },
                 degradation_percentage: 8.0,
                 threshold_analysis: ThresholdAnalysis {
                     current_utilization: 15.0,
@@ -1536,7 +1625,7 @@ impl PerformanceAnalyticsEngine {
             network_impact: None,
             system_health_correlation: 0.75,
         };
-        
+
         // End-to-end analysis
         let end_to_end_analysis = EndToEndAnalysis {
             user_journey_performance: vec![
@@ -1551,14 +1640,22 @@ impl PerformanceAnalyticsEngine {
                     step_name: "IPC Command Processing".to_string(),
                     duration_ms: backend_metrics.ipc.avg_processing_time_ms,
                     time_percentage: 40.0,
-                    performance_rating: if backend_metrics.ipc.avg_processing_time_ms < 50.0 { 90 } else { 70 },
+                    performance_rating: if backend_metrics.ipc.avg_processing_time_ms < 50.0 {
+                        90
+                    } else {
+                        70
+                    },
                     optimization_potential: "medium".to_string(),
                 },
                 JourneyStep {
                     step_name: "Database Query".to_string(),
                     duration_ms: backend_metrics.database.avg_query_time_ms,
                     time_percentage: 45.0,
-                    performance_rating: if backend_metrics.database.avg_query_time_ms < 50.0 { 95 } else { 75 },
+                    performance_rating: if backend_metrics.database.avg_query_time_ms < 50.0 {
+                        95
+                    } else {
+                        75
+                    },
                     optimization_potential: "high".to_string(),
                 },
                 JourneyStep {
@@ -1569,7 +1666,9 @@ impl PerformanceAnalyticsEngine {
                     optimization_potential: "low".to_string(),
                 },
             ],
-            total_latency_ms: backend_metrics.ipc.avg_processing_time_ms + backend_metrics.database.avg_query_time_ms + 15.0,
+            total_latency_ms: backend_metrics.ipc.avg_processing_time_ms
+                + backend_metrics.database.avg_query_time_ms
+                + 15.0,
             bottleneck_identification: Vec::new(),
             user_experience_impact: UserExperienceImpact {
                 overall_rating: 85,
@@ -1579,7 +1678,7 @@ impl PerformanceAnalyticsEngine {
                 satisfaction_prediction: "high".to_string(),
             },
         };
-        
+
         Ok(CrossComponentAnalysis {
             frontend_backend_correlation,
             system_impact_analysis,
@@ -1589,10 +1688,13 @@ impl PerformanceAnalyticsEngine {
     }
 
     /// Generate trends analysis
-    async fn generate_trends_analysis(&self, _period_hours: u32) -> Result<PerformanceTrends, AppError> {
+    async fn generate_trends_analysis(
+        &self,
+        _period_hours: u32,
+    ) -> Result<PerformanceTrends, AppError> {
         // This would analyze historical data for trends
         // For now, provide a basic implementation
-        
+
         Ok(PerformanceTrends {
             historical_trends: vec![
                 TrendAnalysis {
@@ -1667,7 +1769,7 @@ impl PerformanceAnalyticsEngine {
         let low_priority = Vec::new();
         let mut quick_wins = Vec::new();
         let mut strategic_improvements = Vec::new();
-        
+
         // Database optimization recommendations
         if backend_metrics.database.avg_query_time_ms > 100.0 {
             high_priority.push(OptimizationRecommendation {
@@ -1729,7 +1831,7 @@ impl PerformanceAnalyticsEngine {
                 ],
             });
         }
-        
+
         // Cache optimization (quick win)
         if backend_metrics.search.cache_performance.hit_rate < 0.8 {
             quick_wins.push(OptimizationRecommendation {
@@ -1756,7 +1858,9 @@ impl PerformanceAnalyticsEngine {
                             description: "Analyze cache patterns".to_string(),
                             estimated_duration: "1 hour".to_string(),
                             required_resources: Vec::new(),
-                            success_criteria: vec!["Identify cache optimization opportunities".to_string()],
+                            success_criteria: vec![
+                                "Identify cache optimization opportunities".to_string()
+                            ],
                         },
                         ImplementationStep {
                             step_number: 2,
@@ -1787,7 +1891,7 @@ impl PerformanceAnalyticsEngine {
                 ],
             });
         }
-        
+
         // System resource optimization
         if system_analysis.performance_score < 80.0 {
             medium_priority.push(OptimizationRecommendation {
@@ -1795,7 +1899,11 @@ impl PerformanceAnalyticsEngine {
                 category: "system".to_string(),
                 title: "Optimize System Resource Utilization".to_string(),
                 description: "Improve overall system health and resource efficiency".to_string(),
-                affected_components: vec!["system".to_string(), "memory".to_string(), "cpu".to_string()],
+                affected_components: vec![
+                    "system".to_string(),
+                    "memory".to_string(),
+                    "cpu".to_string(),
+                ],
                 expected_improvement: ExpectedImprovement {
                     performance_improvement: 10.0,
                     response_time_reduction: Some(5.0),
@@ -1806,7 +1914,10 @@ impl PerformanceAnalyticsEngine {
                 implementation: ImplementationDetails {
                     complexity: "moderate".to_string(),
                     estimated_effort_hours: 12.0,
-                    required_skills: vec!["System optimization".to_string(), "Memory profiling".to_string()],
+                    required_skills: vec![
+                        "System optimization".to_string(),
+                        "Memory profiling".to_string(),
+                    ],
                     dependencies: vec!["System monitoring tools".to_string()],
                     steps: vec![
                         ImplementationStep {
@@ -1838,7 +1949,9 @@ impl PerformanceAnalyticsEngine {
                 },
                 risk_assessment: OptimizationRisk {
                     risk_level: "medium".to_string(),
-                    potential_impacts: vec!["Potential system instability during optimization".to_string()],
+                    potential_impacts: vec![
+                        "Potential system instability during optimization".to_string()
+                    ],
                     rollback_strategy: "Revert system configuration changes".to_string(),
                     mitigation_steps: vec![
                         "Test in isolated environment".to_string(),
@@ -1852,20 +1965,22 @@ impl PerformanceAnalyticsEngine {
                 ],
             });
         }
-        
+
         // Strategic improvements
         strategic_improvements.push(OptimizationRecommendation {
             recommendation_id: "architecture_modernization".to_string(),
             category: "architecture".to_string(),
             title: "Performance Architecture Modernization".to_string(),
-            description: "Long-term architectural improvements for scalability and performance".to_string(),
+            description: "Long-term architectural improvements for scalability and performance"
+                .to_string(),
             affected_components: vec!["architecture".to_string(), "all_components".to_string()],
             expected_improvement: ExpectedImprovement {
                 performance_improvement: 50.0,
                 response_time_reduction: Some(100.0),
                 memory_reduction: Some(200 * 1024 * 1024), // 200MB
                 cpu_reduction: Some(20.0),
-                user_experience_improvement: "Dramatically improved application responsiveness".to_string(),
+                user_experience_improvement: "Dramatically improved application responsiveness"
+                    .to_string(),
             },
             implementation: ImplementationDetails {
                 complexity: "complex".to_string(),
@@ -1875,7 +1990,10 @@ impl PerformanceAnalyticsEngine {
                     "Performance engineering".to_string(),
                     "Database optimization".to_string(),
                 ],
-                dependencies: vec!["Architecture review".to_string(), "Performance baseline".to_string()],
+                dependencies: vec![
+                    "Architecture review".to_string(),
+                    "Performance baseline".to_string(),
+                ],
                 steps: vec![
                     ImplementationStep {
                         step_number: 1,
@@ -1924,7 +2042,7 @@ impl PerformanceAnalyticsEngine {
                 "95% reduction in performance alerts".to_string(),
             ],
         });
-        
+
         Ok(OptimizationRecommendations {
             high_priority,
             medium_priority,
@@ -1935,46 +2053,60 @@ impl PerformanceAnalyticsEngine {
     }
 
     /// Generate performance benchmarks
-    fn generate_performance_benchmarks(&self, backend_metrics: &BackendMetrics) -> Result<PerformanceBenchmarks, AppError> {
+    fn generate_performance_benchmarks(
+        &self,
+        backend_metrics: &BackendMetrics,
+    ) -> Result<PerformanceBenchmarks, AppError> {
         let current_vs_targets = vec![
             BenchmarkComparison {
                 metric: "Average Query Time".to_string(),
                 current_value: backend_metrics.database.avg_query_time_ms,
                 target_value: 50.0,
-                gap_percentage: ((backend_metrics.database.avg_query_time_ms - 50.0) / 50.0 * 100.0).max(0.0),
+                gap_percentage: ((backend_metrics.database.avg_query_time_ms - 50.0) / 50.0
+                    * 100.0)
+                    .max(0.0),
                 status: if backend_metrics.database.avg_query_time_ms <= 50.0 {
                     "meeting"
                 } else if backend_metrics.database.avg_query_time_ms <= 75.0 {
                     "approaching"
                 } else {
                     "missing"
-                }.to_string(),
+                }
+                .to_string(),
             },
             BenchmarkComparison {
                 metric: "IPC Processing Time".to_string(),
                 current_value: backend_metrics.ipc.avg_processing_time_ms,
                 target_value: 25.0,
-                gap_percentage: ((backend_metrics.ipc.avg_processing_time_ms - 25.0) / 25.0 * 100.0).max(0.0),
+                gap_percentage: ((backend_metrics.ipc.avg_processing_time_ms - 25.0) / 25.0
+                    * 100.0)
+                    .max(0.0),
                 status: if backend_metrics.ipc.avg_processing_time_ms <= 25.0 {
                     "meeting"
                 } else if backend_metrics.ipc.avg_processing_time_ms <= 40.0 {
                     "approaching"
                 } else {
                     "missing"
-                }.to_string(),
+                }
+                .to_string(),
             },
             BenchmarkComparison {
                 metric: "Cache Hit Rate".to_string(),
                 current_value: backend_metrics.search.cache_performance.hit_rate * 100.0,
                 target_value: 85.0,
-                gap_percentage: ((85.0 - backend_metrics.search.cache_performance.hit_rate * 100.0) / 85.0 * 100.0).max(0.0),
+                gap_percentage: ((85.0
+                    - backend_metrics.search.cache_performance.hit_rate * 100.0)
+                    / 85.0
+                    * 100.0)
+                    .max(0.0),
                 status: if backend_metrics.search.cache_performance.hit_rate >= 0.85 {
                     "meeting"
                 } else if backend_metrics.search.cache_performance.hit_rate >= 0.75 {
                     "approaching"
                 } else {
                     "missing"
-                }.to_string(),
+                }
+                .to_string(),
             },
         ];
 
@@ -1983,55 +2115,71 @@ impl PerformanceAnalyticsEngine {
                 HistoricalPeriod {
                     period: "Last Week".to_string(),
                     metrics: [
-                        ("avg_query_time".to_string(), backend_metrics.database.avg_query_time_ms * 1.1),
-                        ("ipc_processing_time".to_string(), backend_metrics.ipc.avg_processing_time_ms * 1.05),
-                    ].iter().cloned().collect(),
+                        (
+                            "avg_query_time".to_string(),
+                            backend_metrics.database.avg_query_time_ms * 1.1,
+                        ),
+                        (
+                            "ipc_processing_time".to_string(),
+                            backend_metrics.ipc.avg_processing_time_ms * 1.05,
+                        ),
+                    ]
+                    .iter()
+                    .cloned()
+                    .collect(),
                     performance_score: 78,
                 },
                 HistoricalPeriod {
                     period: "Current".to_string(),
                     metrics: [
-                        ("avg_query_time".to_string(), backend_metrics.database.avg_query_time_ms),
-                        ("ipc_processing_time".to_string(), backend_metrics.ipc.avg_processing_time_ms),
-                    ].iter().cloned().collect(),
+                        (
+                            "avg_query_time".to_string(),
+                            backend_metrics.database.avg_query_time_ms,
+                        ),
+                        (
+                            "ipc_processing_time".to_string(),
+                            backend_metrics.ipc.avg_processing_time_ms,
+                        ),
+                    ]
+                    .iter()
+                    .cloned()
+                    .collect(),
                     performance_score: 85,
                 },
             ],
             evolution_summary: "Performance has shown steady improvement".to_string(),
-            milestones: vec![
-                PerformanceMilestone {
-                    date: 1640995200000, // Example timestamp
-                    description: "Implemented FTS5 search optimization".to_string(),
-                    impact: "25% improvement in search performance".to_string(),
-                    lessons_learned: vec!["FTS5 configuration is critical for performance".to_string()],
-                },
-            ],
+            milestones: vec![PerformanceMilestone {
+                date: 1640995200000, // Example timestamp
+                description: "Implemented FTS5 search optimization".to_string(),
+                impact: "25% improvement in search performance".to_string(),
+                lessons_learned: vec!["FTS5 configuration is critical for performance".to_string()],
+            }],
         };
 
-        let performance_goals = vec![
-            PerformanceGoal {
-                goal_id: "query_time_goal".to_string(),
-                description: "Achieve sub-50ms average query time".to_string(),
-                metric: "avg_query_time_ms".to_string(),
-                target_value: 50.0,
-                target_date: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis() as u64 + (30 * 24 * 3600 * 1000), // 30 days from now
-                progress_percentage: if backend_metrics.database.avg_query_time_ms <= 50.0 {
-                    100.0
-                } else {
-                    ((100.0 - backend_metrics.database.avg_query_time_ms) / 50.0 * 100.0).max(0.0)
-                },
-                status: if backend_metrics.database.avg_query_time_ms <= 50.0 {
-                    "on_track"
-                } else if backend_metrics.database.avg_query_time_ms <= 75.0 {
-                    "at_risk"
-                } else {
-                    "off_track"
-                }.to_string(),
+        let performance_goals = vec![PerformanceGoal {
+            goal_id: "query_time_goal".to_string(),
+            description: "Achieve sub-50ms average query time".to_string(),
+            metric: "avg_query_time_ms".to_string(),
+            target_value: 50.0,
+            target_date: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64
+                + (30 * 24 * 3600 * 1000), // 30 days from now
+            progress_percentage: if backend_metrics.database.avg_query_time_ms <= 50.0 {
+                100.0
+            } else {
+                ((100.0 - backend_metrics.database.avg_query_time_ms) / 50.0 * 100.0).max(0.0)
             },
-        ];
+            status: if backend_metrics.database.avg_query_time_ms <= 50.0 {
+                "on_track"
+            } else if backend_metrics.database.avg_query_time_ms <= 75.0 {
+                "at_risk"
+            } else {
+                "off_track"
+            }
+            .to_string(),
+        }];
 
         Ok(PerformanceBenchmarks {
             current_vs_targets,
@@ -2050,7 +2198,7 @@ impl PerformanceAnalyticsEngine {
         let mut performance_risks = Vec::new();
         let mut stability_risks = Vec::new();
         let mut scalability_risks = Vec::new();
-        
+
         // Performance risks
         if backend_metrics.database.avg_query_time_ms > 100.0 {
             performance_risks.push(PerformanceRisk {
@@ -2061,7 +2209,7 @@ impl PerformanceAnalyticsEngine {
                 mitigation_strategy: "Implement database optimization plan".to_string(),
             });
         }
-        
+
         // Stability risks
         if system_analysis.performance_score < 70.0 {
             stability_risks.push(StabilityRisk {
@@ -2069,13 +2217,20 @@ impl PerformanceAnalyticsEngine {
                 description: "System health score indicates potential stability issues".to_string(),
                 probability: 0.4,
                 impact: "medium".to_string(),
-                indicators: vec!["Low system health score".to_string(), "Resource utilization imbalance".to_string()],
-                preventive_measures: vec!["Implement system monitoring alerts".to_string(), "Optimize resource usage".to_string()],
+                indicators: vec![
+                    "Low system health score".to_string(),
+                    "Resource utilization imbalance".to_string(),
+                ],
+                preventive_measures: vec![
+                    "Implement system monitoring alerts".to_string(),
+                    "Optimize resource usage".to_string(),
+                ],
             });
         }
-        
+
         // Scalability risks
-        if backend_metrics.memory.growth_rate_bytes_per_min > 5.0 * 1024.0 * 1024.0 { // > 5MB/min
+        if backend_metrics.memory.growth_rate_bytes_per_min > 5.0 * 1024.0 * 1024.0 {
+            // > 5MB/min
             scalability_risks.push(ScalabilityRisk {
                 risk_id: "memory_scalability".to_string(),
                 description: "High memory growth rate may limit scalability".to_string(),
@@ -2084,15 +2239,19 @@ impl PerformanceAnalyticsEngine {
                 scaling_strategy: "Implement memory optimization and monitoring".to_string(),
             });
         }
-        
-        let overall_risk_level = if !performance_risks.is_empty() && performance_risks.iter().any(|r| r.impact_severity == "high") {
+
+        let overall_risk_level = if !performance_risks.is_empty()
+            && performance_risks
+                .iter()
+                .any(|r| r.impact_severity == "high")
+        {
             "high"
         } else if !stability_risks.is_empty() || !scalability_risks.is_empty() {
             "medium"
         } else {
             "low"
         };
-        
+
         let mitigation_roadmap = vec![
             RiskMitigationItem {
                 priority: "high".to_string(),
@@ -2111,7 +2270,7 @@ impl PerformanceAnalyticsEngine {
                 success_criteria: vec!["Average query time < 50ms".to_string()],
             },
         ];
-        
+
         Ok(RiskAssessment {
             overall_risk_level: overall_risk_level.to_string(),
             performance_risks,
@@ -2123,7 +2282,8 @@ impl PerformanceAnalyticsEngine {
 }
 
 /// Global performance analytics engine instance
-static ANALYTICS_ENGINE: std::sync::OnceLock<PerformanceAnalyticsEngine> = std::sync::OnceLock::new();
+static ANALYTICS_ENGINE: std::sync::OnceLock<PerformanceAnalyticsEngine> =
+    std::sync::OnceLock::new();
 
 /// Get the global performance analytics engine
 pub fn get_analytics_engine() -> &'static PerformanceAnalyticsEngine {

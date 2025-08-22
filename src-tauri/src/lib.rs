@@ -9,23 +9,24 @@ use crate::window_manager::WindowManager;
 use std::sync::Arc;
 use tauri::Manager;
 
+pub mod cli;
 pub mod commands;
 pub mod database;
 pub mod error;
 pub mod global_shortcut;
-#[cfg(test)] pub mod ipc_tests;
+#[cfg(test)]
+pub mod ipc_tests;
 pub mod models;
+pub mod performance;
 pub mod plugin;
 pub mod plugin_integration_test;
 pub mod search;
 pub mod security_tests;
 pub mod settings;
 pub mod shutdown;
-pub mod validation;
-pub mod window_manager;
-pub mod cli;
 pub mod traits; // Add traits module
-pub mod performance; // Add performance monitoring module
+pub mod validation;
+pub mod window_manager; // Add performance monitoring module
 
 // Add testing module for comprehensive service testing framework
 #[cfg(test)]
@@ -47,47 +48,45 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             // Initialize database
-            let db_path = app.path().app_data_dir()
+            let db_path = app
+                .path()
+                .app_data_dir()
                 .unwrap_or_else(|_| std::env::current_dir().unwrap())
                 .join("scratch-pad.db");
-            
+
             // Create database connection with enhanced error handling
             // Fix: Convert Cow<str> to &str properly
             let db_service = DbService::new(db_path.to_string_lossy().as_ref())?;
             let db_service_arc = Arc::new(db_service);
-            
+
             // Initialize search service
             // Fix: Pass Arc<DbService> instead of DbService
             let search_service = SearchService::new(db_service_arc.clone());
-            
-            // Initialize settings service  
+
+            // Initialize settings service
             // Fix: Pass Arc<DbService> instead of DbService
             let settings_service = SettingsService::new(db_service_arc.clone());
             let settings_service_arc = Arc::new(settings_service);
-            
+
             // Initialize global shortcut service
             // Fix: Pass both AppHandle and Arc<SettingsService>
-            let global_shortcut_service = GlobalShortcutService::new(
-                app.handle().clone(), 
-                settings_service_arc.clone()
-            );
-            
+            let global_shortcut_service =
+                GlobalShortcutService::new(app.handle().clone(), settings_service_arc.clone());
+
             // Initialize window manager
             // Fix: Pass both AppHandle and Arc<SettingsService>
-            let window_manager = WindowManager::new(
-                app.handle().clone(),
-                settings_service_arc.clone()
-            );
-            
+            let window_manager =
+                WindowManager::new(app.handle().clone(), settings_service_arc.clone());
+
             // Initialize plugin manager
             let plugin_manager = PluginManager::new();
-            
+
             // Initialize security validator
             let security_validator = SecurityValidator::new();
-            
+
             // Initialize shutdown manager
             let shutdown_manager = ShutdownManager::new();
-            
+
             // Set up application state
             let state = AppState {
                 db: db_service_arc,
@@ -99,29 +98,31 @@ pub fn run() {
                 security_validator: Arc::new(security_validator),
                 shutdown_manager: Arc::new(shutdown_manager),
             };
-            
+
             // Store state in Tauri's state management
             app.manage(state);
-            
+
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_global_shortcut::Builder::default()
-            .with_handler(|_app, _shortcut, event| {
-                println!("Global shortcut triggered: {:?}", event);
-            })
-            .build())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::default()
+                .with_handler(|_app, _shortcut, event| {
+                    println!("Global shortcut triggered: {:?}", event);
+                })
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![
             commands::notes::create_note,
             commands::notes::update_note,
             commands::notes::delete_note,
-            commands::notes::get_all_notes,  // Fix: Use get_all_notes instead of get_notes
+            commands::notes::get_all_notes, // Fix: Use get_all_notes instead of get_notes
             commands::search::search_notes,
             commands::search::search_notes_paginated,
             commands::search::search_notes_boolean_paginated,
             commands::search::validate_boolean_search_query,
             commands::settings::save_settings,
-            commands::settings::register_global_shortcut,  // Fix: Use settings module path
+            commands::settings::register_global_shortcut, // Fix: Use settings module path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

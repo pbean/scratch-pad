@@ -1,8 +1,8 @@
 use crate::error::AppError;
 use regex::Regex;
-use std::path::{Path, PathBuf};
-use std::ffi::OsStr;
 use std::collections::HashMap;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 // use std::fs;  // Unused import - commented out
@@ -61,8 +61,13 @@ impl OperationContext {
         Self {
             source: OperationSource::CLI,
             capabilities,
-            operation_id: format!("cli_{}", 
-                SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros()),
+            operation_id: format!(
+                "cli_{}",
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros()
+            ),
             frequency_limit: Some(10), // CLI operations are typically batched
         }
     }
@@ -72,8 +77,13 @@ impl OperationContext {
         Self {
             source: OperationSource::IPC,
             capabilities,
-            operation_id: format!("ipc_{}", 
-                SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros()),
+            operation_id: format!(
+                "ipc_{}",
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros()
+            ),
             frequency_limit: Some(15), // IPC has slightly higher frequency tolerance
         }
     }
@@ -83,19 +93,32 @@ impl OperationContext {
         Self {
             source: OperationSource::Direct,
             capabilities,
-            operation_id: format!("direct_{}", 
-                SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros()),
+            operation_id: format!(
+                "direct_{}",
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros()
+            ),
             frequency_limit: Some(100), // Direct UI operations can be frequent
         }
     }
 
     /// Create Plugin operation context with configurable frequency limits
-    pub fn new_plugin(capabilities: Vec<OperationCapability>, frequency_limit: Option<u32>) -> Self {
+    pub fn new_plugin(
+        capabilities: Vec<OperationCapability>,
+        frequency_limit: Option<u32>,
+    ) -> Self {
         Self {
             source: OperationSource::Plugin,
             capabilities,
-            operation_id: format!("plugin_{}", 
-                SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros()),
+            operation_id: format!(
+                "plugin_{}",
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros()
+            ),
             frequency_limit, // Plugin frequency limits are configurable
         }
     }
@@ -106,8 +129,13 @@ impl OperationContext {
         Self {
             source: OperationSource::Test,
             capabilities,
-            operation_id: format!("test_{}", 
-                SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros()),
+            operation_id: format!(
+                "test_{}",
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros()
+            ),
             frequency_limit: None, // No frequency limits for tests
         }
     }
@@ -131,11 +159,11 @@ impl FrequencyTracker {
 
     fn cleanup_old_entries(&mut self) {
         let cutoff = Instant::now() - Duration::from_secs(60);
-        
+
         for (_source, timestamps) in self.operation_counts.iter_mut() {
             timestamps.retain(|&timestamp| timestamp > cutoff);
         }
-        
+
         self.last_cleanup = Instant::now();
     }
 
@@ -145,13 +173,19 @@ impl FrequencyTracker {
             self.cleanup_old_entries();
         }
 
-        let timestamps = self.operation_counts.entry(source.clone()).or_insert_with(Vec::new);
+        let timestamps = self
+            .operation_counts
+            .entry(source.clone())
+            .or_insert_with(Vec::new);
         let current_count = timestamps.len() as u32;
 
         if current_count >= limit {
             return Err(AppError::Validation {
                 field: "frequency".to_string(),
-                message: format!("Operation frequency limit exceeded: {} operations in the last minute", current_count),
+                message: format!(
+                    "Operation frequency limit exceeded: {} operations in the last minute",
+                    current_count
+                ),
             });
         }
 
@@ -169,10 +203,10 @@ pub struct SecurityValidator {
 impl SecurityValidator {
     /// Maximum allowed note content length (1MB)
     pub const MAX_NOTE_CONTENT_LENGTH: usize = 1_000_000;
-    
+
     /// Maximum allowed setting value length
     pub const MAX_SETTING_LENGTH: usize = 10_000;
-    
+
     /// Create a new security validator
     pub fn new() -> Self {
         Self {
@@ -200,12 +234,19 @@ impl SecurityValidator {
     }
 
     /// Validate note content to prevent malicious patterns
-    pub fn validate_note_content(&self, content: &str, context: &OperationContext) -> Result<(), AppError> {
+    pub fn validate_note_content(
+        &self,
+        content: &str,
+        context: &OperationContext,
+    ) -> Result<(), AppError> {
         // Validate operation context first
         self.validate_operation_context(context)?;
-        
+
         // Check that source has WriteNotes capability
-        if !context.capabilities.contains(&OperationCapability::WriteNotes) {
+        if !context
+            .capabilities
+            .contains(&OperationCapability::WriteNotes)
+        {
             return Err(AppError::Validation {
                 field: "capability".to_string(),
                 message: "Write notes capability required".to_string(),
@@ -218,7 +259,8 @@ impl SecurityValidator {
 
     /// Static note content validation (legacy method for backwards compatibility)
     pub fn validate_note_content_static(content: &str) -> Result<(), AppError> {
-        if content.len() > 1_000_000 { // 1MB limit
+        if content.len() > 1_000_000 {
+            // 1MB limit
             return Err(AppError::Validation {
                 field: "content".to_string(),
                 message: "Note content too large".to_string(),
@@ -227,12 +269,26 @@ impl SecurityValidator {
 
         // Check for potentially dangerous patterns
         let dangerous_patterns = [
-            "<script", "javascript:", "vbscript:", 
-            "eval(", "exec(", "system(",
-            "onerror=", "onload=", "onclick=", "onmouseover=",
-            "<img ", "<iframe", "<object", "<embed",
-            "<?php", "<%", "`rm ", "$(", 
-            "<!-- ", "-->",
+            "<script",
+            "javascript:",
+            "vbscript:",
+            "eval(",
+            "exec(",
+            "system(",
+            "onerror=",
+            "onload=",
+            "onclick=",
+            "onmouseover=",
+            "<img ",
+            "<iframe",
+            "<object",
+            "<embed",
+            "<?php",
+            "<%",
+            "`rm ",
+            "$(",
+            "<!-- ",
+            "-->",
         ];
 
         let content_lower = content.to_lowercase();
@@ -249,10 +305,14 @@ impl SecurityValidator {
     }
 
     /// Validate search query with operation context
-    pub fn validate_search_query_with_context(&self, query: &str, context: &OperationContext) -> Result<(), AppError> {
+    pub fn validate_search_query_with_context(
+        &self,
+        query: &str,
+        context: &OperationContext,
+    ) -> Result<(), AppError> {
         // Validate operation context first
         self.validate_operation_context(context)?;
-        
+
         // Check that source has Search capability
         if !context.capabilities.contains(&OperationCapability::Search) {
             return Err(AppError::Validation {
@@ -260,11 +320,11 @@ impl SecurityValidator {
                 message: "Search capability required".to_string(),
             });
         }
-        
+
         // Perform standard search validation
         Self::validate_search_query(query)
     }
-    
+
     /// Validates search queries to prevent injection attacks (legacy method)
     pub fn validate_search_query(query: &str) -> Result<(), AppError> {
         if query.len() > 1000 {
@@ -273,9 +333,9 @@ impl SecurityValidator {
                 message: "Search query too long".to_string(),
             });
         }
-        
+
         let query_lower = query.to_lowercase();
-        
+
         // Check for path traversal patterns
         if query.contains("..") || query.contains("~") {
             return Err(AppError::Validation {
@@ -283,15 +343,26 @@ impl SecurityValidator {
                 message: "Search query contains potentially dangerous content".to_string(),
             });
         }
-        
+
         // Check for XSS and script injection patterns first
         let dangerous_xss_patterns = [
-            "<script", "</script>", "javascript:", "vbscript:",
-            "<img", "<iframe", "<object", "<embed",
-            "onerror=", "onload=", "onclick=", "onmouseover=",
-            "eval(", "exec(", "system(",
+            "<script",
+            "</script>",
+            "javascript:",
+            "vbscript:",
+            "<img",
+            "<iframe",
+            "<object",
+            "<embed",
+            "onerror=",
+            "onload=",
+            "onclick=",
+            "onmouseover=",
+            "eval(",
+            "exec(",
+            "system(",
         ];
-        
+
         for pattern in &dangerous_xss_patterns {
             if query_lower.contains(pattern) {
                 return Err(AppError::Validation {
@@ -300,44 +371,49 @@ impl SecurityValidator {
                 });
             }
         }
-        
+
         // Check for SQL injection patterns in FTS queries
         let dangerous_sql_patterns = [
-            "drop", "delete", "insert", "update", "create", "alter",
-            "exec", "execute", "union", "select", "exists", "from", "table"
+            "drop", "delete", "insert", "update", "create", "alter", "exec", "execute", "union",
+            "select", "exists", "from", "table",
         ];
-        
+
         // Check for SQL keywords with common injection patterns
         for pattern in &dangerous_sql_patterns {
             // Check if the pattern appears as a word (not as part of another word)
             // This prevents false positives like "selected" or "inserted"
             let word_patterns = [
-                format!(" {} ", pattern),   // word surrounded by spaces
-                format!("'{}", pattern),     // after quote
-                format!("' {}", pattern),    // after quote with space
-                format!(";{}", pattern),     // after semicolon
-                format!("; {}", pattern),    // after semicolon with space
-                format!("--{}", pattern),    // after comment
-                format!("-- {}", pattern),   // after comment with space
-                format!("/*{}", pattern),    // in comment
-                format!("({})", pattern),    // in parentheses
-                format!(" {}(", pattern),    // function call
-                format!("^{} ", pattern),    // at start of string
-                format!("^{}", pattern),     // at very start
+                format!(" {} ", pattern),  // word surrounded by spaces
+                format!("'{}", pattern),   // after quote
+                format!("' {}", pattern),  // after quote with space
+                format!(";{}", pattern),   // after semicolon
+                format!("; {}", pattern),  // after semicolon with space
+                format!("--{}", pattern),  // after comment
+                format!("-- {}", pattern), // after comment with space
+                format!("/*{}", pattern),  // in comment
+                format!("({})", pattern),  // in parentheses
+                format!(" {}(", pattern),  // function call
+                format!("^{} ", pattern),  // at start of string
+                format!("^{}", pattern),   // at very start
             ];
-            
+
             // Also check if it's at the beginning or end of the string
-            if query_lower.starts_with(&format!("{} ", pattern)) ||
-               query_lower.starts_with(pattern) && (query_lower.len() == pattern.len() || 
-                   query_lower.chars().nth(pattern.len()).map_or(false, |c| !c.is_alphabetic())) ||
-               query_lower.ends_with(&format!(" {}", pattern)) ||
-               query_lower == *pattern {
+            if query_lower.starts_with(&format!("{} ", pattern))
+                || query_lower.starts_with(pattern)
+                    && (query_lower.len() == pattern.len()
+                        || query_lower
+                            .chars()
+                            .nth(pattern.len())
+                            .map_or(false, |c| !c.is_alphabetic()))
+                || query_lower.ends_with(&format!(" {}", pattern))
+                || query_lower == *pattern
+            {
                 return Err(AppError::Validation {
                     field: "search_query".to_string(),
                     message: "Search query contains potentially dangerous content".to_string(),
                 });
             }
-            
+
             for wp in &word_patterns {
                 if query_lower.contains(wp) {
                     return Err(AppError::Validation {
@@ -347,15 +423,37 @@ impl SecurityValidator {
                 }
             }
         }
-        
+
         // Check for specific SQL injection patterns
         let injection_patterns = [
-            "'--", "';", "';--", "/*", "*/", "xp_", "sp_", "1=1", "'='", 
-            "' or '1'='1", "admin'--", " or exists", " or 1=", "' or 1=", "' or exists",
-            "${jndi:", "ldap://", "rmi://", "dns://", "iiop://", "file://", "http://",
-            "sqlite_master", "sqlite_sequence", "pragma", "attach database"
+            "'--",
+            "';",
+            "';--",
+            "/*",
+            "*/",
+            "xp_",
+            "sp_",
+            "1=1",
+            "'='",
+            "' or '1'='1",
+            "admin'--",
+            " or exists",
+            " or 1=",
+            "' or 1=",
+            "' or exists",
+            "${jndi:",
+            "ldap://",
+            "rmi://",
+            "dns://",
+            "iiop://",
+            "file://",
+            "http://",
+            "sqlite_master",
+            "sqlite_sequence",
+            "pragma",
+            "attach database",
         ];
-        
+
         for pattern in &injection_patterns {
             if query_lower.contains(pattern) {
                 return Err(AppError::Validation {
@@ -364,23 +462,31 @@ impl SecurityValidator {
                 });
             }
         }
-        
+
         Ok(())
     }
 
     /// Validate export path to prevent path traversal attacks
-    pub fn validate_export_path_with_context(&self, path: &str, base_path: Option<&Path>, context: &OperationContext) -> Result<PathBuf, AppError> {
+    pub fn validate_export_path_with_context(
+        &self,
+        path: &str,
+        base_path: Option<&Path>,
+        context: &OperationContext,
+    ) -> Result<PathBuf, AppError> {
         // Validate operation context first
         self.validate_operation_context(context)?;
-        
+
         // Check that source has FileExport capability
-        if !context.capabilities.contains(&OperationCapability::FileExport) {
+        if !context
+            .capabilities
+            .contains(&OperationCapability::FileExport)
+        {
             return Err(AppError::Validation {
                 field: "capability".to_string(),
                 message: "File export capability required".to_string(),
             });
         }
-        
+
         // Perform path validation
         Self::validate_export_path(path, base_path)
     }
@@ -405,7 +511,8 @@ impl SecurityValidator {
 
         // Validate filename contains only safe characters
         let safe_filename_regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
-        let filename = Path::new(path).file_name()
+        let filename = Path::new(path)
+            .file_name()
             .and_then(OsStr::to_str)
             .ok_or_else(|| AppError::Validation {
                 field: "file_path".to_string(),
@@ -454,14 +561,14 @@ impl SecurityValidator {
                 message: "Shortcut cannot be empty".to_string(),
             });
         }
-        
+
         if shortcut.len() > 50 {
             return Err(AppError::Validation {
                 field: "shortcut".to_string(),
                 message: "Shortcut string too long".to_string(),
             });
         }
-        
+
         // Basic format validation (modifier keys + main key)
         let shortcut_regex = Regex::new(r"^([A-Za-z]+\+)*[A-Za-z0-9]+$").unwrap();
         if !shortcut_regex.is_match(shortcut) {
@@ -470,7 +577,7 @@ impl SecurityValidator {
                 message: "Invalid shortcut format".to_string(),
             });
         }
-        
+
         // Check for potentially dangerous patterns
         let dangerous_patterns = ["<script", "javascript:", "eval("];
         let shortcut_lower = shortcut.to_lowercase();
@@ -482,7 +589,7 @@ impl SecurityValidator {
                 });
             }
         }
-        
+
         Ok(())
     }
 
@@ -494,7 +601,7 @@ impl SecurityValidator {
                 message: "ID must be positive".to_string(),
             });
         }
-        
+
         // Reasonable upper bound check
         if id > 1_000_000_000_000 {
             return Err(AppError::Validation {
@@ -502,7 +609,7 @@ impl SecurityValidator {
                 message: "ID too large".to_string(),
             });
         }
-        
+
         Ok(())
     }
 
@@ -514,44 +621,52 @@ impl SecurityValidator {
                 message: "Offset cannot be negative".to_string(),
             });
         }
-        
+
         if limit <= 0 {
             return Err(AppError::Validation {
                 field: "limit".to_string(),
                 message: "Limit must be positive".to_string(),
             });
         }
-        
+
         if limit > 1000 {
             return Err(AppError::Validation {
                 field: "limit".to_string(),
                 message: "Limit too large (maximum 1000)".to_string(),
             });
         }
-        
+
         if offset > 100_000 {
             return Err(AppError::Validation {
                 field: "offset".to_string(),
                 message: "Offset too large (maximum 100,000)".to_string(),
             });
         }
-        
+
         Ok(())
     }
 
     /// Enhanced setting validation with operation context
-    pub fn validate_setting_with_context(&self, key: &str, value: &str, context: &OperationContext) -> Result<(), AppError> {
+    pub fn validate_setting_with_context(
+        &self,
+        key: &str,
+        value: &str,
+        context: &OperationContext,
+    ) -> Result<(), AppError> {
         // Validate operation context first
         self.validate_operation_context(context)?;
-        
+
         // Check that source has SystemAccess capability
-        if !context.capabilities.contains(&OperationCapability::SystemAccess) {
+        if !context
+            .capabilities
+            .contains(&OperationCapability::SystemAccess)
+        {
             return Err(AppError::Validation {
                 field: "capability".to_string(),
                 message: "System access capability required".to_string(),
             });
         }
-        
+
         // Perform standard setting validation
         Self::validate_setting(key, value)
     }
@@ -565,7 +680,7 @@ impl SecurityValidator {
                 message: "Setting key length invalid".to_string(),
             });
         }
-        
+
         // Key should be alphanumeric with dots, underscores, and hyphens
         let key_regex = Regex::new(r"^[a-zA-Z0-9_.-]+$").unwrap();
         if !key_regex.is_match(key) {
@@ -574,7 +689,7 @@ impl SecurityValidator {
                 message: "Setting key contains invalid characters".to_string(),
             });
         }
-        
+
         // Value validation
         if value.len() > 10_000 {
             return Err(AppError::Validation {
@@ -582,11 +697,18 @@ impl SecurityValidator {
                 message: "Setting value too long".to_string(),
             });
         }
-        
+
         // Check for dangerous patterns in value
         let dangerous_patterns = [
-            "<script", "javascript:", "eval(", "exec(",
-            "`", "$(", ";", "|", "&",
+            "<script",
+            "javascript:",
+            "eval(",
+            "exec(",
+            "`",
+            "$(",
+            ";",
+            "|",
+            "&",
         ];
         let value_lower = value.to_lowercase();
         for pattern in &dangerous_patterns {
@@ -597,7 +719,7 @@ impl SecurityValidator {
                 });
             }
         }
-        
+
         Ok(())
     }
 
@@ -605,24 +727,32 @@ impl SecurityValidator {
     pub fn sanitize_content(content: &str) -> String {
         // Replace dangerous HTML/JS patterns
         let mut sanitized = content.to_string();
-        
+
         // Replace script tags
         sanitized = sanitized.replace("<script", "&lt;script");
         sanitized = sanitized.replace("</script", "&lt;/script");
-        
+
         // Replace javascript URLs
         sanitized = sanitized.replace("javascript:", "data:");
-        
+
         // Replace dangerous event handlers
         let event_handlers = [
-            "onload=", "onerror=", "onclick=", "onmouseover=", "onmouseout=",
-            "onfocus=", "onblur=", "onchange=", "onsubmit=", "onkeypress=",
+            "onload=",
+            "onerror=",
+            "onclick=",
+            "onmouseover=",
+            "onmouseout=",
+            "onfocus=",
+            "onblur=",
+            "onchange=",
+            "onsubmit=",
+            "onkeypress=",
         ];
-        
+
         for handler in &event_handlers {
             sanitized = sanitized.replace(handler, &format!("data-{}", handler));
         }
-        
+
         sanitized
     }
 
@@ -630,19 +760,22 @@ impl SecurityValidator {
     pub fn clean_dangerous_content(content: &str) -> (String, i32) {
         let mut cleaned = content.to_string();
         let mut cleaned_count = 0;
-        
+
         // Remove script tags entirely using simple string replacement
         if cleaned.to_lowercase().contains("<script") {
-            cleaned = cleaned.to_lowercase().replace("<script", "").replace("</script", "");
+            cleaned = cleaned
+                .to_lowercase()
+                .replace("<script", "")
+                .replace("</script", "");
             cleaned_count += 1;
         }
-        
+
         // Remove javascript: URLs
         if cleaned.to_lowercase().contains("javascript:") {
             cleaned = cleaned.to_lowercase().replace("javascript:", "");
             cleaned_count += 1;
         }
-        
+
         // Remove basic event handlers
         let event_handlers = ["onerror=", "onload=", "onclick="];
         for handler in &event_handlers {
@@ -651,7 +784,7 @@ impl SecurityValidator {
                 cleaned_count += 1;
             }
         }
-        
+
         (cleaned, cleaned_count)
     }
 
@@ -673,14 +806,14 @@ impl SecurityValidator {
             "..%0d",
             "..%0a",
         ];
-        
+
         let path_lower = path.to_lowercase();
         for pattern in &patterns {
             if path_lower.contains(pattern) {
                 return true;
             }
         }
-        
+
         // Check for encoded variations by manually decoding common patterns
         if path.contains("%") {
             // Simple URL decode for common patterns
@@ -692,73 +825,73 @@ impl SecurityValidator {
                 .replace("%5c", "\\")
                 .replace("%5C", "\\")
                 .replace("%00", "\0");
-                
+
             if decoded != path {
                 return Self::contains_path_traversal(&decoded);
             }
         }
-        
+
         false
     }
-    
+
     /// Sanitize content for safe database storage
     pub fn sanitize_for_database(content: &str) -> String {
         let mut sanitized = content.to_string();
-        
+
         // Remove null bytes
         sanitized = sanitized.replace('\0', "");
-        
+
         // Escape single quotes for SQL (basic protection)
         sanitized = sanitized.replace("'", "''");
-        
+
         // Remove control characters except newlines and tabs
-        sanitized = sanitized.chars()
+        sanitized = sanitized
+            .chars()
             .filter(|c| !c.is_control() || *c == '\n' || *c == '\t' || *c == '\r')
             .collect();
-        
+
         sanitized
     }
-    
+
     /// Validate file extension for allowed types
     pub fn validate_file_extension(path: &str) -> Result<(), String> {
-        let allowed_extensions = [
-            "txt", "md", "json", "yaml", "yml", "toml", "csv", "log"
-        ];
-        
+        let allowed_extensions = ["txt", "md", "json", "yaml", "yml", "toml", "csv", "log"];
+
         let path_lower = path.to_lowercase();
         let extension = path_lower.rsplit('.').next().unwrap_or("");
-        
+
         if extension.is_empty() {
             return Err("No file extension found".to_string());
         }
-        
+
         if !allowed_extensions.contains(&extension) {
             return Err(format!("File extension '{}' not allowed", extension));
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate IPC request structure and content
     pub fn validate_ipc_request(request: &str) -> Result<(), String> {
         // Check request size
-        if request.len() > 1024 * 1024 {  // 1MB limit
+        if request.len() > 1024 * 1024 {
+            // 1MB limit
             return Err("IPC request too large".to_string());
         }
-        
+
         // Check for null bytes
         if request.contains('\0') {
             return Err("IPC request contains null bytes".to_string());
         }
-        
+
         // Basic structure validation (could be expanded based on actual IPC format)
         if request.trim().is_empty() {
             return Err("IPC request is empty".to_string());
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate IPC file operation requests
     pub fn validate_ipc_file_operation(operation: &str, path: &str) -> Result<(), String> {
         // Validate operation type
@@ -766,46 +899,52 @@ impl SecurityValidator {
         if !valid_operations.contains(&operation) {
             return Err(format!("Invalid file operation: {}", operation));
         }
-        
+
         // Check for path traversal
         if Self::contains_path_traversal(path) {
             return Err("Path traversal detected in file operation".to_string());
         }
-        
+
         // Validate path format - use None for base_path as we don't have context here
         Self::validate_export_path(path, None).map_err(|e| e.to_string())?;
-        
+
         Ok(())
     }
-    
+
     /// Validate content for malicious patterns
     pub fn validate_no_malicious_content(content: &str) -> Result<(), String> {
         // Check for script tags
         if content.to_lowercase().contains("<script") {
             return Err("Content contains script tags".to_string());
         }
-        
+
         // Check for javascript: URLs
         if content.to_lowercase().contains("javascript:") {
             return Err("Content contains javascript: URLs".to_string());
         }
-        
+
         // Check for event handlers
-        let event_handlers = ["onerror=", "onload=", "onclick=", "onmouseover=", "onfocus="];
+        let event_handlers = [
+            "onerror=",
+            "onload=",
+            "onclick=",
+            "onmouseover=",
+            "onfocus=",
+        ];
         for handler in &event_handlers {
             if content.to_lowercase().contains(handler) {
                 return Err(format!("Content contains event handler: {}", handler));
             }
         }
-        
+
         // Check for iframe tags
         if content.to_lowercase().contains("<iframe") {
             return Err("Content contains iframe tags".to_string());
         }
-        
+
         Ok(())
     }
-    
+
     /// Clean up all temporary files (placeholder for actual implementation)
     pub fn cleanup_all_temp_files() -> Result<(), String> {
         // This would typically clean up temp files created during operations
@@ -824,7 +963,7 @@ mod tests {
         let cli_context = OperationContext::new_cli(vec![OperationCapability::WriteNotes]);
         assert_eq!(cli_context.source, OperationSource::CLI);
         assert_eq!(cli_context.frequency_limit, Some(10));
-        
+
         let direct_context = OperationContext::new_direct(vec![OperationCapability::ReadNotes]);
         assert_eq!(direct_context.source, OperationSource::Direct);
         assert_eq!(direct_context.frequency_limit, Some(100));
@@ -833,7 +972,7 @@ mod tests {
     #[test]
     fn test_security_validator_creation() {
         let validator = SecurityValidator::new();
-        
+
         // Test basic functionality
         let context = OperationContext::new_test(vec![OperationCapability::ReadNotes]);
         assert!(validator.validate_operation_context(&context).is_ok());
@@ -843,9 +982,12 @@ mod tests {
     fn test_note_content_validation() {
         // Should allow normal content
         assert!(SecurityValidator::validate_note_content_static("This is a normal note").is_ok());
-        
+
         // Should reject dangerous content
-        assert!(SecurityValidator::validate_note_content_static("<script>alert('xss')</script>").is_err());
+        assert!(
+            SecurityValidator::validate_note_content_static("<script>alert('xss')</script>")
+                .is_err()
+        );
         assert!(SecurityValidator::validate_note_content_static("javascript:alert(1)").is_err());
         assert!(SecurityValidator::validate_note_content_static("eval(maliciousCode)").is_err());
     }
@@ -855,15 +997,15 @@ mod tests {
         // Should allow normal search queries
         assert!(SecurityValidator::validate_search_query("normal search").is_ok());
         assert!(SecurityValidator::validate_search_query("project management").is_ok());
-        
+
         // Should reject SQL injection attempts
         assert!(SecurityValidator::validate_search_query("'; DROP TABLE notes; --").is_err());
         assert!(SecurityValidator::validate_search_query("UNION SELECT * FROM users").is_err());
-        
+
         // Should reject XSS attempts
         assert!(SecurityValidator::validate_search_query("<script>alert(1)</script>").is_err());
         assert!(SecurityValidator::validate_search_query("javascript:alert(1)").is_err());
-        
+
         // Should reject overly long queries
         let long_query = "a".repeat(1001);
         assert!(SecurityValidator::validate_search_query(&long_query).is_err());
@@ -872,17 +1014,23 @@ mod tests {
     #[test]
     fn test_context_capability_validation() {
         let validator = SecurityValidator::new();
-        
+
         // Test with valid capability
         let context = OperationContext::new_test(vec![OperationCapability::Search]);
-        assert!(validator.validate_search_query_with_context("normal search", &context).is_ok());
-        
+        assert!(validator
+            .validate_search_query_with_context("normal search", &context)
+            .is_ok());
+
         // Search without required capability
         let no_search_context = OperationContext::new_test(vec![OperationCapability::WriteNotes]);
-        assert!(validator.validate_search_query_with_context("query", &no_search_context).is_err());
-        
+        assert!(validator
+            .validate_search_query_with_context("query", &no_search_context)
+            .is_err());
+
         // SQL injection attempt
-        assert!(validator.validate_search_query_with_context("'; DROP TABLE notes; --", &context).is_err());
+        assert!(validator
+            .validate_search_query_with_context("'; DROP TABLE notes; --", &context)
+            .is_err());
     }
 
     #[test]
@@ -890,7 +1038,7 @@ mod tests {
         // Should allow valid shortcuts
         assert!(SecurityValidator::validate_shortcut("Ctrl+N").is_ok());
         assert!(SecurityValidator::validate_shortcut("Alt+Shift+F1").is_ok());
-        
+
         // Should reject invalid shortcuts
         assert!(SecurityValidator::validate_shortcut("").is_err());
         assert!(SecurityValidator::validate_shortcut("Invalid Shortcut").is_err());
@@ -902,7 +1050,7 @@ mod tests {
         // Should allow valid IDs
         assert!(SecurityValidator::validate_id(1).is_ok());
         assert!(SecurityValidator::validate_id(12345).is_ok());
-        
+
         // Should reject invalid IDs
         assert!(SecurityValidator::validate_id(0).is_err());
         assert!(SecurityValidator::validate_id(-1).is_err());
@@ -914,7 +1062,7 @@ mod tests {
         // Should allow valid pagination
         assert!(SecurityValidator::validate_pagination(0, 50).is_ok());
         assert!(SecurityValidator::validate_pagination(100, 100).is_ok());
-        
+
         // Should reject invalid pagination
         assert!(SecurityValidator::validate_pagination(0, 0).is_err());
         assert!(SecurityValidator::validate_pagination(0, 1001).is_err());
@@ -922,17 +1070,17 @@ mod tests {
     }
 
     // Desktop Security Tests - Day 2 Implementation
-    
+
     #[test]
     fn test_operation_source_attribution() {
         let context_cli = OperationContext::new_cli(vec![OperationCapability::WriteNotes]);
         assert_eq!(context_cli.source, OperationSource::CLI);
         assert_eq!(context_cli.frequency_limit, Some(10));
-        
+
         let context_direct = OperationContext::new_direct(vec![OperationCapability::ReadNotes]);
         assert_eq!(context_direct.source, OperationSource::Direct);
         assert_eq!(context_direct.frequency_limit, Some(100));
-        
+
         let context_ipc = OperationContext::new_ipc(vec![OperationCapability::Search]);
         assert_eq!(context_ipc.source, OperationSource::IPC);
         assert_eq!(context_ipc.frequency_limit, Some(15));
@@ -942,54 +1090,75 @@ mod tests {
     fn test_enhanced_content_validation() {
         let validator = SecurityValidator::new();
         let context = OperationContext::new_test(vec![OperationCapability::WriteNotes]);
-        
+
         // Valid content with context
-        assert!(validator.validate_note_content("Normal note content", &context).is_ok());
-        
+        assert!(validator
+            .validate_note_content("Normal note content", &context)
+            .is_ok());
+
         // Content without required capability
         let no_write_context = OperationContext::new_test(vec![OperationCapability::ReadNotes]);
-        assert!(validator.validate_note_content("content", &no_write_context).is_err());
-        
+        assert!(validator
+            .validate_note_content("content", &no_write_context)
+            .is_err());
+
         // Malicious content
-        assert!(validator.validate_note_content("<script>alert(1)</script>", &context).is_err());
+        assert!(validator
+            .validate_note_content("<script>alert(1)</script>", &context)
+            .is_err());
     }
 
     #[test]
     fn test_enhanced_search_validation() {
         let validator = SecurityValidator::new();
         let context = OperationContext::new_test(vec![OperationCapability::Search]);
-        
+
         // Valid search with context
-        assert!(validator.validate_search_query_with_context("normal search", &context).is_ok());
-        
+        assert!(validator
+            .validate_search_query_with_context("normal search", &context)
+            .is_ok());
+
         // Search without required capability
         let no_search_context = OperationContext::new_test(vec![OperationCapability::WriteNotes]);
-        assert!(validator.validate_search_query_with_context("query", &no_search_context).is_err());
-        
+        assert!(validator
+            .validate_search_query_with_context("query", &no_search_context)
+            .is_err());
+
         // SQL injection attempt
-        assert!(validator.validate_search_query_with_context("'; DROP TABLE notes; --", &context).is_err());
+        assert!(validator
+            .validate_search_query_with_context("'; DROP TABLE notes; --", &context)
+            .is_err());
     }
 
     #[test]
     fn test_enhanced_export_validation() {
         let validator = SecurityValidator::new();
         let temp_dir = std::env::temp_dir();
-        
+
         // Valid export with proper context
         let context = OperationContext::new_test(vec![
             OperationCapability::FileExport,
-            OperationCapability::ReadNotes
+            OperationCapability::ReadNotes,
         ]);
-        let result = validator.validate_export_path_with_context("test.txt", Some(&temp_dir), &context);
+        let result =
+            validator.validate_export_path_with_context("test.txt", Some(&temp_dir), &context);
         assert!(result.is_ok());
-        
+
         // Export without required capability
         let no_export_context = OperationContext::new_test(vec![OperationCapability::ReadNotes]);
-        let result = validator.validate_export_path_with_context("test.txt", Some(&temp_dir), &no_export_context);
+        let result = validator.validate_export_path_with_context(
+            "test.txt",
+            Some(&temp_dir),
+            &no_export_context,
+        );
         assert!(result.is_err());
-        
+
         // Path traversal attempt
-        let result = validator.validate_export_path_with_context("../../../etc/passwd", Some(&temp_dir), &context);
+        let result = validator.validate_export_path_with_context(
+            "../../../etc/passwd",
+            Some(&temp_dir),
+            &context,
+        );
         assert!(result.is_err());
     }
 
@@ -997,47 +1166,54 @@ mod tests {
     fn test_desktop_specific_security_patterns() {
         // Test that web anti-patterns are not used
         let validator = SecurityValidator::new();
-        
+
         // Verify frequency control is desktop-appropriate (not web-style rate limiting)
         let cli_context = OperationContext::new_cli(vec![OperationCapability::WriteNotes]);
         assert_eq!(cli_context.frequency_limit, Some(10)); // Desktop-appropriate limit
-        
+
         let ipc_context = OperationContext::new_ipc(vec![OperationCapability::WriteNotes]);
         assert_eq!(ipc_context.frequency_limit, Some(15)); // IPC-appropriate limit
-        
+
         let direct_context = OperationContext::new_direct(vec![OperationCapability::WriteNotes]);
         assert_eq!(direct_context.frequency_limit, Some(100)); // Direct UI operations
-        
+
         // Verify capability-based access control (not JWT tokens)
         assert!(validator.validate_operation_context(&cli_context).is_ok());
         assert!(validator.validate_operation_context(&ipc_context).is_ok());
-        assert!(validator.validate_operation_context(&direct_context).is_ok());
+        assert!(validator
+            .validate_operation_context(&direct_context)
+            .is_ok());
     }
 
     #[test]
     fn test_test_operation_context() {
         let validator = SecurityValidator::new();
-        
+
         // Test context should work without frequency limits
         let test_context = OperationContext::new_test(vec![
             OperationCapability::ReadNotes,
             OperationCapability::WriteNotes,
             OperationCapability::Search,
             OperationCapability::FileExport,
-            OperationCapability::SystemAccess
+            OperationCapability::SystemAccess,
         ]);
-        
+
         assert_eq!(test_context.source, OperationSource::Test);
         assert_eq!(test_context.frequency_limit, None);
         assert!(validator.validate_operation_context(&test_context).is_ok());
-        
+
         // Test all capabilities work with test context
-        assert!(validator.validate_note_content("test content", &test_context).is_ok());
-        assert!(validator.validate_search_query_with_context("test query", &test_context).is_ok());
-        
+        assert!(validator
+            .validate_note_content("test content", &test_context)
+            .is_ok());
+        assert!(validator
+            .validate_search_query_with_context("test query", &test_context)
+            .is_ok());
+
         // Test export validation with test context
         let temp_dir = std::env::temp_dir();
-        let result = validator.validate_export_path_with_context("test.txt", Some(&temp_dir), &test_context);
+        let result =
+            validator.validate_export_path_with_context("test.txt", Some(&temp_dir), &test_context);
         assert!(result.is_ok());
     }
 }
