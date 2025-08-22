@@ -273,9 +273,54 @@ describe('ScratchPadApp', () => {
   it('should handle initialization errors gracefully', async () => {
     // Mock console.error to suppress error output
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const toastErrorSpy = vi.fn()
     
-    const mockLoadNotes = vi.fn().mockRejectedValue(new Error('Load failed'))
+    // Test case 1: initializeSettings fails (loadNotes should NOT be called)
+    const mockLoadNotes = vi.fn().mockResolvedValue(undefined)
     const mockInitializeSettings = vi.fn().mockRejectedValue(new Error('Init failed'))
+    
+    useScratchPadStore.setState({
+      loadNotes: mockLoadNotes,
+      initializeSettings: mockInitializeSettings
+    })
+    
+    // Mock the toast.error function
+    const originalToast = (window as any).toast
+    ;(window as any).toast = { error: toastErrorSpy }
+    
+    // Render the component
+    const { container } = render(<ScratchPadApp />)
+    
+    // Wait for initializeSettings to be called and fail
+    await waitFor(() => {
+      expect(mockInitializeSettings).toHaveBeenCalled()
+    }, { timeout: 2000 })
+    
+    // Wait a bit to ensure error handling completes
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    // Verify error was logged
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Failed to initialize app:", 
+      expect.any(Error)
+    )
+    
+    // Since initializeSettings failed, loadNotes should NOT have been called
+    // (because it's only called after initializeSettings succeeds)
+    expect(mockLoadNotes).not.toHaveBeenCalled()
+    
+    // Component should still be rendered despite initialization error
+    expect(container.firstChild).toBeTruthy()
+    
+    // Clean up
+    ;(window as any).toast = originalToast
+    consoleErrorSpy.mockRestore()
+  })
+  
+  it('should call loadNotes after successful initialization', async () => {
+    // This test verifies the normal flow where both functions succeed
+    const mockLoadNotes = vi.fn().mockResolvedValue(undefined)
+    const mockInitializeSettings = vi.fn().mockResolvedValue(undefined)
     
     useScratchPadStore.setState({
       loadNotes: mockLoadNotes,
@@ -285,15 +330,18 @@ describe('ScratchPadApp', () => {
     // Render the component
     const { container } = render(<ScratchPadApp />)
     
-    // Wait for initializeSettings to be called (it's called immediately)
+    // Wait for initializeSettings to be called first
     await waitFor(() => {
       expect(mockInitializeSettings).toHaveBeenCalled()
     }, { timeout: 2000 })
     
-    // Component should still be rendered despite initialization error
-    expect(container.firstChild).toBeTruthy()
+    // Wait a bit for the setTimeout to trigger loadNotes (150ms delay)
+    await new Promise(resolve => setTimeout(resolve, 200))
     
-    // Clean up
-    consoleErrorSpy.mockRestore()
+    // Now loadNotes should have been called
+    expect(mockLoadNotes).toHaveBeenCalled()
+    
+    // Component should be rendered
+    expect(container.firstChild).toBeTruthy()
   })
 })
