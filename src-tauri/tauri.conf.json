@@ -30,9 +30,27 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "dangerousRemoteDomainIpcAccess": []
     }
   },
+  "permissions": [
+    {
+      "identifier": "default",
+      "allow": [
+        "create_note",
+        "update_note",
+        "delete_note",
+        "get_all_notes",
+        "search_notes",
+        "search_notes_paginated",
+        "search_notes_boolean_paginated",
+        "validate_boolean_search_query",
+        "save_settings",
+        "register_global_shortcut"
+      ]
+    }
+  ],
   "bundle": {
     "active": true,
     "targets": "all",
