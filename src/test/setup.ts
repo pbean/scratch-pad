@@ -510,44 +510,76 @@ beforeEach(() => {
     global.performance.measure = vi.fn()
   }
   
-  // Mock document.createElement for each test
+  // Mock document.createElement for each test with proper focus handling
   const originalCreateElement = document.createElement.bind(document)
   document.createElement = vi.fn((tagName: string) => {
-    if (tagName === 'a') {
-      const element = originalCreateElement('a')
-      element.click = vi.fn()
-      return element
-    }
-    if (tagName === 'input') {
-      const element = originalCreateElement('input')
-      element.click = vi.fn()
-      // Enhanced focus support for CI environments
-      element.focus = vi.fn().mockImplementation(function(this: HTMLInputElement) {
-        Object.defineProperty(this, 'matches', {
-          value: vi.fn((selector: string) => selector === ':focus'),
-          configurable: true
-        })
-        
-        const focusEvent = new Event('focus', { bubbles: true })
-        this.dispatchEvent(focusEvent)
-        
-        if (process.env.CI === 'true') {
-          // Additional events for CI reliability
-          const focusinEvent = new Event('focusin', { bubbles: true })
-          this.dispatchEvent(focusinEvent)
-        }
+    const element = originalCreateElement(tagName)
+    
+    // Add enhanced focus support for input elements
+    if (tagName === 'input' || tagName === 'textarea') {
+      // Use Object.defineProperty to safely override focus method
+      Object.defineProperty(element, 'focus', {
+        value: vi.fn().mockImplementation(function(this: HTMLElement) {
+          // Set up focus state for testing
+          Object.defineProperty(this, 'matches', {
+            value: vi.fn((selector: string) => selector === ':focus'),
+            configurable: true
+          })
+          
+          // Dispatch focus event synchronously for CI reliability
+          const focusEvent = new Event('focus', { bubbles: true })
+          this.dispatchEvent(focusEvent)
+          
+          // For CI environments, add additional focus events
+          if (process.env.CI === 'true') {
+            const focusinEvent = new Event('focusin', { bubbles: true })
+            this.dispatchEvent(focusinEvent)
+          }
+        }),
+        configurable: true,
+        writable: true
       })
-      return element
+      
+      // Also handle blur for completeness
+      Object.defineProperty(element, 'blur', {
+        value: vi.fn().mockImplementation(function(this: HTMLElement) {
+          Object.defineProperty(this, 'matches', {
+            value: vi.fn((selector: string) => selector !== ':focus'),
+            configurable: true
+          })
+          
+          const blurEvent = new Event('blur', { bubbles: true })
+          this.dispatchEvent(blurEvent)
+        }),
+        configurable: true,
+        writable: true
+      })
     }
+    
+    // Add click mock for all elements that support it
+    if (tagName === 'a' || tagName === 'button' || tagName === 'input') {
+      Object.defineProperty(element, 'click', {
+        value: vi.fn(),
+        configurable: true,
+        writable: true
+      })
+    }
+    
+    // Additional methods for textarea
     if (tagName === 'textarea') {
-      const element = originalCreateElement('textarea')
-      element.focus = vi.fn()
-      element.blur = vi.fn()
-      element.select = vi.fn()
-      element.setSelectionRange = vi.fn()
-      return element
+      Object.defineProperty(element, 'select', {
+        value: vi.fn(),
+        configurable: true,
+        writable: true
+      })
+      Object.defineProperty(element, 'setSelectionRange', {
+        value: vi.fn(),
+        configurable: true,
+        writable: true
+      })
     }
-    return originalCreateElement(tagName)
+    
+    return element
   })
 
   // Removed setupReact19Timeouts() to prevent circular timeout dependencies
