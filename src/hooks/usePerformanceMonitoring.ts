@@ -28,30 +28,37 @@ export function useSearchPerformanceTracking(
   const queryIdRef = useRef<string | null>(null)
   const [isTracking, setIsTracking] = useState(false)
 
-  const startTracking = useCallback((query: string) => {
-    const queryId = `${operationType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    queryIdRef.current = queryId
+  const startTracking = useCallback((
+    queryId: string,
+    query: string,
+    opType?: PerformanceMetrics['operationType']
+  ) => {
+    const actualQueryId = queryId || `${operationType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const actualOpType = opType || operationType
+    
+    queryIdRef.current = actualQueryId
     setIsTracking(true)
     
-    performanceAnalytics.startQuery(queryId, query, operationType)
+    performanceAnalytics.startQuery(actualQueryId, query, actualOpType)
     
-    return queryId
+    return actualQueryId
   }, [operationType])
 
   const completeTracking = useCallback((
+    queryId: string,
     query: string,
     resultCount: number,
     cacheHit: boolean = false,
     complexityScore?: number
   ): PerformanceMetrics | null => {
-    if (!queryIdRef.current || !isTracking) {
+    if (!queryId || !isTracking) {
       console.warn('Performance tracking not started or already completed')
       return null
     }
 
     try {
       const metrics = performanceAnalytics.completeQuery(
-        queryIdRef.current,
+        queryId,
         query,
         operationType,
         resultCount,
@@ -69,10 +76,10 @@ export function useSearchPerformanceTracking(
       queryIdRef.current = null
       return null
     }
-  }, [operationType, isTracking])
+  }, [operationType])
 
-  const cancelTracking = useCallback(() => {
-    if (queryIdRef.current) {
+  const cancelTracking = useCallback((queryId?: string) => {
+    if (queryId || queryIdRef.current) {
       setIsTracking(false)
       queryIdRef.current = null
     }

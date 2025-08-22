@@ -133,7 +133,7 @@ export const AdvancedSearchBarWithAnalytics: React.FC<AdvancedSearchBarWithAnaly
   
   const searchInputRef = useRef<HTMLInputElement>(null)
   const advancedPanelRef = useRef<HTMLDivElement>(null)
-  const suggestionRefs = useRef<Array<HTMLDivElement | null>>([])
+  const suggestionRefs = useRef<(HTMLDivElement | null)[]>([])
   
   // Auto-focus on mount
   useEffect(() => {
@@ -247,7 +247,8 @@ export const AdvancedSearchBarWithAnalytics: React.FC<AdvancedSearchBarWithAnaly
     setSearchState(prev => ({ ...prev, isSearching: true }))
     
     // Start performance tracking
-    const queryId = searchTracking.startTracking(query, searchState.criteria.booleanOperators ? 'boolean' : 'combined')
+    const queryId = `query_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    searchTracking.startTracking(queryId, query, searchState.criteria.booleanOperators ? 'boolean' : 'combined')
     
     try {
       const processedQuery = processQueryWithOperators(query)
@@ -317,6 +318,7 @@ export const AdvancedSearchBarWithAnalytics: React.FC<AdvancedSearchBarWithAnaly
 
       // Complete performance tracking
       const metrics = searchTracking.completeTracking(
+        queryId,
         query,
         filteredResults.length,
         false, // Cache hit detection could be enhanced
@@ -333,7 +335,7 @@ export const AdvancedSearchBarWithAnalytics: React.FC<AdvancedSearchBarWithAnaly
 
     } catch (error) {
       console.error('Advanced search with analytics failed:', error)
-      searchTracking.cancelTracking()
+      searchTracking.cancelTracking(queryId)
       setSearchState(prev => ({ ...prev, isSearching: false }))
     }
   }, [searchTracking, processQueryWithOperators, searchState.criteria.booleanOperators, searchState.isAdvanced, applyAdvancedFilters])
@@ -666,7 +668,9 @@ export const AdvancedSearchBarWithAnalytics: React.FC<AdvancedSearchBarWithAnaly
             {suggestions.map((suggestion, index) => (
               <div
                 key={index}
-                ref={el => suggestionRefs.current[index] = el}
+                ref={(el) => {
+                  suggestionRefs.current[index] = el
+                }}
                 className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
                   index === focusedSuggestion 
                     ? 'bg-blue-50 text-blue-700' 

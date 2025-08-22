@@ -8,9 +8,8 @@
 
 use scratch_pad_lib::{
     error::AppError,
-    validation::SecurityValidator,
+    validation::{SecurityValidator, OperationContext, OperationCapability, OperationSource},
 };
-use std::path::PathBuf;
 use tempfile::tempdir;
 
 #[cfg(test)]
@@ -50,7 +49,7 @@ mod path_validation_tests {
         ];
         
         for path in &safe_paths {
-            let result = SecurityValidator::validate_export_path(path, Option::<&str>::None);
+            let result = SecurityValidator::validate_export_path(path, None);
             assert!(result.is_ok(), "Safe path should be valid without base: {}", path);
         }
     }
@@ -96,7 +95,6 @@ mod path_validation_tests {
     }
 
     #[test]
-    #[ignore] // TODO: contains_path_traversal not yet implemented
     fn test_contains_path_traversal_comprehensive() {
         // Should detect traversal
         let traversal_patterns = [
@@ -225,7 +223,7 @@ mod content_validation_tests {
         ];
         
         for content in &safe_contents {
-            let result = SecurityValidator::validate_note_content(content);
+            let result = SecurityValidator::validate_note_content_static(content);
             assert!(result.is_ok(), "Safe content should be valid: '{}'", content);
         }
     }
@@ -255,7 +253,7 @@ mod content_validation_tests {
         ];
         
         for content in &malicious_contents {
-            let result = SecurityValidator::validate_note_content(content);
+            let result = SecurityValidator::validate_note_content_static(content);
             assert!(result.is_err(), "Malicious content should be rejected: '{}'", content);
             
             if let Err(AppError::Validation { field, message }) = result {
@@ -271,53 +269,73 @@ mod content_validation_tests {
         
         // Content at maximum length should pass
         let max_content = "a".repeat(max_length);
-        let result = SecurityValidator::validate_note_content(&max_content);
+        let result = SecurityValidator::validate_note_content_static(&max_content);
         assert!(result.is_ok(), "Content at max length should be valid");
         
         // Content exceeding maximum should fail
         let over_content = "a".repeat(max_length + 1);
-        let result = SecurityValidator::validate_note_content(&over_content);
+        let result = SecurityValidator::validate_note_content_static(&over_content);
         assert!(result.is_err(), "Content over max length should be invalid");
         
         if let Err(AppError::Validation { field, message }) = result {
             assert_eq!(field, "content");
-            assert!(message.contains("too long"));
+            assert!(message.contains("too large"));
         }
     }
 
     #[test]
-    #[ignore] // TODO: validate_no_malicious_content not yet implemented
+    fn test_validate_note_content_with_context() {
+        let validator = SecurityValidator::new();
+        
+        // Create test contexts using CLI constructor (available in external tests)
+        let context = OperationContext::new_cli(vec![OperationCapability::WriteNotes]);
+        
+        // Test valid content with proper context
+        let safe_content = "This is a safe note";
+        let result = validator.validate_note_content(safe_content, &context);
+        assert!(result.is_ok(), "Safe content with proper context should pass");
+        
+        // Test malicious content with proper context  
+        let malicious_content = "<script>alert('xss')</script>";
+        let result = validator.validate_note_content(malicious_content, &context);
+        assert!(result.is_err(), "Malicious content should be rejected even with proper context");
+        
+        // Test with insufficient capabilities
+        let insufficient_context = OperationContext::new_cli(vec![OperationCapability::ReadNotes]);
+        let result = validator.validate_note_content(safe_content, &insufficient_context);
+        assert!(result.is_err(), "Should reject when missing WriteNotes capability");
+    }
+
+    #[test]
     fn test_validate_no_malicious_content() {
         let test_cases = [
-            ("Safe content", "field", true),
-            ("Normal text with numbers 123", "test", true),
-            ("<script>alert(1)</script>", "content", false),
-            ("javascript:dangerous()", "input", false),
-            ("eval('code')", "data", false),
-            ("system('cmd')", "value", false),
-            ("`command`", "field", false),
-            ("$(injection)", "param", false),
-            ("<!-- comment -->", "html", false),
-            ("<?php code ?>", "script", false),
-            ("<% asp code %>", "page", false),
+            ("Safe content", true),
+            ("Normal text with numbers 123", true),
+            ("<script>alert(1)</script>", false),
+            ("javascript:dangerous()", false),
+            ("eval('code')", false),
+            ("system('cmd')", false),
+            ("`command`", false),
+            ("$(injection)", false),
+            ("<!-- comment -->", false),
+            ("<?php code ?>", false),
+            ("<% asp code %>", false),
         ];
         
-        for (content, field, should_pass) in &test_cases {
-            let result = SecurityValidator::validate_no_malicious_content(content, field);
+        for (content, should_pass) in &test_cases {
+            let result = SecurityValidator::validate_no_malicious_content(content);
             if *should_pass {
                 assert!(result.is_ok(), "Safe content should pass: '{}'", content);
             } else {
                 assert!(result.is_err(), "Malicious content should fail: '{}'", content);
-                if let Err(AppError::Validation { field: f, message }) = result {
-                    assert_eq!(f, *field);
-                    assert!(message.contains("dangerous"));
+                if let Err(error_msg) = result {
+                    assert!(error_msg.contains("dangerous"));
                 }
             }
         }
     }
 
     #[test]
-    #[ignore] // TODO: sanitize_for_database not yet implemented
     fn test_sanitize_for_database() {
         let test_cases = [
             ("Normal content", "Normal content"),
@@ -605,12 +623,12 @@ mod id_and_pagination_tests {
     #[test]
     fn test_validate_pagination_valid_params() {
         let valid_params = [
-            (0, 1),
-            (0, 50),
-            (100, 100),
-            (500, 250),
-            (1000, 1000),
-            (100_000, 1),
+            (0i64, 1i64),
+            (0i64, 50i64),
+            (100i64, 100i64),
+            (500i64, 250i64),
+            (1000i64, 1000i64),
+            (100_000i64, 1i64),
         ];
         
         for (offset, limit) in &valid_params {
@@ -622,11 +640,11 @@ mod id_and_pagination_tests {
     #[test]
     fn test_validate_pagination_invalid_params() {
         let invalid_params = [
-            (0, 0),        // Zero limit
-            (0, 1001),     // Limit too large
-            (100_001, 50), // Offset too large
-            (usize::MAX, 1), // Extreme offset
-            (1, usize::MAX), // Extreme limit
+            (0i64, 0i64),        // Zero limit
+            (0i64, 1001i64),     // Limit too large
+            (100_001i64, 50i64), // Offset too large
+            (i64::MAX, 1i64),    // Extreme offset
+            (1i64, i64::MAX),    // Extreme limit
         ];
         
         for (offset, limit) in &invalid_params {
@@ -638,8 +656,8 @@ mod id_and_pagination_tests {
     #[test]
     fn test_validate_pagination_boundary_conditions() {
         // Test exact boundaries
-        let max_limit = 1000;
-        let max_offset = 100_000;
+        let max_limit = 1000i64;
+        let max_offset = 100_000i64;
         
         // At boundaries should pass
         assert!(SecurityValidator::validate_pagination(0, max_limit).is_ok());

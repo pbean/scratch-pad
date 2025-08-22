@@ -127,15 +127,13 @@ export function useEnhancedSearch(options: UseEnhancedSearchOptions = {}) {
 
     setSearchStats(prev => {
       const newTotalQueries = prev.totalQueries + 1
-      const newCacheHits = wasHit ? 1 : 0
-      const newCacheTotal = newTotalQueries
       const newSlowQueries = queryTime > 1000 ? prev.slowQueries + 1 : prev.slowQueries
 
       return {
         totalQueries: newTotalQueries,
         averageQueryTime: wasHit ? prev.averageQueryTime : 
           (prev.averageQueryTime * (newTotalQueries - 1) + queryTime) / newTotalQueries,
-        cacheHitRate: (prev.cacheHitRate * (newCacheTotal - 1) + (wasHit ? 100 : 0)) / newCacheTotal,
+        cacheHitRate: (prev.cacheHitRate * (newTotalQueries - 1) + (wasHit ? 100 : 0)) / newTotalQueries,
         lastQueryTime: queryTime,
         slowQueries: newSlowQueries
       }
@@ -152,21 +150,25 @@ export function useEnhancedSearch(options: UseEnhancedSearchOptions = {}) {
     const startTime = performance.now()
 
     try {
+      let result: SearchResult | BooleanSearchResult
+
       if (useBoolean) {
-        const result = await invoke<BooleanSearchResult>('search_notes_boolean_paginated', {
+        result = await invoke<BooleanSearchResult>('search_notes_boolean_paginated', {
           query,
           page,
           pageSize
         })
-        return result
       } else {
-        const result = await invoke<SearchResult>('search_notes_paginated', {
+        result = await invoke<SearchResult>('search_notes_paginated', {
           query,
           page,
           pageSize
         })
-        return result
       }
+
+      const queryTime = performance.now() - startTime
+      updateStats(queryTime, false)
+      return result
     } catch (error) {
       const queryTime = performance.now() - startTime
       updateStats(queryTime, false)

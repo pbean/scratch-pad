@@ -281,16 +281,19 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
       if (searchQuery.trim() === '') {
         const recentSuggestions: SearchSuggestion[] = recentSearches
           .slice(0, 5)
-          .map((search, index) => ({
-            id: `recent-${index}`,
-            type: 'recent' as const,
-            text: search,
-            displayText: search,
-            description: 'Recent search',
-            icon: <Clock size={14} />,
-            frequency: searchHistory.find(h => h.query === search)?.results.length || 0,
-            lastUsed: new Date(searchHistory.find(h => h.query === search)?.timestamp || Date.now())
-          }))
+          .map((search, index) => {
+            const historyEntry = searchHistory.find(h => h.query === search)
+            return {
+              id: `recent-${index}`,
+              type: 'recent' as const,
+              text: search,
+              displayText: search,
+              description: 'Recent search',
+              icon: <Clock size={14} />,
+              frequency: historyEntry?.results?.length || 0,
+              lastUsed: new Date(historyEntry?.timestamp || Date.now())
+            }
+          })
         
         if (recentSuggestions.length > 0) {
           categories.push({
@@ -308,15 +311,18 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
         // Get recent search suggestions from store
         const matchingRecent = getRecentSearchSuggestions(searchQuery)
           .slice(0, 3)
-          .map((search, index) => ({
-            id: `recent-match-${index}`,
-            type: 'recent' as const,
-            text: search,
-            displayText: search,
-            description: 'Recent search',
-            icon: <Clock size={14} />,
-            frequency: searchHistory.find(h => h.query === search)?.results.length || 0
-          }))
+          .map((search, index) => {
+            const historyEntry = searchHistory.find(h => h.query === search)
+            return {
+              id: `recent-match-${index}`,
+              type: 'recent' as const,
+              text: search,
+              displayText: search,
+              description: 'Recent search',
+              icon: <Clock size={14} />,
+              frequency: historyEntry?.results?.length || 0
+            }
+          })
         
         if (matchingRecent.length > 0) {
           categories.push({
