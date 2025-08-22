@@ -24,17 +24,70 @@ configure({
   }
 })
 
-// FE-007: Update cleanup strategy for React 19 concurrent mode
-afterEach(() => {
-  // React 19 handles cleanup more efficiently with concurrent features
-  cleanup()
-  
-  // Clear any pending timers and animations
-  vi.clearAllTimers()
-  vi.clearAllMocks()
-  
-  // Clean up React 19-specific timeout state
-  cleanupReact19Timeouts()
+// Enhanced focus state management
+let currentFocusedElement: Element | null = null
+let focusHistory: Element[] = []
+
+// Enhanced cleanup strategy for better test isolation
+afterEach(async () => {
+  // Enhanced DOM cleanup to prevent component leakage
+  try {
+    // Reset focus state
+    currentFocusedElement = null
+    focusHistory = []
+    
+    // Force cleanup of all React Testing Library containers
+    cleanup()
+    
+    // Clear any pending timers and animations
+    vi.clearAllTimers()
+    vi.clearAllMocks()
+    
+    // Clean up React 19-specific timeout state
+    cleanupReact19Timeouts()
+    
+    // Enhanced DOM reset - remove all test containers
+    if (document?.body) {
+      const testContainers = document.querySelectorAll('[data-testid="test-container"]')
+      testContainers.forEach(container => {
+        try {
+          container.remove()
+        } catch (error) {
+          // Ignore removal errors
+        }
+      })
+      
+      // Remove all child elements completely to prevent leakage
+      while (document.body.firstChild) {
+        try {
+          document.body.removeChild(document.body.firstChild)
+        } catch (error) {
+          // Break if we can't remove children
+          break
+        }
+      }
+    }
+    
+    // Reset focus state more aggressively
+    try {
+      if (document.activeElement && document.activeElement !== document.body) {
+        (document.activeElement as HTMLElement).blur?.()
+      }
+      // Force focus back to body
+      if (document.body && document.body.focus) {
+        document.body.focus()
+      }
+    } catch (error) {
+      // Ignore focus cleanup errors
+    }
+    
+    // Wait for cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 0))
+    
+  } catch (error) {
+    // Log cleanup errors but don't fail tests
+    console.warn('Test cleanup error:', error)
+  }
 })
 
 // Mock Tauri API globally
@@ -151,33 +204,36 @@ beforeAll(() => {
     Element.prototype.scrollIntoView = vi.fn()
   }
   
-  // FE-FIX-002: Simplified focus and blur methods for CI stability
-  let currentFocusedElement: Element | null = null
-  
-  // Extend Element prototype with focus/blur methods (for test environment)
-  // Only set up if not already mocked
+  // Enhanced focus and blur methods for better test reliability
   if (!(Element.prototype as any).focus || !vi.isMockFunction((Element.prototype as any).focus)) {
     (Element.prototype as any).focus = vi.fn().mockImplementation(function(this: Element) {
       const element = this
       
-      // Set focus state immediately for synchronous tests
+      // Set focus state immediately and synchronously
       currentFocusedElement = element
-      Object.defineProperty(element, 'matches', {
-        value: vi.fn((selector: string) => selector === ':focus'),
+      focusHistory.push(element)
+      
+      // Update activeElement immediately
+      Object.defineProperty(document, 'activeElement', {
+        get: () => element,
         configurable: true
       })
       
-      // Dispatch focus events synchronously for CI reliability
+      // Set up :focus pseudo-class matcher
+      Object.defineProperty(element, 'matches', {
+        value: vi.fn((selector: string) => {
+          if (selector === ':focus') return true
+          return false
+        }),
+        configurable: true
+      })
+      
+      // Dispatch focus events immediately and synchronously
       const focusEvent = new Event('focus', { bubbles: true })
       element.dispatchEvent(focusEvent)
       
-      // For CI environments, also trigger focusin event with minimal delay
-      if (process.env.CI === 'true') {
-        setTimeout(() => {
-          const focusinEvent = new Event('focusin', { bubbles: true })
-          element.dispatchEvent(focusinEvent)
-        }, 0)
-      }
+      const focusinEvent = new Event('focusin', { bubbles: true })
+      element.dispatchEvent(focusinEvent)
     });
   }
   
@@ -188,6 +244,12 @@ beforeAll(() => {
       // Set blur state immediately
       if (currentFocusedElement === element) {
         currentFocusedElement = null
+        
+        // Update activeElement to body
+        Object.defineProperty(document, 'activeElement', {
+          get: () => document.body,
+          configurable: true
+        })
       }
       
       Object.defineProperty(element, 'matches', {
@@ -200,7 +262,7 @@ beforeAll(() => {
     })
   }
   
-  // Mock document.activeElement to return currently focused element
+  // Enhanced activeElement mock
   Object.defineProperty(document, 'activeElement', {
     get: () => currentFocusedElement || document.body,
     configurable: true
@@ -555,15 +617,24 @@ export const waitForStableDOM = async (timeout: number = 5000): Promise<void> =>
   })
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   // Clear all mocks between tests
   vi.clearAllMocks()
   
-  // FE-FIX-004: Simplified DOM reset to prevent element conflicts
+  // Reset focus state
+  currentFocusedElement = null
+  focusHistory = []
+  
+  // Enhanced DOM reset to prevent element conflicts
   if (document?.body) {
     // Remove all child elements completely
     while (document.body.firstChild) {
-      document.body.removeChild(document.body.firstChild)
+      try {
+        document.body.removeChild(document.body.firstChild)
+      } catch (error) {
+        // Break if we can't remove children
+        break
+      }
     }
   }
   
@@ -571,6 +642,12 @@ beforeEach(() => {
   const testRoot = document.createElement('div')
   testRoot.setAttribute('id', 'test-root')
   document.body.appendChild(testRoot)
+  
+  // Reset activeElement to body
+  Object.defineProperty(document, 'activeElement', {
+    get: () => currentFocusedElement || document.body,
+    configurable: true
+  })
   
   // Force focus back to body to reset focus state
   if (document.body.focus) {
@@ -615,35 +692,43 @@ beforeEach(() => {
     global.performance.clearMeasures = vi.fn()
   }
   
-  // FE-FIX-004: Simplified element creation with basic focus support
+  // Enhanced element creation with proper focus support
   const originalCreateElement = document.createElement.bind(document)
   document.createElement = vi.fn((tagName: string) => {
     const element = originalCreateElement(tagName)
     
-    // Add basic focus support for input elements
+    // Add enhanced focus support for input elements
     if (tagName === 'input' || tagName === 'textarea') {
-      // Use Object.defineProperty to safely override focus method
+      // Override focus method with immediate synchronous behavior
       Object.defineProperty(element, 'focus', {
         value: vi.fn().mockImplementation(function(this: HTMLElement) {
           const inputElement = this
           
-          // Set up focus state immediately for synchronous tests
-          Object.defineProperty(inputElement, 'matches', {
-            value: vi.fn((selector: string) => selector === ':focus'),
+          // Set focus state immediately and synchronously
+          currentFocusedElement = inputElement
+          focusHistory.push(inputElement)
+          
+          // Update document.activeElement immediately
+          Object.defineProperty(document, 'activeElement', {
+            get: () => inputElement,
             configurable: true
           })
           
-          // Dispatch focus events synchronously for CI reliability
+          // Set up :focus pseudo-class matcher immediately
+          Object.defineProperty(inputElement, 'matches', {
+            value: vi.fn((selector: string) => {
+              if (selector === ':focus') return true
+              return false
+            }),
+            configurable: true
+          })
+          
+          // Dispatch focus events synchronously
           const focusEvent = new Event('focus', { bubbles: true })
           inputElement.dispatchEvent(focusEvent)
           
-          // For CI environments, add focusin event with minimal delay
-          if (process.env.CI === 'true') {
-            setTimeout(() => {
-              const focusinEvent = new Event('focusin', { bubbles: true })
-              inputElement.dispatchEvent(focusinEvent)
-            }, 0)
-          }
+          const focusinEvent = new Event('focusin', { bubbles: true })
+          inputElement.dispatchEvent(focusinEvent)
         }),
         configurable: true,
         writable: true
@@ -653,6 +738,16 @@ beforeEach(() => {
       Object.defineProperty(element, 'blur', {
         value: vi.fn().mockImplementation(function(this: HTMLElement) {
           const inputElement = this
+          
+          if (currentFocusedElement === inputElement) {
+            currentFocusedElement = null
+            
+            // Update activeElement to body
+            Object.defineProperty(document, 'activeElement', {
+              get: () => document.body,
+              configurable: true
+            })
+          }
           
           Object.defineProperty(inputElement, 'matches', {
             value: vi.fn((selector: string) => selector !== ':focus'),
@@ -692,4 +787,7 @@ beforeEach(() => {
     
     return element
   })
+  
+  // Wait for setup to complete
+  await new Promise(resolve => setTimeout(resolve, 0))
 })

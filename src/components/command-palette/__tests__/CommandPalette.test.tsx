@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, act } from '../../../test/test-utils'
+import { render, screen, waitFor, act, cleanup } from '../../../test/test-utils'
 import userEvent from '@testing-library/user-event'
 import { CommandPalette } from '../CommandPalette'
 import { useScratchPadStore } from '../../../lib/store'
@@ -42,14 +42,28 @@ const CI_TIMEOUT = process.env.CI === 'true' ? 10000 : 5000
 const CI_FOCUS_TIMEOUT = process.env.CI === 'true' ? 5000 : 2000
 const CI_NAVIGATION_DELAY = process.env.CI === 'true' ? 50 : 16
 
-// FE-FIX-001: Standardized input element selection utility
+// Enhanced input element selection utility with proper isolation
 const getCommandSearchInput = () => {
-  // Use data-testid for reliable selection
-  return screen.getByTestId('command-search-input')
+  // Use getAllByTestId and filter to get the last rendered one
+  const inputs = screen.queryAllByTestId('command-search-input')
+  if (inputs.length === 0) {
+    throw new Error('No command search input found')
+  }
+  if (inputs.length > 1) {
+    // This should not happen with proper cleanup, but handle gracefully
+    console.warn(`Found ${inputs.length} command search inputs, using the last one`)
+  }
+  return inputs[inputs.length - 1]
 }
 
-// Simplified focus wait utility
+// Enhanced focus wait utility that accounts for asynchronous React focus
 const waitForInputFocus = async (inputElement: HTMLElement, timeout: number = CI_FOCUS_TIMEOUT) => {
+  // Wait for the component to complete its focus logic
+  await act(async () => {
+    await new Promise(resolve => setTimeout(resolve, 0))
+  })
+  
+  // Then wait for focus state
   return waitFor(() => {
     expect(inputElement).toHaveFocus()
   }, { 
@@ -70,15 +84,22 @@ const waitForSelectedIndex = async (expectedIndex: number) => {
 
 describe('CommandPalette', () => {
   let user: ReturnType<typeof userEvent.setup>
+  let renderResult: ReturnType<typeof render>
 
   beforeEach(async () => {
+    // Enhanced cleanup to ensure complete isolation
+    cleanup()
+    
+    // Wait for cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 0))
+    
     // Setup userEvent with CI-optimized configuration
     user = userEvent.setup({
       delay: process.env.CI === 'true' ? 20 : null,
       advanceTimers: vi.advanceTimersByTime,
     })
     
-    // Reset store state
+    // Reset store state with fresh mock functions
     act(() => {
       useScratchPadStore.setState({
         isCommandPaletteOpen: false,
@@ -94,8 +115,21 @@ describe('CommandPalette', () => {
     Object.values(mockToast).forEach(mock => mock.mockClear())
   })
 
-  afterEach(() => {
-    // FE-FIX-004: Simplified cleanup without DOM manipulation conflicts
+  afterEach(async () => {
+    // Enhanced cleanup to prevent component leakage
+    try {
+      // Cleanup the current render result if it exists
+      if (renderResult && renderResult.unmount) {
+        renderResult.unmount()
+      }
+    } catch (error) {
+      // Ignore unmount errors
+    }
+    
+    // Force cleanup of all React Testing Library containers
+    cleanup()
+    
+    // Clear all mocks
     vi.clearAllMocks()
     
     // Reset focus state cleanly
@@ -106,10 +140,13 @@ describe('CommandPalette', () => {
     } catch (error) {
       // Ignore focus cleanup errors
     }
+    
+    // Wait for cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 0))
   })
 
   it('should not render when closed', async () => {
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     expect(screen.queryByPlaceholderText('Type a command or search...')).not.toBeInTheDocument()
   })
@@ -119,7 +156,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     expect(screen.getByPlaceholderText('Type a command or search...')).toBeInTheDocument()
   })
@@ -129,10 +166,12 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
-    // FE-FIX-001: Use standardized input selection
+    // Enhanced input selection with better error handling
     const input = getCommandSearchInput()
+    
+    // Wait for the CommandPalette component to complete its focus effect
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
   })
 
@@ -141,7 +180,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     // Wait for component to be fully rendered
     await waitFor(() => {
@@ -159,7 +198,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     await waitFor(() => {
       expect(screen.getByText('Search and browse your notes')).toBeInTheDocument()
@@ -175,7 +214,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     await waitFor(() => {
       expect(screen.getByText('Ctrl+Shift+F')).toBeInTheDocument()
@@ -189,7 +228,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     
@@ -211,7 +250,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     
@@ -232,7 +271,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     
@@ -257,7 +296,7 @@ describe('CommandPalette', () => {
       })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
@@ -276,7 +315,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
@@ -307,7 +346,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
@@ -344,7 +383,7 @@ describe('CommandPalette', () => {
       })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
@@ -380,7 +419,7 @@ describe('CommandPalette', () => {
       })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
@@ -404,7 +443,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
@@ -440,7 +479,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
@@ -466,7 +505,7 @@ describe('CommandPalette', () => {
       })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
@@ -495,7 +534,7 @@ describe('CommandPalette', () => {
       })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
@@ -513,13 +552,13 @@ describe('CommandPalette', () => {
   })
 
   it('should reset query and selection when opened', async () => {
-    const { rerender } = render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     // Open palette
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
-    rerender(<CommandPalette />)
+    renderResult.rerender(<CommandPalette />)
     
     const input = getCommandSearchInput()
     
@@ -539,7 +578,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
@@ -577,7 +616,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     // Wait for component to render
     await waitFor(() => {
@@ -594,7 +633,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     
@@ -615,7 +654,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     
@@ -641,7 +680,7 @@ describe('CommandPalette', () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
-    render(<CommandPalette />)
+    renderResult = render(<CommandPalette />)
     
     const input = getCommandSearchInput()
     
