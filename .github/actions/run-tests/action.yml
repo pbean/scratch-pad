@@ -80,10 +80,12 @@ runs:
       run: |
         start_time=$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)
         
-        # Use CI-specific config in CI environment
-        if [ "$CI" = "true" ]; then
+        # Use CI-specific config in GitHub Actions environment
+        if [ "$GITHUB_ACTIONS" = "true" ]; then
+          echo "Using CI test configuration"
           test_command="pnpm test --run --config vitest.ci.config.ts"
         else
+          echo "Using default test configuration"
           test_command="pnpm test --run"
         fi
         
@@ -123,11 +125,13 @@ runs:
         cd src-tauri
         
         # CI-specific optimizations for backend tests
-        if [ "$CI" = "true" ]; then
+        if [ "$GITHUB_ACTIONS" = "true" ]; then
+          echo "Using CI backend test configuration"
           export RUST_TEST_THREADS=2
           export RUST_BACKTRACE=1
           test_command="cargo test --lib --bins --tests -- --test-threads=2 --nocapture"
         else
+          echo "Using default backend test configuration"
           test_command="cargo test"
         fi
         
