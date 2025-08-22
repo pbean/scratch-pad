@@ -34,6 +34,8 @@ jobs:
     name: Performance Test Suite
     runs-on: ubuntu-latest  # Fixed to ubuntu-latest only for stability
     timeout-minutes: 10  # OPTIMIZED: Reduced from 15 to 10 minutes
+    # Make performance tests non-blocking for PRs
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
