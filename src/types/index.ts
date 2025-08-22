@@ -1,3 +1,5 @@
+import { type ReactNode } from "react"
+
 export type View = "note" | "search-history" | "settings"
 
 export type NoteFormat = "plaintext" | "markdown"
@@ -123,7 +125,7 @@ export interface Command {
   id: string
   label: string
   description?: string
-  icon?: React.ReactNode
+  icon?: ReactNode
   shortcut?: string
   action: () => void
   disabled?: boolean
@@ -147,6 +149,8 @@ export interface Settings {
   auto_save_delay_ms: number
   search_limit: number
   fuzzy_search_threshold: number
+  theme: string
+  note_directory: string
 }
 
 export interface SettingsFormData {

@@ -12,6 +12,7 @@
     "tauri:build": "tauri build",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
+    "type-check:ci": "tsc --noEmit -p tsconfig.ci.json",
     "test": "vitest"
   },
   "dependencies": {

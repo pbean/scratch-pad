@@ -5,6 +5,7 @@
  * detailed timing information and performance budget monitoring.
  */
 
+// @ts-ignore - Vitest v1+ has changed the export path
 import { BaseReporter } from 'vitest/reporters'
 import type { File, Reporter, Task, TaskResult, TaskResultPack, TaskEventPack, Vitest, Awaitable } from 'vitest'
 import fs from 'fs/promises'

@@ -13,7 +13,7 @@ interface StatusBarProps {
 
 export const StatusBar = React.memo<StatusBarProps>(({ 
   lastSaved, 
-  isAutoSaving: _isAutoSaving,
+  isAutoSaving,
   saveStatus,
   wordCount, 
   charCount, 

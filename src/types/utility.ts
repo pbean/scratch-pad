@@ -5,6 +5,8 @@
  * across the entire application, particularly for store management and analytics.
  */
 
+import { type ReactNode, type MouseEvent, type KeyboardEvent } from "react"
+
 // ============================================================================
 // BRANDED TYPES FOR ENHANCED TYPE SAFETY
 // ============================================================================
@@ -245,15 +247,15 @@ export function wrapAsync<TArgs extends readonly unknown[], TReturn, TError = Er
  */
 export interface ComponentProps {
   className?: string
-  children?: React.ReactNode
+  children?: ReactNode
 }
 
 /**
  * Type-safe event handler props
  */
 export interface EventHandlerProps<T = unknown> {
-  onClick?: (event: React.MouseEvent, data?: T) => void
-  onKeyDown?: (event: React.KeyboardEvent, data?: T) => void
+  onClick?: (event: MouseEvent, data?: T) => void
+  onKeyDown?: (event: KeyboardEvent, data?: T) => void
   onChange?: (value: T) => void
 }
 

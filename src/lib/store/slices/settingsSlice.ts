@@ -43,7 +43,9 @@ const DEFAULT_SETTINGS: Settings = {
   window_height: 600,
   auto_save_delay_ms: 500,
   search_limit: 100,
-  fuzzy_search_threshold: 0.6
+  fuzzy_search_threshold: 0.6,
+  theme: "system",
+  note_directory: ""
 }
 
 // ============================================================================
@@ -174,7 +176,9 @@ const SETTING_VALIDATORS: SettingValidatorRegistry = {
   layout_mode: createEnumValidator(['default', 'half', 'full'] as const, DEFAULT_SETTINGS.layout_mode),
   global_shortcut: createStringValidator(50, DEFAULT_SETTINGS.global_shortcut, false),
   ui_font: createStringValidator(100, DEFAULT_SETTINGS.ui_font, false),
-  editor_font: createStringValidator(100, DEFAULT_SETTINGS.editor_font, false)
+  editor_font: createStringValidator(100, DEFAULT_SETTINGS.editor_font, false),
+  theme: createEnumValidator(['light', 'dark', 'system'] as const, DEFAULT_SETTINGS.theme),
+  note_directory: createStringValidator(500, DEFAULT_SETTINGS.note_directory, true)
 }
 
 /**
@@ -310,9 +314,11 @@ export const createSettingsSlice: StateCreator<
         const stringValue = String(value)
         try {
           const parseResult = parseSettingValueTypeSafe(key as keyof Settings, stringValue)
-          (validatedUpdates as any)[key] = parseResult.success 
-            ? parseResult.value
-            : parseResult.fallback
+          if (parseResult.success) {
+            (validatedUpdates as any)[key] = parseResult.value
+          } else {
+            (validatedUpdates as any)[key] = parseResult.fallback
+          }
         } catch {
           (validatedUpdates as any)[key] = value
         }
@@ -483,6 +489,10 @@ export const getSettingValidationRules = (key: keyof Settings): string => {
       return 'Font name or CSS font-family (max 100 characters)'
     case 'editor_font':
       return 'Font name or CSS font-family (max 100 characters)'
+    case 'theme':
+      return 'One of: "light", "dark", or "system"'
+    case 'note_directory':
+      return 'Directory path (max 500 characters, can be empty)'
     default:
       return 'Valid setting value'
   }

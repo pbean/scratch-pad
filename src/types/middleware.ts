@@ -194,10 +194,10 @@ export type TypeSafeMerger<T> = (
 /**
  * Type-safe migrator for handling schema changes
  */
-export type TypeSafeMigrator = (
+export type TypeSafeMigrator<T> = (
   persistedState: unknown, 
   version: number
-) => unknown
+) => T | unknown
 
 /**
  * Type-safe storage interface
@@ -335,6 +335,8 @@ export interface SettingValidatorRegistry {
   global_shortcut: SettingValidator<string>
   ui_font: SettingValidator<string>
   editor_font: SettingValidator<string>
+  theme: SettingValidator<string>
+  note_directory: SettingValidator<string>
 }
 
 // ============================================================================

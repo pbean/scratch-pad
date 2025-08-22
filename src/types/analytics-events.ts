@@ -5,6 +5,15 @@
 
 import { PerformanceMetrics } from './analytics'
 
+// Helper function for UUID generation with fallback
+const generateEventId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  // Fallback for test environments
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+}
+
 // Base event interface with common properties
 interface BaseAnalyticsEvent {
   timestamp: number
@@ -175,7 +184,7 @@ export const createAnalyticsEvent = {
     type: 'search_start',
     timestamp: Date.now(),
     source: 'user',
-    eventId: crypto.randomUUID(),
+    eventId: generateEventId(),
     data: {
       query,
       searchType,
@@ -187,7 +196,7 @@ export const createAnalyticsEvent = {
     type: 'search_complete',
     timestamp: Date.now(),
     source: 'system',
-    eventId: crypto.randomUUID(),
+    eventId: generateEventId(),
     data
   }),
   
@@ -195,7 +204,7 @@ export const createAnalyticsEvent = {
     type: 'cache_hit',
     timestamp: Date.now(),
     source: 'system',
-    eventId: crypto.randomUUID(),
+    eventId: generateEventId(),
     data: {
       cacheKey,
       operation: 'read',
@@ -209,7 +218,7 @@ export const createAnalyticsEvent = {
     type: 'cache_miss',
     timestamp: Date.now(),
     source: 'system',
-    eventId: crypto.randomUUID(),
+    eventId: generateEventId(),
     data: {
       cacheKey,
       operation: 'read',
@@ -228,9 +237,9 @@ export const createAnalyticsEvent = {
     type: 'alert_triggered',
     timestamp: Date.now(),
     source: 'system',
-    eventId: crypto.randomUUID(),
+    eventId: generateEventId(),
     data: {
-      alertId: crypto.randomUUID(),
+      alertId: generateEventId(),
       severity,
       message,
       category,
@@ -242,7 +251,7 @@ export const createAnalyticsEvent = {
     type: 'optimization_applied',
     timestamp: Date.now(),
     source: 'automated',
-    eventId: crypto.randomUUID(),
+    eventId: generateEventId(),
     data
   }),
   
@@ -254,7 +263,7 @@ export const createAnalyticsEvent = {
     type: 'user_interaction',
     timestamp: Date.now(),
     source: 'user',
-    eventId: crypto.randomUUID(),
+    eventId: generateEventId(),
     data: {
       action,
       target: { component },
@@ -271,7 +280,7 @@ export const createAnalyticsEvent = {
     type: 'system_event',
     timestamp: Date.now(),
     source: 'system',
-    eventId: crypto.randomUUID(),
+    eventId: generateEventId(),
     data: {
       event,
       details,
