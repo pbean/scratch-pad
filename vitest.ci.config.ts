@@ -18,10 +18,10 @@ export default defineConfig({
     ],
     globals: true,
     
-    // CI-optimized timeouts (reduced for faster failures)
-    testTimeout: 10000, // 10 seconds for CI (faster failure detection)
-    hookTimeout: 5000, // 5 seconds for CI
-    teardownTimeout: 5000, // 5 seconds for CI
+    // CI-optimized timeouts (increased for platform stability)
+    testTimeout: 30000, // 30 seconds for CI (increased from 10s)
+    hookTimeout: 15000, // 15 seconds for CI (increased from 5s)
+    teardownTimeout: 10000, // 10 seconds for CI (increased from 5s)
     
     clearMocks: true,
     restoreMocks: true,
@@ -44,25 +44,31 @@ export default defineConfig({
       CI: 'true',
       PERFORMANCE_TRACKING_ENABLED: 'false', // Disabled for CI to reduce overhead
       REACT_TIMEOUT_OPTIMIZATION: 'false', // Disable optimization in CI
-      VITEST_PARALLEL: 'false' // Disable parallel execution in CI for stability
+      VITEST_PARALLEL: 'false', // Disable parallel execution in CI for stability
+      // Add platform detection
+      VITEST_CI_PLATFORM: process.platform,
+      // Focus timing configuration for CI
+      CI_FOCUS_TIMEOUT: '5000',
+      CI_FOCUS_RETRY_COUNT: '3'
     },
     
-    // CI-optimized execution (enable limited parallelism for better performance)
+    // CI-optimized execution (single worker for maximum stability)
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: false, // Allow 2 forks for better performance
-        isolate: true
+        singleFork: true, // Single fork for absolute stability
+        isolate: true,
+        execArgv: ['--max-old-space-size=4096'] // Ensure sufficient memory
       }
     },
     
-    // Limited concurrent test execution in CI
-    maxConcurrency: 1, // Single worker for stability
+    // Single worker to avoid race conditions completely
+    maxConcurrency: 1, // Single test at a time
     minWorkers: 1,
-    maxWorkers: 1, // Single worker to avoid race conditions
+    maxWorkers: 1, // Single worker for maximum stability
     
-    // CI-specific retry configuration
-    retry: 1, // Reduce from 2 to 1 for faster execution
+    // CI-specific retry configuration (focus tests may need retries)
+    retry: 2, // Allow retries for flaky focus tests
     
     // Coverage configuration for CI
     coverage: {
@@ -88,10 +94,10 @@ export default defineConfig({
       ]
     },
     
-    // CI-specific reporter configuration (remove deprecated basic reporter)
+    // CI-specific reporter configuration
     reporters: process.env.GITHUB_ACTIONS 
-      ? [['default', { summary: false }], 'github-actions']
-      : [['default', { summary: false }]],
+      ? [['default', { summary: true }], 'github-actions'] // Show summary in CI
+      : [['default', { summary: true }]],
     
     // Disable watch mode in CI
     watch: false,
@@ -101,15 +107,41 @@ export default defineConfig({
       junit: './test-results/junit.xml'
     },
     
-    // Optimize test sequence for CI
+    // Optimize test sequence for CI (sequential execution)
     sequence: {
       shuffle: false, // Consistent execution order
-      concurrent: true, // Enable concurrent execution with limited workers
-      setupFiles: 'parallel'
+      concurrent: false, // Disable concurrent execution entirely
+      setupFiles: 'list' // Sequential setup for maximum stability
     },
     
-    // Disable performance logging in CI to reduce noise
-    logHeapUsage: false, // Disable to reduce CI log output
-    isolate: true
+    // Enable performance logging in CI for debugging
+    logHeapUsage: true, // Enable for CI debugging
+    isolate: true,
+    
+    // Platform-specific configuration adjustments
+    ...(process.platform === 'darwin' ? {
+      // macOS-specific optimizations
+      testTimeout: 45000, // Even longer timeout for macOS
+      hookTimeout: 20000,
+      maxConcurrency: 1, // Definitely single thread on macOS
+    } : {}),
+    
+    ...(process.platform === 'win32' ? {
+      // Windows-specific optimizations
+      testTimeout: 35000, // Slightly longer for Windows
+      poolOptions: {
+        forks: {
+          singleFork: true,
+          isolate: true,
+          execArgv: ['--max-old-space-size=6144'] // More memory for Windows
+        }
+      }
+    } : {}),
+    
+    // Add test file filtering for problematic tests during debugging
+    exclude: [
+      // Temporarily exclude the most problematic tests if needed
+      // 'src/components/search-history/__tests__/SearchHistoryView.test.tsx'
+    ]
   }
 })

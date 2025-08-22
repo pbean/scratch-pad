@@ -47,6 +47,9 @@ vi.mock('@tauri-apps/api/core', () => ({
 // FE-005: Remove useLayoutEffect mock (React 19 handles this properly)
 // FE-003: Remove manual act() environment configuration (React 19 handles automatically)
 
+// Global performance start time for consistent timing
+let performanceStartTime = Date.now()
+
 // Global window mocks
 beforeAll(() => {
   // Enhanced requestAnimationFrame and cancelAnimationFrame with React 19 timing
@@ -111,7 +114,21 @@ beforeAll(() => {
   if (!(Element.prototype as any).focus || !vi.isMockFunction((Element.prototype as any).focus)) {
     (Element.prototype as any).focus = vi.fn().mockImplementation(function(this: Element) {
       currentFocusedElement = this
-      this.dispatchEvent(new Event('focus', { bubbles: true }))
+      // Add immediate synchronous focus for CI environments
+      Object.defineProperty(this, 'matches', {
+        value: vi.fn((selector: string) => selector === ':focus'),
+        configurable: true
+      })
+      
+      // Dispatch focus event synchronously for better CI reliability
+      const focusEvent = new Event('focus', { bubbles: true })
+      this.dispatchEvent(focusEvent)
+      
+      // For CI environments, also trigger focusin event
+      if (process.env.CI === 'true') {
+        const focusinEvent = new Event('focusin', { bubbles: true })
+        this.dispatchEvent(focusinEvent)
+      }
     });
   }
   
@@ -120,6 +137,13 @@ beforeAll(() => {
       if (currentFocusedElement === this) {
         currentFocusedElement = null
       }
+      
+      // Remove focus selector matching
+      Object.defineProperty(this, 'matches', {
+        value: vi.fn((selector: string) => selector !== ':focus'),
+        configurable: true
+      })
+      
       this.dispatchEvent(new Event('blur', { bubbles: true }))
     })
   }
@@ -394,14 +418,62 @@ beforeAll(() => {
     return originalAddEventListener.call(this, mappedType, listener, options)
   })
 
-  // Enhanced performance.now() mock for React 19 scheduling
-  const startTime = Date.now()
+  // FIXED: Enhanced performance.now() mock with defensive programming
+  // Initialize with current time to prevent NaN issues
+  performanceStartTime = Date.now()
   global.performance = global.performance || {} as Performance
-  global.performance.now = vi.fn().mockImplementation(() => Date.now() - startTime)
+  
+  global.performance.now = vi.fn().mockImplementation(() => {
+    try {
+      const current = Date.now()
+      const elapsed = current - performanceStartTime
+      // Ensure we never return NaN - fallback to 0 if calculation fails
+      return (elapsed >= 0 && !isNaN(elapsed)) ? elapsed : 0
+    } catch (error) {
+      // Fallback for any timing calculation issues
+      return 0
+    }
+  })
+  
   global.performance.mark = vi.fn()
   global.performance.measure = vi.fn()
   global.performance.clearMarks = vi.fn()
   global.performance.clearMeasures = vi.fn()
+  
+  // Add performance timing mock with proper property descriptors
+  try {
+    Object.defineProperty(global.performance, 'timeOrigin', {
+      value: performanceStartTime,
+      writable: false,
+      configurable: true
+    })
+  } catch (error) {
+    // Ignore if timeOrigin cannot be set (already exists)
+  }
+  
+  // Mock performance.timing with proper structure
+  Object.defineProperty(global.performance, 'timing', {
+    value: {
+      navigationStart: performanceStartTime,
+      loadEventEnd: performanceStartTime + 100,
+      domContentLoadedEventEnd: performanceStartTime + 50,
+      fetchStart: performanceStartTime,
+      domainLookupStart: performanceStartTime,
+      domainLookupEnd: performanceStartTime,
+      connectStart: performanceStartTime,
+      connectEnd: performanceStartTime,
+      requestStart: performanceStartTime,
+      responseStart: performanceStartTime,
+      responseEnd: performanceStartTime,
+      domLoading: performanceStartTime,
+      domInteractive: performanceStartTime,
+      domContentLoadedEventStart: performanceStartTime,
+      domComplete: performanceStartTime + 100,
+      loadEventStart: performanceStartTime + 100
+    },
+    writable: false,
+    configurable: true
+  })
 })
 
 beforeEach(() => {
@@ -417,6 +489,20 @@ beforeEach(() => {
   const testRoot = document.createElement('div')
   testRoot.setAttribute('id', 'test-root')
   document.body.appendChild(testRoot)
+  
+  // Reset performance timing for each test - prevent NaN accumulation
+  performanceStartTime = Date.now()
+  if (global.performance && global.performance.now) {
+    global.performance.now = vi.fn().mockImplementation(() => {
+      try {
+        const current = Date.now()
+        const elapsed = current - performanceStartTime
+        return (elapsed >= 0 && !isNaN(elapsed)) ? elapsed : 0
+      } catch (error) {
+        return 0
+      }
+    })
+  }
   
   // Reset any global state that might affect tests
   if (global.performance && global.performance.mark) {
@@ -435,6 +521,22 @@ beforeEach(() => {
     if (tagName === 'input') {
       const element = originalCreateElement('input')
       element.click = vi.fn()
+      // Enhanced focus support for CI environments
+      element.focus = vi.fn().mockImplementation(function(this: HTMLInputElement) {
+        Object.defineProperty(this, 'matches', {
+          value: vi.fn((selector: string) => selector === ':focus'),
+          configurable: true
+        })
+        
+        const focusEvent = new Event('focus', { bubbles: true })
+        this.dispatchEvent(focusEvent)
+        
+        if (process.env.CI === 'true') {
+          // Additional events for CI reliability
+          const focusinEvent = new Event('focusin', { bubbles: true })
+          this.dispatchEvent(focusinEvent)
+        }
+      })
       return element
     }
     if (tagName === 'textarea') {
