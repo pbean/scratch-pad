@@ -51,7 +51,12 @@ runs:
     - name: Run frontend type check
       if: inputs.run-type-check == 'true'
       shell: bash
-      run: pnpm type-check
+      run: |
+        if [ "$GITHUB_ACTIONS" = "true" ]; then
+          pnpm type-check:ci
+        else
+          pnpm type-check
+        fi
 
     - name: Run frontend linting
       if: inputs.run-lint == 'true'
@@ -61,4 +66,9 @@ runs:
     - name: Build frontend
       if: inputs.build-production == 'true'
       shell: bash
-      run: pnpm build
+      run: |
+        if [ "$GITHUB_ACTIONS" = "true" ]; then
+          pnpm build:ci || pnpm build
+        else
+          pnpm build:strict
+        fi
