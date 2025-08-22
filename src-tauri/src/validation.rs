@@ -272,6 +272,14 @@ impl SecurityValidator {
         
         let query_lower = query.to_lowercase();
         
+        // Check for path traversal patterns
+        if query.contains("..") || query.contains("~") {
+            return Err(AppError::Validation {
+                field: "search_query".to_string(),
+                message: "Search query contains potentially dangerous content".to_string(),
+            });
+        }
+        
         // Check for XSS and script injection patterns first
         let dangerous_xss_patterns = [
             "<script", "</script>", "javascript:", "vbscript:",
@@ -292,7 +300,7 @@ impl SecurityValidator {
         // Check for SQL injection patterns in FTS queries
         let dangerous_sql_patterns = [
             "drop", "delete", "insert", "update", "create", "alter",
-            "exec", "execute", "union", "select"
+            "exec", "execute", "union", "select", "exists"
         ];
         
         // Check for SQL keywords with common injection patterns
@@ -302,7 +310,9 @@ impl SecurityValidator {
                query_lower.contains(&format!("'{}", pattern)) ||
                query_lower.contains(&format!("; {}", pattern)) ||
                query_lower.contains(&format!("-- {}", pattern)) ||
-               query_lower.contains(&format!(") {}", pattern)) {
+               query_lower.contains(&format!(") {}", pattern)) ||
+               query_lower.contains(&format!(" {} ", pattern)) ||
+               query_lower.contains(&format!(" {}(", pattern)) {
                 return Err(AppError::Validation {
                     field: "search_query".to_string(),
                     message: "Search query contains potentially dangerous content".to_string(),
@@ -314,7 +324,8 @@ impl SecurityValidator {
         let injection_patterns = [
             "'--", "';", "';--", "/*", "*/", "xp_", "sp_", "union ", "drop ", "delete ",
             "insert ", "update ", "alter ", "create ", "exec ", "1=1", "'='", 
-            "' or '1'='1", "admin'--"
+            "' or '1'='1", "admin'--", " or exists", " or 1=", "' or 1=", "' or exists",
+            "${jndi:", "ldap://", "rmi://", "dns://", "iiop://", "file://", "http://"
         ];
         
         for pattern in &injection_patterns {

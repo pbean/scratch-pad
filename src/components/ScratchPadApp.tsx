@@ -70,20 +70,29 @@ export function ScratchPadApp() {
         await initializeSettings()
 
         // Load notes with a small delay to improve perceived startup performance
-        setTimeout(async () => {
-          try {
-            await loadNotes()
+        setTimeout(() => {
+          const loadNotesPromise = loadNotes()
+          if (loadNotesPromise && typeof loadNotesPromise.then === 'function') {
+            loadNotesPromise
+              .then(() => {
+                setIsInitializing(false)
+                // Add a brief delay for smooth window appearance
+                setTimeout(() => {
+                  setIsAppReady(true)
+                }, 100)
+              })
+              .catch((error) => {
+                console.error("Failed to load notes:", error)
+                toast.error("Failed to load notes", "Your notes may not be available")
+                setIsInitializing(false)
+                // Still set app as ready even if notes fail to load
+                setTimeout(() => {
+                  setIsAppReady(true)
+                }, 100)
+              })
+          } else {
+            // If loadNotes doesn't return a promise, just continue
             setIsInitializing(false)
-
-            // Add a brief delay for smooth window appearance
-            setTimeout(() => {
-              setIsAppReady(true)
-            }, 100)
-          } catch (error) {
-            console.error("Failed to load notes:", error)
-            toast.error("Failed to load notes", "Your notes may not be available")
-            setIsInitializing(false)
-            // Still set app as ready even if notes fail to load
             setTimeout(() => {
               setIsAppReady(true)
             }, 100)
