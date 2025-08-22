@@ -1,0 +1,40 @@
+{
+  "frontend": {
+    "enableDetailedTiming": true,
+    "enableBudgetWarnings": true,
+    "slowTestThreshold": 1000000,
+    "showMemoryUsage": true,
+    "groupByFile": true,
+    "budgets": {
+      "unit": {
+        "maxDurationMicros": 100000,
+        "maxMemoryBytes": 52428800
+      },
+      "integration": {
+        "maxDurationMicros": 5000000,
+        "maxMemoryBytes": 524288000
+      }
+    }
+  },
+  "backend": {
+    "enableDetailedTiming": true,
+    "enableBudgetWarnings": true,
+    "slowTestThreshold": 1000000,
+    "budgets": {
+      "unit": {
+        "maxDurationMicros": 50000,
+        "maxMemoryBytes": 10485760
+      },
+      "integration": {
+        "maxDurationMicros": 10000000,
+        "maxMemoryBytes": 1073741824
+      }
+    }
+  },
+  "ci": {
+    "failOnBudgetViolation": false,
+    "exportMetrics": true,
+    "compareWithBaseline": true,
+    "maxBudgetViolations": 5
+  }
+}

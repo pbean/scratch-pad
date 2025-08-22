@@ -1,0 +1,35 @@
+name: 'Setup Rust Toolchain'
+description: 'Set up Rust toolchain with caching and optional targets'
+inputs:
+  toolchain:
+    description: 'Rust toolchain version'
+    required: false
+    default: 'stable'
+  targets:
+    description: 'Additional targets to install (space-separated)'
+    required: false
+    default: ''
+  components:
+    description: 'Additional components to install (space-separated)'
+    required: false
+    default: ''
+  cache-workspaces:
+    description: 'Workspaces to cache'
+    required: false
+    default: 'src-tauri'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        targets: ${{ inputs.targets }}
+        components: ${{ inputs.components }}
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: ${{ inputs.cache-workspaces }}
+        shared-key: ${{ inputs.toolchain }}-${{ inputs.targets }}-${{ inputs.components }}

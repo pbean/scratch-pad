@@ -11,14 +11,22 @@
 /// - Isolated unit tests for service business logic
 /// - Support for async testing with tokio::test
 /// - Maintains all existing security validation
+/// - Database test isolation for parallel test execution
 
 pub mod mocks;
 pub mod unit;
+pub mod database;
 
 // Re-export testing utilities for convenience
 pub use mocks::{
     MockNoteRepository, MockSettingsRepository, MockSearchRepository,
     MockRepositoryState, MockCallTracker
+};
+
+// Re-export database testing utilities
+pub use database::{
+    TestDatabase, TestDatabaseFactory, IsolationStrategy,
+    with_test_coordination
 };
 
 /// Test utilities for setting up isolated test environments

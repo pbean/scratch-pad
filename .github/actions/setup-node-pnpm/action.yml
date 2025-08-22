@@ -1,0 +1,34 @@
+name: 'Setup Node.js and PNPM'
+description: 'Set up Node.js environment with PNPM package manager and caching'
+inputs:
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '20'
+  pnpm-version:
+    description: 'PNPM version to use'
+    required: false
+    default: '10'
+  cache-dependency-path:
+    description: 'Path to package.json for cache key'
+    required: false
+    default: 'package.json'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'pnpm'
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}
+
+    - name: Install frontend dependencies
+      shell: bash
+      run: pnpm install

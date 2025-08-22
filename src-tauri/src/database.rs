@@ -7,9 +7,13 @@ use rusqlite::{params, OptionalExtension};  // Added OptionalExtension trait
 // Migrations are now handled directly via execute_batch
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 pub type DbPool = Pool<SqliteConnectionManager>;
 pub type DbConnection = PooledConnection<SqliteConnectionManager>;
+
+/// High-resolution timestamp counter for test isolation
+static TIMESTAMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug)]
 pub struct DbService {
@@ -71,13 +75,35 @@ impl DbService {
         Ok(())
     }
 
+    /// Generate high-resolution timestamp for test isolation
+    fn generate_high_resolution_timestamp() -> String {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap();
+        
+        // Include atomic counter for guaranteed uniqueness during parallel tests
+        let counter = TIMESTAMP_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let nanos = now.as_nanos();
+        
+        let timestamp = chrono::DateTime::from_timestamp(
+            (nanos / 1_000_000_000) as i64,
+            (nanos % 1_000_000_000) as u32,
+        ).unwrap_or_else(|| chrono::Utc::now());
+        
+        // Format with microsecond precision and counter for uniqueness
+        format!("{}.{:06}", 
+            timestamp.format("%Y-%m-%d %H:%M:%S"),
+            (nanos % 1_000_000_000) as u64 / 1000 + counter % 1000000
+        )
+    }
+
     /// Create a new note with context-aware validation
     pub async fn create_note_with_context(&self, content: String, context: &crate::validation::OperationContext) -> Result<Note, AppError> {
         let conn = self.get_connection()?;
         
         // SECURITY: Validate content with context before insertion
         let security_validator = crate::validation::SecurityValidator::new();
-        security_validator.validate_note_content_with_context(&content, context)?;
+        security_validator.validate_note_content(&content, context)?;
         
         self.create_note_internal(content, conn)
     }
@@ -93,13 +119,13 @@ impl DbService {
                 vec![crate::validation::OperationCapability::WriteNotes]
             );
             let security_validator = crate::validation::SecurityValidator::new();
-            security_validator.validate_note_content_with_context(&content, &test_context)?;
+            security_validator.validate_note_content(&content, &test_context)?;
         }
         
         // For non-test builds, use legacy validation
         #[cfg(not(test))]
         {
-            crate::validation::SecurityValidator::validate_note_content(&content)?;
+            crate::validation::SecurityValidator::validate_note_content_static(&content)?;
         }
         
         self.create_note_internal(content, conn)
@@ -107,8 +133,8 @@ impl DbService {
     
     /// Internal method to create note after validation
     fn create_note_internal(&self, content: String, conn: DbConnection) -> Result<Note, AppError> {
-        
-        let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        // Use high-resolution timestamp for test isolation
+        let now = Self::generate_high_resolution_timestamp();
         
         // Insert into main notes table (database uses is_pinned, mapped to is_favorite)
         conn.execute(
@@ -171,16 +197,17 @@ impl DbService {
                 vec![crate::validation::OperationCapability::WriteNotes]
             );
             let security_validator = crate::validation::SecurityValidator::new();
-            security_validator.validate_note_content_with_context(&note.content, &test_context)?;
+            security_validator.validate_note_content(&note.content, &test_context)?;
         }
         
         // For non-test builds, use legacy validation
         #[cfg(not(test))]
         {
-            crate::validation::SecurityValidator::validate_note_content(&note.content)?;
+            crate::validation::SecurityValidator::validate_note_content_static(&note.content)?;
         }
         
-        let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        // Use high-resolution timestamp for test isolation
+        let now = Self::generate_high_resolution_timestamp();
         
         // Update all note fields (database uses is_pinned, mapped from is_favorite)
         let rows_affected = conn.execute(
@@ -216,9 +243,10 @@ impl DbService {
         let conn = self.get_connection()?;
         
         // SECURITY: Validate content before update
-        SecurityValidator::validate_note_content(&content)?;
+        SecurityValidator::validate_note_content_static(&content)?;
         
-        let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        // Use high-resolution timestamp for test isolation
+        let now = Self::generate_high_resolution_timestamp();
         
         // Update main notes table
         let rows_affected = conn.execute(
@@ -549,14 +577,12 @@ pub struct DatabaseStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
+    use crate::testing::database::TestDatabaseFactory;
 
     #[tokio::test]
     async fn test_create_and_get_note() {
-        let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
-        
-        let db = DbService::new(&db_path).unwrap();
+        let test_db = TestDatabaseFactory::create_memory_db().await.unwrap();
+        let db = test_db.db();
         
         let note = db.create_note("Test content".to_string()).await.unwrap();
         assert_eq!(note.content, "Test content");
@@ -569,24 +595,23 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_note() {
-        let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
-        
-        let db = DbService::new(&db_path).unwrap();
+        let test_db = TestDatabaseFactory::create_memory_db().await.unwrap();
+        let db = test_db.db();
         
         let note = db.create_note("Original content".to_string()).await.unwrap();
         let updated = db.update_note_content(note.id, "Updated content".to_string()).await.unwrap();
         
         assert_eq!(updated.content, "Updated content");
         assert_eq!(updated.id, note.id);
+        
+        // Verify timestamps are different with high-resolution support
+        assert_ne!(note.updated_at, updated.updated_at);
     }
 
     #[tokio::test]
     async fn test_delete_note() {
-        let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
-        
-        let db = DbService::new(&db_path).unwrap();
+        let test_db = TestDatabaseFactory::create_memory_db().await.unwrap();
+        let db = test_db.db();
         
         let note = db.create_note("Test content".to_string()).await.unwrap();
         db.delete_note(note.id).await.unwrap();
@@ -597,10 +622,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_notes() {
-        let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
-        
-        let db = DbService::new(&db_path).unwrap();
+        let test_db = TestDatabaseFactory::create_memory_db().await.unwrap();
+        let db = test_db.db();
         
         db.create_note("Rust programming is fun".to_string()).await.unwrap();
         db.create_note("JavaScript is also good".to_string()).await.unwrap();
@@ -612,10 +635,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_pagination() {
-        let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
-        
-        let db = DbService::new(&db_path).unwrap();
+        let test_db = TestDatabaseFactory::create_memory_db().await.unwrap();
+        let db = test_db.db();
         
         // Create multiple notes
         for i in 0..5 {
@@ -628,10 +649,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_settings() {
-        let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
-        
-        let db = DbService::new(&db_path).unwrap();
+        let test_db = TestDatabaseFactory::create_memory_db().await.unwrap();
+        let db = test_db.db();
         
         db.set_setting("test_key", "test_value").await.unwrap();
         
@@ -640,5 +659,68 @@ mod tests {
         
         let all_settings = db.get_all_settings().await.unwrap();
         assert!(!all_settings.is_empty());
+    }
+    
+    #[tokio::test]
+    async fn test_high_resolution_timestamps() {
+        let test_db = TestDatabaseFactory::create_memory_db().await.unwrap();
+        let db = test_db.db();
+        
+        // Create multiple notes rapidly
+        let mut notes = Vec::new();
+        for i in 0..5 {
+            let note = db.create_note(format!("Test note {}", i)).await.unwrap();
+            notes.push(note);
+        }
+        
+        // Verify all timestamps are unique
+        let mut timestamps: Vec<String> = notes.iter().map(|n| n.created_at.clone()).collect();
+        timestamps.sort();
+        timestamps.dedup();
+        
+        assert_eq!(timestamps.len(), 5, "All timestamps should be unique");
+    }
+    
+    #[tokio::test]
+    async fn test_parallel_database_isolation() {
+        // Use file-based databases for true isolation in parallel tests
+        let handles: Vec<_> = (0..3).map(|i| {
+            tokio::spawn(async move {
+                // Use file-based database for true isolation
+                let test_db = TestDatabaseFactory::create_file_db().await.unwrap();
+                let db = test_db.db();
+                
+                // Create note specific to this instance
+                let note = db.create_note(format!("Test note {}", i)).await.unwrap();
+                
+                // Verify only this note exists in this database
+                let all_notes = db.get_all_notes().await.unwrap();
+                
+                // Debug output to understand what's happening
+                eprintln!("Thread {}: Found {} notes, test_id: {}", 
+                         i, all_notes.len(), test_db.test_id);
+                for (idx, note) in all_notes.iter().enumerate() {
+                    eprintln!("  Note {}: {}", idx, note.content);
+                }
+                
+                assert_eq!(all_notes.len(), 1, "Thread {} should have exactly 1 note, but found {}", i, all_notes.len());
+                assert_eq!(all_notes[0].content, format!("Test note {}", i));
+                
+                (test_db.test_id, note.id)
+            })
+        }).collect();
+        
+        let mut results = Vec::new();
+        for handle in handles {
+            results.push(handle.await.unwrap());
+        }
+        
+        // Verify all test databases have unique IDs
+        let test_ids: Vec<u64> = results.iter().map(|(test_id, _)| *test_id).collect();
+        let mut unique_test_ids = test_ids.clone();
+        unique_test_ids.sort();
+        unique_test_ids.dedup();
+        
+        assert_eq!(unique_test_ids.len(), test_ids.len(), "All test databases should have unique IDs");
     }
 }

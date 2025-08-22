@@ -1,0 +1,51 @@
+name: 'Build Frontend'
+description: 'Build frontend application with optional quality checks'
+inputs:
+  run-tests:
+    description: 'Run frontend tests'
+    required: false
+    default: 'true'
+  run-type-check:
+    description: 'Run TypeScript type checking'
+    required: false
+    default: 'true'
+  run-lint:
+    description: 'Run ESLint'
+    required: false
+    default: 'true'
+  test-coverage:
+    description: 'Generate test coverage'
+    required: false
+    default: 'false'
+  build-production:
+    description: 'Build for production'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run frontend tests
+      if: inputs.run-tests == 'true'
+      shell: bash
+      run: |
+        if [ "${{ inputs.test-coverage }}" = "true" ]; then
+          pnpm test --run --coverage
+        else
+          pnpm test --run
+        fi
+
+    - name: Run frontend type check
+      if: inputs.run-type-check == 'true'
+      shell: bash
+      run: pnpm type-check
+
+    - name: Run frontend linting
+      if: inputs.run-lint == 'true'
+      shell: bash
+      run: pnpm lint
+
+    - name: Build frontend
+      if: inputs.build-production == 'true'
+      shell: bash
+      run: pnpm build

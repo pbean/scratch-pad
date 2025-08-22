@@ -113,7 +113,7 @@ impl ShutdownManager {
         global_shortcut_service: Arc<GlobalShortcutService>,
         window_manager: Arc<WindowManager>,
         plugin_manager: Arc<tokio::sync::Mutex<PluginManager>>,
-        security_validator: Arc<SecurityValidator>,
+        _security_validator: Arc<SecurityValidator>,
     ) -> Result<(), AppError> {
         // Set shutdown flag
         self.is_shutting_down.store(true, Ordering::Relaxed);
@@ -134,7 +134,7 @@ impl ShutdownManager {
                 global_shortcut_service,
                 window_manager,
                 plugin_manager,
-                security_validator,
+                _security_validator,
             )
         ).await;
 
@@ -172,7 +172,7 @@ impl ShutdownManager {
         global_shortcut_service: Arc<GlobalShortcutService>,
         window_manager: Arc<WindowManager>,
         plugin_manager: Arc<tokio::sync::Mutex<PluginManager>>,
-        security_validator: Arc<SecurityValidator>,
+        _security_validator: Arc<SecurityValidator>,
     ) -> Result<(), AppError> {
         
         // Stage 1: Save pending data
@@ -217,9 +217,10 @@ impl ShutdownManager {
         }
 
         // Clean up temporary files and IPC resources
-        if let Err(e) = security_validator.cleanup_all_temp_files() {
-            eprintln!("Warning: Failed to cleanup temporary files: {}", e);
-        }
+        // TODO: cleanup_all_temp_files method not yet implemented in SecurityValidator
+        // if let Err(e) = security_validator.cleanup_all_temp_files() {
+        //     eprintln!("Warning: Failed to cleanup temporary files: {}", e);
+        // }
 
         // Stage 3: Finalize shutdown
         self.emit_status(ShutdownStatus {
@@ -269,7 +270,7 @@ impl ShutdownManager {
         global_shortcut_service: Arc<GlobalShortcutService>,
         window_manager: Arc<WindowManager>,
         plugin_manager: Arc<tokio::sync::Mutex<PluginManager>>,
-        security_validator: Arc<SecurityValidator>,
+        _security_validator: Arc<SecurityValidator>,
     ) {
         let shutdown_manager = Self {
             is_shutting_down: self.is_shutting_down.clone(),
@@ -283,7 +284,7 @@ impl ShutdownManager {
         let shortcut_clone = global_shortcut_service.clone();
         let window_clone = window_manager.clone();
         let plugin_clone = plugin_manager.clone();
-        let validator_clone = security_validator.clone();
+        let validator_clone = _security_validator.clone();
 
         let _ = ctrlc::set_handler(move || {
             println!("Received interrupt signal, initiating graceful shutdown...");

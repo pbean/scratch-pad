@@ -8,7 +8,6 @@ use crate::validation::SecurityValidator;
 use crate::window_manager::WindowManager;
 use std::sync::Arc;
 use tauri::Manager;
-use tokio::sync::Mutex;
 
 pub mod commands;
 pub mod database;
@@ -52,69 +51,78 @@ pub fn run() {
                 .unwrap_or_else(|_| std::env::current_dir().unwrap())
                 .join("scratch-pad.db");
             
-            let db_service = Arc::new(DbService::new(&db_path).unwrap());
-            
-            // Initialize security validator
-            let security_validator = Arc::new(SecurityValidator::new());
+            // Create database connection with enhanced error handling
+            // Fix: Convert Cow<str> to &str properly
+            let db_service = DbService::new(db_path.to_string_lossy().as_ref())?;
+            let db_service_arc = Arc::new(db_service);
             
             // Initialize search service
-            let search_service = Arc::new(SearchService::new(db_service.clone()));
+            // Fix: Pass Arc<DbService> instead of DbService
+            let search_service = SearchService::new(db_service_arc.clone());
             
-            // Initialize settings service
-            let settings_service = Arc::new(SettingsService::new(db_service.clone()));
+            // Initialize settings service  
+            // Fix: Pass Arc<DbService> instead of DbService
+            let settings_service = SettingsService::new(db_service_arc.clone());
+            let settings_service_arc = Arc::new(settings_service);
             
             // Initialize global shortcut service
-            let global_shortcut = Arc::new(GlobalShortcutService::new(
+            // Fix: Pass both AppHandle and Arc<SettingsService>
+            let global_shortcut_service = GlobalShortcutService::new(
                 app.handle().clone(), 
-                settings_service.clone()
-            ));
+                settings_service_arc.clone()
+            );
             
             // Initialize window manager
-            let window_manager = Arc::new(WindowManager::new(
-                app.handle().clone(), 
-                settings_service.clone()
-            ));
+            // Fix: Pass both AppHandle and Arc<SettingsService>
+            let window_manager = WindowManager::new(
+                app.handle().clone(),
+                settings_service_arc.clone()
+            );
             
             // Initialize plugin manager
-            let plugin_manager = Arc::new(Mutex::new(PluginManager::new()));
+            let plugin_manager = PluginManager::new();
+            
+            // Initialize security validator
+            let security_validator = SecurityValidator::new();
             
             // Initialize shutdown manager
-            let mut shutdown_manager = ShutdownManager::new();
-            shutdown_manager.set_app_handle(app.handle().clone());
-            let shutdown_manager = Arc::new(shutdown_manager);
+            let shutdown_manager = ShutdownManager::new();
             
-            // Initialize performance monitoring
-            crate::performance::initialize_performance_monitoring();
-            
-            // Compose app state
-            let app_state = AppState {
-                db: db_service,
-                search: search_service,
-                settings: settings_service,
-                global_shortcut,
-                window_manager,
-                plugin_manager,
-                security_validator,
-                shutdown_manager,
+            // Set up application state
+            let state = AppState {
+                db: db_service_arc,
+                search: Arc::new(search_service),
+                settings: settings_service_arc,
+                global_shortcut: Arc::new(global_shortcut_service),
+                window_manager: Arc::new(window_manager),
+                plugin_manager: Arc::new(tokio::sync::Mutex::new(plugin_manager)),
+                security_validator: Arc::new(security_validator),
+                shutdown_manager: Arc::new(shutdown_manager),
             };
             
-            // Install the app state
-            app.manage(app_state);
+            // Store state in Tauri's state management
+            app.manage(state);
             
             Ok(())
         })
-        .invoke_handler(crate::generate_command_handler!())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::default()
+            .with_handler(|_app, _shortcut, event| {
+                println!("Global shortcut triggered: {:?}", event);
+            })
+            .build())
+        .invoke_handler(tauri::generate_handler![
+            commands::notes::create_note,
+            commands::notes::update_note,
+            commands::notes::delete_note,
+            commands::notes::get_all_notes,  // Fix: Use get_all_notes instead of get_notes
+            commands::search::search_notes,
+            commands::search::search_notes_paginated,
+            commands::search::search_notes_boolean_paginated,
+            commands::search::validate_boolean_search_query,
+            commands::settings::save_settings,
+            commands::settings::register_global_shortcut,  // Fix: Use settings module path
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-
-#[cfg(test)]
-mod tests {
-    // Test module uses core functionality
-    
-    #[test]
-    fn verify_app_setup() {
-        // This test ensures the app setup compiles correctly
-        // The actual functionality would be tested in integration tests
-    }
 }

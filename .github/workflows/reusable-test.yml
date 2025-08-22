@@ -1,0 +1,213 @@
+name: 'Reusable Cross-Platform Test'
+description: 'Reusable workflow for cross-platform testing with performance monitoring'
+
+on:
+  workflow_call:
+    inputs:
+      platforms:
+        description: 'JSON array of platforms to test on'
+        required: false
+        type: string
+        default: '["ubuntu-latest", "windows-latest", "macos-latest"]'
+      node-version:
+        description: 'Node.js version to use'
+        required: false
+        type: string
+        default: '20'
+      rust-toolchain:
+        description: 'Rust toolchain version'
+        required: false
+        type: string
+        default: 'stable'
+      run-frontend-tests:
+        description: 'Run frontend tests'
+        required: false
+        type: boolean
+        default: true
+      run-backend-tests:
+        description: 'Run backend tests'
+        required: false
+        type: boolean
+        default: true
+      run-integration-tests:
+        description: 'Run integration tests'
+        required: false
+        type: boolean
+        default: true
+      performance-monitoring:
+        description: 'Enable performance monitoring'
+        required: false
+        type: boolean
+        default: false
+      test-coverage:
+        description: 'Generate test coverage'
+        required: false
+        type: boolean
+        default: false
+      fail-fast:
+        description: 'Fail fast on first error'
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      test-results:
+        description: 'JSON object with test results for all platforms'
+        value: ${{ jobs.test-matrix.outputs.results }}
+      performance-metrics:
+        description: 'Aggregated performance metrics'
+        value: ${{ jobs.collect-metrics.outputs.metrics }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test-matrix:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: ${{ inputs.fail-fast }}
+      matrix:
+        os: ${{ fromJson(inputs.platforms) }}
+    outputs:
+      results: ${{ steps.aggregate-results.outputs.results }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js and PNPM
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+        with:
+          toolchain: ${{ inputs.rust-toolchain }}
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/install-linux-deps
+
+      - name: Run tests with performance monitoring
+        id: run-tests
+        uses: ./.github/actions/run-tests
+        with:
+          run-frontend-tests: ${{ inputs.run-frontend-tests }}
+          run-backend-tests: ${{ inputs.run-backend-tests }}
+          run-integration-tests: ${{ inputs.run-integration-tests }}
+          performance-monitoring: ${{ inputs.performance-monitoring }}
+          platform: ${{ matrix.os }}
+
+      - name: Build test (no bundle)
+        shell: bash
+        run: |
+          pnpm build
+          cd src-tauri && cargo build --release
+
+      - name: Upload performance metrics
+        if: inputs.performance-monitoring
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-metrics-${{ matrix.os }}
+          path: .performance-metrics/
+          retention-days: 7
+
+      - name: Store test results
+        id: store-results
+        shell: bash
+        run: |
+          cat > test-results-${{ matrix.os }}.json << EOF
+          {
+            "platform": "${{ matrix.os }}",
+            "frontend_tests": "${{ steps.run-tests.outputs.frontend-test-result }}",
+            "backend_tests": "${{ steps.run-tests.outputs.backend-test-result }}",
+            "integration_tests": "${{ steps.run-tests.outputs.integration-test-result }}",
+            "build_success": "success",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)"
+          }
+          EOF
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: test-results-${{ matrix.os }}.json
+          retention-days: 7
+
+  collect-metrics:
+    name: Collect and Aggregate Metrics
+    runs-on: ubuntu-latest
+    needs: test-matrix
+    if: inputs.performance-monitoring
+    outputs:
+      metrics: ${{ steps.aggregate-metrics.outputs.metrics }}
+    steps:
+      - name: Download all performance metrics
+        uses: actions/download-artifact@v4
+        with:
+          pattern: performance-metrics-*
+          merge-multiple: true
+          path: ./all-metrics
+
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          merge-multiple: true
+          path: ./all-results
+
+      - name: Aggregate metrics and results
+        id: aggregate-metrics
+        shell: bash
+        run: |
+          # Install jq if not available
+          sudo apt-get update && sudo apt-get install -y jq
+          
+          # Aggregate performance metrics
+          if [ -d "./all-metrics" ]; then
+            find ./all-metrics -name "*.json" -exec cat {} \; | jq -s '.' > aggregated-performance.json
+          else
+            echo '[]' > aggregated-performance.json
+          fi
+          
+          # Aggregate test results
+          if [ -d "./all-results" ]; then
+            find ./all-results -name "test-results-*.json" -exec cat {} \; | jq -s '.' > aggregated-results.json
+          else
+            echo '[]' > aggregated-results.json
+          fi
+          
+          # Combine into final metrics
+          jq -n \
+            --argjson performance "$(cat aggregated-performance.json)" \
+            --argjson results "$(cat aggregated-results.json)" \
+            '{
+              "performance_metrics": $performance,
+              "test_results": $results,
+              "aggregation_timestamp": now | strftime("%Y-%m-%dT%H:%M:%S.%6NZ")
+            }' > final-metrics.json
+          
+          # Output for GitHub Actions
+          metrics=$(cat final-metrics.json | jq -c '.')
+          echo "metrics=$metrics" >> $GITHUB_OUTPUT
+          
+          # Create summary
+          echo "## Cross-Platform Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Results by Platform" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat aggregated-results.json | jq '.' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          if [ -s aggregated-performance.json ] && [ "$(cat aggregated-performance.json)" != "[]" ]; then
+            echo "### Performance Metrics" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat aggregated-performance.json | jq '.' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload aggregated metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: aggregated-metrics
+          path: final-metrics.json
+          retention-days: 30

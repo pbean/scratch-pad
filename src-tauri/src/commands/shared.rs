@@ -36,7 +36,7 @@ pub fn validate_note_content_secure(
     content: &str,
     context: &OperationContext
 ) -> Result<(), AppError> {
-    security_validator.validate_note_content_with_context(content, context)
+    security_validator.validate_note_content(content, context)
 }
 
 /// Standard search query validation
@@ -82,7 +82,7 @@ pub fn validate_id_secure(id: i64) -> Result<(), AppError> {
 /// - Reasonable offsets (max 100k)
 /// - Non-zero limits
 pub fn validate_pagination_secure(offset: usize, limit: usize) -> Result<(), AppError> {
-    crate::validation::SecurityValidator::validate_pagination(offset, limit)}
+    crate::validation::SecurityValidator::validate_pagination(offset as i64, limit as i64)}
 
 /// Standard shortcut validation
 /// 

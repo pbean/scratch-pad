@@ -1,14 +1,19 @@
 import '@testing-library/jest-dom'
 import { vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
+import { 
+  setupReact19Timeouts, 
+  cleanupReact19Timeouts,
+  DEFAULT_REACT19_CONFIG 
+} from './async-timeout-utils'
 
 // Global setup to ensure React Testing Library works properly with jsdom
 import { configure } from '@testing-library/react'
 configure({
   // Use document.body as container by default
   defaultHidden: true,
-  // Configure React 19 testing environment - increased timeout for React 19's async rendering
-  asyncUtilTimeout: 15000,
+  // Configure React 19 testing environment - optimized timeout for React 19's automatic batching
+  asyncUtilTimeout: DEFAULT_REACT19_CONFIG.timeout,
   testIdAttribute: 'data-testid',
   getElementError: (message, container) => {
     const prettyDOM = require('@testing-library/dom').prettyDOM
@@ -20,9 +25,20 @@ configure({
   }
 })
 
-// Clean up after each test
+// Setup React 19-optimized timeouts
+setupReact19Timeouts()
+
+// FE-007: Update cleanup strategy for React 19 concurrent mode
 afterEach(() => {
+  // React 19 handles cleanup more efficiently with concurrent features
   cleanup()
+  
+  // Clear any pending timers and animations
+  vi.clearAllTimers()
+  vi.clearAllMocks()
+  
+  // Clean up React 19-specific timeout state
+  cleanupReact19Timeouts()
 })
 
 // Mock Tauri API globally
@@ -30,42 +46,11 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn()
 }))
 
-// Mock CSS variables for Tailwind classes
-vi.mock('react', async () => {
-  const actual = await vi.importActual('react')
-  return {
-    ...actual,
-    useLayoutEffect: vi.fn().mockImplementation(actual.useEffect)
-  }
-})
-
-// Configure React Test Environment globally
-Object.defineProperty(global, 'IS_REACT_ACT_ENVIRONMENT', {
-  value: true,
-  writable: true,
-  configurable: true
-})
+// FE-005: Remove useLayoutEffect mock (React 19 handles this properly)
+// FE-003: Remove manual act() environment configuration (React 19 handles automatically)
 
 // Global window mocks
 beforeAll(() => {
-  // Configure React act environment
-  window.IS_REACT_ACT_ENVIRONMENT = true
-  
-  // Suppress React act() warnings in test environment (React 19 handles this automatically)
-  const originalConsoleError = console.error
-  console.error = (...args) => {
-    if (
-      typeof args[0] === 'string' && 
-      (args[0].includes('The current testing environment is not configured to support act') ||
-       args[0].includes('Warning: ReactDOM.render is no longer supported') ||
-       args[0].includes('act() is not supported') ||
-       args[0].includes('Consider adding'))
-    ) {
-      return // Suppress React testing warnings
-    }
-    originalConsoleError.apply(console, args)
-  }
-  
   // Mock window.confirm
   Object.defineProperty(window, 'confirm', {
     writable: true,
@@ -261,8 +246,11 @@ beforeAll(() => {
     }
   })
 
-  // Mock requestAnimationFrame and cancelAnimationFrame
-  global.requestAnimationFrame = vi.fn().mockImplementation((cb) => setTimeout(cb, 16))
+  // Enhanced requestAnimationFrame and cancelAnimationFrame with React 19 timing
+  global.requestAnimationFrame = vi.fn().mockImplementation((cb) => {
+    // React 19 uses 16ms intervals for concurrent scheduling
+    return setTimeout(cb, 16)
+  })
   global.cancelAnimationFrame = vi.fn().mockImplementation((id) => clearTimeout(id))
   
   // Enhanced keyboard event support
@@ -285,7 +273,7 @@ beforeAll(() => {
     }
   } as any
 
-  // FE-002: Add PointerEvent mock support for React 19 compatibility
+  // Add PointerEvent mock support for React 19 compatibility
   global.PointerEvent = class MockPointerEvent extends MouseEvent {
     public pointerId: number
     public width: number
@@ -344,6 +332,15 @@ beforeAll(() => {
     const mappedType = pointerToMouseEventMap[type] || type
     return originalAddEventListener.call(this, mappedType, listener, options)
   })
+
+  // Enhanced performance.now() mock for React 19 scheduling
+  const startTime = Date.now()
+  global.performance = global.performance || {} as Performance
+  global.performance.now = vi.fn().mockImplementation(() => Date.now() - startTime)
+  global.performance.mark = vi.fn()
+  global.performance.measure = vi.fn()
+  global.performance.clearMarks = vi.fn()
+  global.performance.clearMeasures = vi.fn()
 })
 
 beforeEach(() => {
@@ -389,4 +386,7 @@ beforeEach(() => {
     }
     return originalCreateElement(tagName)
   })
+
+  // Reset React 19-specific timeout configurations
+  setupReact19Timeouts()
 })

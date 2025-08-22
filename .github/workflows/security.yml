@@ -17,25 +17,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - name: Setup Node.js and PNPM
+        uses: ./.github/actions/setup-node-pnpm
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
 
       - name: Install cargo-audit
         run: cargo install cargo-audit
-
-      - name: Install frontend dependencies
-        run: pnpm install
 
       - name: Run npm audit
         run: pnpm audit --audit-level moderate
@@ -68,48 +57,26 @@ jobs:
         with:
           languages: ${{ matrix.language }}
 
-      - name: Install pnpm
+      - name: Setup Node.js and PNPM
         if: matrix.language == 'javascript'
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
+        uses: ./.github/actions/setup-node-pnpm
 
-      - name: Setup Node.js
-        if: matrix.language == 'javascript'
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Setup Rust
+      - name: Setup Rust toolchain
         if: matrix.language == 'rust'
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
       - name: Install Linux dependencies
         if: matrix.language == 'rust'
-        run: |
-          sudo apt-get update
-          
-          # Version-specific WebKit installation for Ubuntu 24.04 compatibility
-          if [ "$(lsb_release -rs)" = "24.04" ]; then
-            sudo apt-get install -y libwebkit2gtk-4.1-dev
-          else
-            sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev
-          fi
-          
-          # Common dependencies (platform-agnostic)
-          sudo apt-get install -y \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libssl-dev \
-            pkg-config
+        uses: ./.github/actions/install-linux-deps
 
       - name: Build frontend
         if: matrix.language == 'javascript'
-        run: |
-          pnpm install
-          pnpm build
+        uses: ./.github/actions/build-frontend
+        with:
+          run-tests: 'false'
+          run-type-check: 'false'
+          run-lint: 'false'
+          build-production: 'true'
 
       - name: Build backend
         if: matrix.language == 'rust'

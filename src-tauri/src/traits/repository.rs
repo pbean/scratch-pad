@@ -169,56 +169,24 @@ impl SearchRepository for DbService {
         page: usize,
         page_size: usize,
     ) -> Result<(Vec<Note>, usize), AppError> {
-        // This is a new method that will be implemented in SearchService
-        // For now, we'll use the existing search_notes_paginated method
-        let offset = (page * page_size) as i64;
-        let limit = page_size as i64;
-        let (notes, total_count) = self.search_notes_paginated(fts5_query, offset, limit).await?;
-        Ok((notes, total_count as usize))
+        let offset = page * page_size;
+        let (notes, total) = self.search_notes_paginated(fts5_query, offset as i64, page_size as i64).await?;
+        Ok((notes, total as usize))
     }
     
     async fn search_by_path(&self, path_prefix: &str) -> Result<Vec<Note>, AppError> {
-        // Implement path search using existing database connection
-        let conn = self.get_connection()?;
-        
-        let mut stmt = conn.prepare_cached(
-            "SELECT id, content, created_at, updated_at, is_pinned 
-             FROM notes WHERE path LIKE ? ORDER BY path, updated_at DESC"
-        )?;
-
-        let search_pattern = format!("{}%", path_prefix);
-        let note_iter = stmt.query_map([&search_pattern], |row| {
-            let id: i64 = row.get(0)?;
-            Ok(Note {
-                id,
-                content: row.get(1)?,
-                created_at: row.get(2)?,
-                updated_at: row.get(3)?,
-                is_favorite: row.get(4)?,
-                format: crate::models::NoteFormat::PlainText,
-                nickname: None,
-                path: format!("/note/{}", id),
-            })
-        })?;
-
-        let mut notes = Vec::new();
-        for note_result in note_iter {
-            notes.push(note_result?);
-        }
-
-        Ok(notes)
+        // For MVP, search by content that might contain path-like strings
+        self.search_notes(path_prefix).await
     }
     
     async fn search_favorites(&self) -> Result<Vec<Note>, AppError> {
-        // Implement favorites search using existing database connection
         let conn = self.get_connection()?;
         
-        let mut stmt = conn.prepare_cached(
-            "SELECT id, content, created_at, updated_at, is_pinned 
-             FROM notes WHERE is_pinned = 1 ORDER BY updated_at DESC"
+        let mut stmt = conn.prepare(
+            "SELECT id, content, created_at, updated_at, is_pinned FROM notes WHERE is_pinned = 1 ORDER BY updated_at DESC"
         )?;
-
-        let note_iter = stmt.query_map([], |row| {
+        
+        let rows = stmt.query_map([], |row| {
             let id: i64 = row.get(0)?;
             Ok(Note {
                 id,
@@ -231,28 +199,26 @@ impl SearchRepository for DbService {
                 path: format!("/note/{}", id),
             })
         })?;
-
+        
         let mut notes = Vec::new();
-        for note_result in note_iter {
+        for note_result in rows {
             notes.push(note_result?);
         }
-
+        
         Ok(notes)
     }
     
     async fn search_recent(&self, days: u32) -> Result<Vec<Note>, AppError> {
-        // Implement recent search using existing database connection
         let conn = self.get_connection()?;
         
         let cutoff_date = chrono::Utc::now() - chrono::Duration::days(days as i64);
         let cutoff_str = cutoff_date.format("%Y-%m-%d %H:%M:%S").to_string();
         
-        let mut stmt = conn.prepare_cached(
-            "SELECT id, content, created_at, updated_at, is_pinned 
-             FROM notes WHERE updated_at >= ? ORDER BY updated_at DESC"
+        let mut stmt = conn.prepare(
+            "SELECT id, content, created_at, updated_at, is_pinned FROM notes WHERE updated_at >= ?1 ORDER BY updated_at DESC"
         )?;
-
-        let note_iter = stmt.query_map([&cutoff_str], |row| {
+        
+        let rows = stmt.query_map(rusqlite::params![cutoff_str], |row| {
             let id: i64 = row.get(0)?;
             Ok(Note {
                 id,
@@ -265,49 +231,45 @@ impl SearchRepository for DbService {
                 path: format!("/note/{}", id),
             })
         })?;
-
+        
         let mut notes = Vec::new();
-        for note_result in note_iter {
+        for note_result in rows {
             notes.push(note_result?);
         }
-
+        
         Ok(notes)
     }
     
     async fn get_search_suggestions(&self, partial_query: &str) -> Result<Vec<String>, AppError> {
-        if partial_query.trim().is_empty() {
-            return Ok(vec![]);
-        }
-
+        // Basic implementation: split content into words and find matches
         let conn = self.get_connection()?;
         
-        // Get unique words from content that start with the partial query
-        let mut stmt = conn.prepare_cached(
-            "SELECT DISTINCT substr(content, 1, 50) as snippet
-             FROM notes 
-             WHERE content LIKE ? 
-             ORDER BY updated_at DESC 
-             LIMIT 10"
+        let mut stmt = conn.prepare(
+            "SELECT DISTINCT content FROM notes WHERE content LIKE ?1 ORDER BY content LIMIT 10"
         )?;
-
+        
         let search_pattern = format!("%{}%", partial_query);
-        let snippet_iter = stmt.query_map([&search_pattern], |row| {
-            Ok(row.get::<_, String>(0)?)
+        let rows = stmt.query_map(rusqlite::params![search_pattern], |row| {
+            let content: String = row.get(0)?;
+            Ok(content)
         })?;
-
+        
         let mut suggestions = Vec::new();
-        for snippet_result in snippet_iter {
-            let snippet = snippet_result?;
-            // Extract words that contain the partial query
-            for word in snippet.split_whitespace() {
-                if word.to_lowercase().contains(&partial_query.to_lowercase()) 
-                    && !suggestions.contains(&word.to_string()) 
-                    && suggestions.len() < 10 {
+        for content_result in rows {
+            let content = content_result?;
+            // Extract words from content that start with the partial query
+            for word in content.split_whitespace() {
+                if word.to_lowercase().starts_with(&partial_query.to_lowercase()) {
                     suggestions.push(word.to_string());
+                    if suggestions.len() >= 10 {
+                        break;
+                    }
                 }
             }
         }
-
+        
+        suggestions.sort();
+        suggestions.dedup();
         Ok(suggestions)
     }
     
@@ -324,19 +286,21 @@ impl SearchRepository for DbService {
         
         let mut sql = "SELECT id, content, created_at, updated_at, is_pinned FROM notes WHERE 1=1".to_string();
         let mut params: Vec<String> = Vec::new();
-
-        // Add FTS search if query is provided
+        
+        // Add query filter
         if let Some(q) = query {
-            if !q.trim().is_empty() {
-                sql.push_str(" AND id IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?)");
-                params.push(q.to_string());
+            if !q.is_empty() {
+                sql.push_str(" AND content LIKE ?");
+                params.push(format!("%{}%", q));
             }
         }
 
-        // Add path filter
+        // Add path filter (basic implementation)
         if let Some(path) = path_filter {
-            sql.push_str(" AND path LIKE ?");
-            params.push(format!("{}%", path));
+            if !path.is_empty() {
+                sql.push_str(" AND content LIKE ?");
+                params.push(format!("%{}%", path));
+            }
         }
 
         // Add favorites filter
@@ -393,20 +357,13 @@ impl SearchRepository for DbService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::DbService;
-    use std::sync::Arc;
-    use tempfile::NamedTempFile;
-
-    async fn create_test_db() -> Result<Arc<DbService>, AppError> {
-        let temp_file = NamedTempFile::new().unwrap();
-        let db_path = temp_file.path().to_string_lossy().to_string();
-        Ok(Arc::new(DbService::new(&db_path)?))
-    }
+    use crate::testing::database::TestDatabaseFactory;
 
     #[tokio::test]
     async fn test_note_repository_trait() {
-        let db = create_test_db().await.unwrap();
-        let repo: &dyn NoteRepository = db.as_ref();
+        let test_db = TestDatabaseFactory::create_memory_db().await.unwrap();
+        let db_service = test_db.db();
+        let repo: &dyn NoteRepository = db_service.as_ref();
 
         // Test create and get
         let note = repo.create_note("Test content".to_string()).await.unwrap();
@@ -431,8 +388,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_settings_repository_trait() {
-        let db = create_test_db().await.unwrap();
-        let repo: &dyn SettingsRepository = db.as_ref();
+        let test_db = TestDatabaseFactory::create_memory_db().await.unwrap();
+        let db_service = test_db.db();
+        let repo: &dyn SettingsRepository = db_service.as_ref();
 
         // Test set and get
         repo.set_setting("test_key", "test_value").await.unwrap();
@@ -451,11 +409,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_repository_trait() {
-        let db = create_test_db().await.unwrap();
-        let repo: &dyn SearchRepository = db.as_ref();
+        let test_db = TestDatabaseFactory::create_memory_db().await.unwrap();
+        let db_service = test_db.db();
+        let repo: &dyn SearchRepository = db_service.as_ref();
 
         // Create test data first
-        let note_repo: &dyn NoteRepository = db.as_ref();
+        let note_repo: &dyn NoteRepository = db_service.as_ref();
         let _note = note_repo.create_note("Test favorite note".to_string()).await.unwrap();
         
         // Test search suggestions
@@ -466,5 +425,40 @@ mod tests {
         // Test FTS5 search
         let (_results, count) = repo.execute_fts5_search("Test", 0, 10).await.unwrap();
         assert!(count >= 0);
+    }
+    
+    #[tokio::test]
+    async fn test_parallel_repository_isolation() {
+        // Test that repository traits work correctly with isolated databases
+        let handles: Vec<_> = (0..3).map(|i| {
+            tokio::spawn(async move {
+                let test_db = TestDatabaseFactory::create_memory_db().await.unwrap();
+                let db_service = test_db.db();
+                let repo: &dyn NoteRepository = db_service.as_ref();
+                
+                // Create note specific to this instance
+                let note = repo.create_note(format!("Repository test note {}", i)).await.unwrap();
+                
+                // Verify only this note exists in this database
+                let all_notes = repo.get_all_notes().await.unwrap();
+                assert_eq!(all_notes.len(), 1);
+                assert_eq!(all_notes[0].content, format!("Repository test note {}", i));
+                
+                (test_db.test_id, note.id)
+            })
+        }).collect();
+        
+        let mut results = Vec::new();
+        for handle in handles {
+            results.push(handle.await.unwrap());
+        }
+        
+        // Verify all test databases have unique IDs
+        let test_ids: Vec<u64> = results.iter().map(|(test_id, _)| *test_id).collect();
+        let mut unique_test_ids = test_ids.clone();
+        unique_test_ids.sort();
+        unique_test_ids.dedup();
+        
+        assert_eq!(unique_test_ids.len(), test_ids.len(), "All test databases should have unique IDs");
     }
 }

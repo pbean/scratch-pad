@@ -25,77 +25,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - name: Setup Node.js and PNPM
+        uses: ./.github/actions/setup-node-pnpm
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
 
       - name: Install Linux dependencies
         if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          
-          # Version-specific WebKit installation for Ubuntu 24.04 compatibility
-          if [ "$(lsb_release -rs)" = "24.04" ]; then
-            sudo apt-get install -y libwebkit2gtk-4.1-dev
-          else
-            sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev
-          fi
-          
-          # Common dependencies (platform-agnostic)
-          sudo apt-get install -y \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libssl-dev \
-            pkg-config
+        uses: ./.github/actions/install-linux-deps
 
-      - name: Install frontend dependencies
-        run: pnpm install
+      - name: Build frontend
+        uses: ./.github/actions/build-frontend
+        with:
+          run-tests: 'true'
+          run-type-check: 'true'
+          run-lint: 'true'
+          build-production: 'true'
 
-      - name: Run frontend tests
-        run: pnpm test --run
-
-      - name: Run frontend type check
-        run: pnpm type-check
-
-      - name: Run frontend linting
-        run: pnpm lint
-
-      - name: Run backend unit tests
-        run: cd src-tauri && cargo test
-
-      - name: Run backend integration tests
-        shell: bash
-        run: |
-          cd src-tauri
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            # Windows-specific test execution
-            powershell -ExecutionPolicy Bypass -File test_integration.ps1
-          else
-            # Unix-like systems
-            chmod +x test_integration.sh
-            ./test_integration.sh
-          fi
+      - name: Run tests with performance monitoring
+        uses: ./.github/actions/run-tests
+        with:
+          run-frontend-tests: 'false'  # Already run in build-frontend
+          run-backend-tests: 'true'
+          run-integration-tests: 'true'
+          performance-monitoring: 'true'
+          platform: ${{ matrix.os }}
 
       - name: Build test (no bundle)
-        run: |
-          pnpm build
-          cd src-tauri && cargo build --release
+        run: cd src-tauri && cargo build --release
 
   coverage:
     name: Code Coverage
@@ -104,49 +62,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - name: Setup Node.js and PNPM
+        uses: ./.github/actions/setup-node-pnpm
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
         with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
+          components: 'llvm-tools-preview'
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          
-          # Version-specific WebKit installation for Ubuntu 24.04 compatibility
-          if [ "$(lsb_release -rs)" = "24.04" ]; then
-            sudo apt-get install -y libwebkit2gtk-4.1-dev
-          else
-            sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev
-          fi
-          
-          # Common dependencies (platform-agnostic)
-          sudo apt-get install -y \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libssl-dev \
-            pkg-config
+        uses: ./.github/actions/install-linux-deps
 
-      - name: Install frontend dependencies
-        run: pnpm install
-
-      - name: Run frontend tests with coverage
-        run: pnpm test --run --coverage
+      - name: Build frontend with coverage
+        uses: ./.github/actions/build-frontend
+        with:
+          run-tests: 'true'
+          test-coverage: 'true'
+          run-type-check: 'false'
+          run-lint: 'false'
+          build-production: 'false'
 
       - name: Run backend tests with coverage
         run: cd src-tauri && cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info

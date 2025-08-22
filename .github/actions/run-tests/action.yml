@@ -1,0 +1,205 @@
+name: 'Run Tests with Performance Monitoring'
+description: 'Execute frontend and backend tests with optional performance monitoring and high-resolution timestamps'
+inputs:
+  run-frontend-tests:
+    description: 'Run frontend tests'
+    required: false
+    default: 'true'
+  run-backend-tests:
+    description: 'Run backend tests'
+    required: false
+    default: 'true'
+  run-integration-tests:
+    description: 'Run integration tests'
+    required: false
+    default: 'true'
+  performance-monitoring:
+    description: 'Enable performance monitoring'
+    required: false
+    default: 'false'
+  test-timeout:
+    description: 'Test timeout in seconds'
+    required: false
+    default: '300'
+  platform:
+    description: 'Current platform for conditional test execution'
+    required: false
+    default: ''
+
+outputs:
+  frontend-test-result:
+    description: 'Frontend test execution result'
+    value: ${{ steps.frontend-tests.outputs.result }}
+  backend-test-result:
+    description: 'Backend test execution result'
+    value: ${{ steps.backend-tests.outputs.result }}
+  integration-test-result:
+    description: 'Integration test execution result'
+    value: ${{ steps.integration-tests.outputs.result }}
+  performance-metrics:
+    description: 'Performance metrics JSON'
+    value: ${{ steps.performance.outputs.metrics }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up performance monitoring
+      if: inputs.performance-monitoring == 'true'
+      id: performance-setup
+      shell: bash
+      run: |
+        # Create performance monitoring directory
+        mkdir -p .performance-metrics
+        
+        # Initialize performance metrics with high-resolution timestamp
+        cat > .performance-metrics/start.json << EOF
+        {
+          "workflow_start": "$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)",
+          "platform": "${{ inputs.platform }}",
+          "hostname": "$(hostname)",
+          "cpu_count": "$(nproc)",
+          "memory_total": "$(free -m | awk 'NR==2{print $2}')"
+        }
+        EOF
+        
+        echo "Performance monitoring initialized"
+
+    - name: Run frontend tests
+      if: inputs.run-frontend-tests == 'true'
+      id: frontend-tests
+      shell: bash
+      run: |
+        start_time=$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)
+        
+        if timeout ${{ inputs.test-timeout }} pnpm test --run; then
+          result="success"
+          exit_code=0
+        else
+          result="failure"
+          exit_code=$?
+        fi
+        
+        end_time=$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)
+        
+        if [ "${{ inputs.performance-monitoring }}" = "true" ]; then
+          cat > .performance-metrics/frontend-tests.json << EOF
+        {
+          "test_type": "frontend",
+          "start_time": "$start_time",
+          "end_time": "$end_time",
+          "result": "$result",
+          "exit_code": $exit_code,
+          "timeout_seconds": ${{ inputs.test-timeout }}
+        }
+        EOF
+        fi
+        
+        echo "result=$result" >> $GITHUB_OUTPUT
+        exit $exit_code
+
+    - name: Run backend tests
+      if: inputs.run-backend-tests == 'true'
+      id: backend-tests
+      shell: bash
+      run: |
+        start_time=$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)
+        
+        cd src-tauri
+        if timeout ${{ inputs.test-timeout }} cargo test; then
+          result="success"
+          exit_code=0
+        else
+          result="failure"
+          exit_code=$?
+        fi
+        
+        end_time=$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)
+        
+        if [ "${{ inputs.performance-monitoring }}" = "true" ]; then
+          cat > ../.performance-metrics/backend-tests.json << EOF
+        {
+          "test_type": "backend",
+          "start_time": "$start_time",
+          "end_time": "$end_time",
+          "result": "$result",
+          "exit_code": $exit_code,
+          "timeout_seconds": ${{ inputs.test-timeout }}
+        }
+        EOF
+        fi
+        
+        echo "result=$result" >> $GITHUB_OUTPUT
+        exit $exit_code
+
+    - name: Run integration tests
+      if: inputs.run-integration-tests == 'true'
+      id: integration-tests
+      shell: bash
+      run: |
+        start_time=$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)
+        
+        cd src-tauri
+        
+        # Platform-specific integration test execution
+        if [[ "${{ inputs.platform }}" == "windows-latest" ]]; then
+          # Windows-specific test execution
+          if timeout ${{ inputs.test-timeout }} powershell -ExecutionPolicy Bypass -File test_integration.ps1; then
+            result="success"
+            exit_code=0
+          else
+            result="failure"
+            exit_code=$?
+          fi
+        else
+          # Unix-like systems
+          chmod +x test_integration.sh
+          if timeout ${{ inputs.test-timeout }} ./test_integration.sh; then
+            result="success"
+            exit_code=0
+          else
+            result="failure"
+            exit_code=$?
+          fi
+        fi
+        
+        end_time=$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)
+        
+        if [ "${{ inputs.performance-monitoring }}" = "true" ]; then
+          cat > ../.performance-metrics/integration-tests.json << EOF
+        {
+          "test_type": "integration",
+          "start_time": "$start_time",
+          "end_time": "$end_time",
+          "result": "$result",
+          "exit_code": $exit_code,
+          "timeout_seconds": ${{ inputs.test-timeout }},
+          "platform": "${{ inputs.platform }}"
+        }
+        EOF
+        fi
+        
+        echo "result=$result" >> $GITHUB_OUTPUT
+        exit $exit_code
+
+    - name: Collect performance metrics
+      if: inputs.performance-monitoring == 'true'
+      id: performance
+      shell: bash
+      run: |
+        end_time=$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)
+        
+        # Aggregate all performance metrics
+        jq -s '.' .performance-metrics/*.json > .performance-metrics/aggregated.json
+        
+        # Add workflow end time
+        jq ". + {\"workflow_end\": \"$end_time\"}" .performance-metrics/aggregated.json > .performance-metrics/final.json
+        
+        # Output for GitHub Actions
+        metrics=$(cat .performance-metrics/final.json | jq -c '.')
+        echo "metrics=$metrics" >> $GITHUB_OUTPUT
+        
+        # Display summary
+        echo "## Performance Metrics Summary" >> $GITHUB_STEP_SUMMARY
+        echo '```json' >> $GITHUB_STEP_SUMMARY
+        cat .performance-metrics/final.json | jq '.' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
