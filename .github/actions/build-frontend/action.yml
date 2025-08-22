@@ -32,6 +32,8 @@ runs:
         # Use CI-specific config in GitHub Actions environment
         if [ "$GITHUB_ACTIONS" = "true" ]; then
           echo "Running tests with CI configuration"
+          # Set NODE_OPTIONS for memory optimization on CI
+          export NODE_OPTIONS="--max-old-space-size=4096"
           if [ "${{ inputs.test-coverage }}" = "true" ]; then
             pnpm test --run --coverage --config vitest.ci.config.ts
           else

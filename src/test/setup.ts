@@ -101,23 +101,30 @@ beforeAll(() => {
   }))
 
   // Mock Element.scrollIntoView
-  Element.prototype.scrollIntoView = vi.fn()
+  if (!Element.prototype.scrollIntoView || typeof Element.prototype.scrollIntoView !== 'function') {
+    Element.prototype.scrollIntoView = vi.fn()
+  }
   
   // Mock focus and blur methods for all elements with proper focus tracking
   let currentFocusedElement: Element | null = null
   
   // Extend Element prototype with focus/blur methods (for test environment)
-  (Element.prototype as any).focus = vi.fn().mockImplementation(function(this: Element) {
-    currentFocusedElement = this
-    this.dispatchEvent(new Event('focus', { bubbles: true }))
-  });
+  // Only set up if not already mocked
+  if (!Element.prototype.focus || !vi.isMockFunction(Element.prototype.focus)) {
+    (Element.prototype as any).focus = vi.fn().mockImplementation(function(this: Element) {
+      currentFocusedElement = this
+      this.dispatchEvent(new Event('focus', { bubbles: true }))
+    });
+  }
   
-  (Element.prototype as any).blur = vi.fn().mockImplementation(function(this: Element) {
-    if (currentFocusedElement === this) {
-      currentFocusedElement = null
-    }
-    this.dispatchEvent(new Event('blur', { bubbles: true }))
-  })
+  if (!Element.prototype.blur || !vi.isMockFunction(Element.prototype.blur)) {
+    (Element.prototype as any).blur = vi.fn().mockImplementation(function(this: Element) {
+      if (currentFocusedElement === this) {
+        currentFocusedElement = null
+      }
+      this.dispatchEvent(new Event('blur', { bubbles: true }))
+    })
+  }
   
   // Mock document.activeElement to return currently focused element
   Object.defineProperty(document, 'activeElement', {
