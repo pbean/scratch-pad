@@ -51,7 +51,7 @@ jobs:
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
-    timeout-minutes: 15  # Add timeout
+    timeout-minutes: 20  # Increase timeout for Rust compilation
     permissions:
       actions: read
       contents: read
@@ -90,10 +90,28 @@ jobs:
           echo "Building frontend for CodeQL analysis"
           pnpm build:ci || pnpm build
 
-      - name: Build backend
+      - name: Fix Tauri version compatibility for CI
         if: matrix.language == 'rust'
         working-directory: src-tauri
-        run: cargo build --release
+        run: |
+          echo "Updating Cargo.lock to ensure consistent tauri versions"
+          cargo update tauri tauri-build
+          cargo clean
+
+      - name: Build backend with proper error handling
+        if: matrix.language == 'rust'
+        working-directory: src-tauri
+        run: |
+          echo "Building Rust backend for CodeQL analysis"
+          # First try a simple check to validate the code compiles
+          if ! cargo check --release --message-format=short; then
+            echo "::error::Rust compilation failed - CodeQL Rust analysis cannot proceed"
+            echo "This is likely due to Tauri version compatibility issues"
+            exit 1
+          fi
+          
+          # If check passes, build for CodeQL
+          cargo build --release --message-format=short
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
