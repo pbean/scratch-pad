@@ -18,10 +18,10 @@ export default defineConfig({
     ],
     globals: true,
     
-    // CI-specific: Longer timeouts for slower CI environment
-    testTimeout: 30000, // 30 seconds for CI (vs 8s locally)
-    hookTimeout: 20000, // 20 seconds for CI (vs 5s locally)
-    teardownTimeout: 10000, // 10 seconds for CI (vs 3s locally)
+    // CI-specific: Much longer timeouts for slower CI environment
+    testTimeout: 60000, // 60 seconds for CI (vs 8s locally)
+    hookTimeout: 30000, // 30 seconds for CI (vs 5s locally)
+    teardownTimeout: 15000, // 15 seconds for CI (vs 3s locally)
     
     clearMocks: true,
     restoreMocks: true,

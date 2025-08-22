@@ -51,6 +51,14 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 // Global window mocks
 beforeAll(() => {
+  // Enhanced requestAnimationFrame and cancelAnimationFrame with React 19 timing
+  // MUST be defined early before any component might use them
+  global.requestAnimationFrame = vi.fn().mockImplementation((cb) => {
+    // React 19 uses 16ms intervals for concurrent scheduling
+    return setTimeout(cb, 16)
+  })
+  global.cancelAnimationFrame = vi.fn().mockImplementation((id) => clearTimeout(id))
+  
   // Mock window.confirm
   Object.defineProperty(window, 'confirm', {
     writable: true,
@@ -166,10 +174,36 @@ beforeAll(() => {
     'cursor-pointer': 'pointer'
   }
   
-  global.getComputedStyle = vi.fn().mockImplementation((element: Element) => {
+  global.getComputedStyle = vi.fn().mockImplementation((element: Element | null) => {
+    // Handle null/undefined element gracefully
+    if (!element) {
+      return {
+        getPropertyValue: vi.fn().mockReturnValue(''),
+        getPropertyPriority: vi.fn().mockReturnValue(''),
+        setProperty: vi.fn(),
+        removeProperty: vi.fn(),
+        cssText: '',
+        length: 0,
+        parentRule: null,
+        item: vi.fn().mockReturnValue(''),
+        pointerEvents: 'auto',
+        display: 'block',
+        width: 'auto',
+        height: 'auto',
+        fontSize: '16px',
+        padding: '0px',
+        margin: '0px',
+        backgroundColor: 'transparent',
+        color: '#000000',
+        cursor: 'auto',
+        overflow: 'visible'
+      }
+    }
+    
     const classList = Array.from(element.classList || [])
     
-    return {
+    // Create base style object with all properties
+    const styleObject: any = {
       getPropertyValue: vi.fn().mockImplementation((property: string) => {
         // Map CSS properties to common values based on Tailwind classes
         switch (property) {
@@ -226,6 +260,13 @@ beforeAll(() => {
             if (classList.includes('overflow-hidden')) return 'hidden'
             return 'visible'
             
+          case 'pointer-events':
+          case 'pointerEvents':
+            // Support both kebab-case and camelCase
+            if (classList.includes('pointer-events-none')) return 'none'
+            if (classList.includes('pointer-events-auto')) return 'auto'
+            return 'auto' // default
+            
           default:
             // Check if any class matches our map for this property
             for (const className of classList) {
@@ -243,15 +284,29 @@ beforeAll(() => {
       length: 0,
       parentRule: null,
       item: vi.fn().mockReturnValue(''),
+      // Add direct property access for common CSS properties
+      pointerEvents: 'auto',
+      display: 'block',
+      width: 'auto',
+      height: 'auto',
+      fontSize: '16px',
+      padding: '0px',
+      margin: '0px',
+      backgroundColor: 'transparent',
+      color: '#000000',
+      cursor: 'auto',
+      overflow: 'visible'
     }
+    
+    // Update direct properties based on classes
+    if (classList.includes('pointer-events-none')) styleObject.pointerEvents = 'none'
+    if (classList.includes('pointer-events-auto')) styleObject.pointerEvents = 'auto'
+    if (classList.includes('flex')) styleObject.display = 'flex'
+    if (classList.includes('hidden')) styleObject.display = 'none'
+    if (classList.includes('cursor-pointer')) styleObject.cursor = 'pointer'
+    
+    return styleObject
   })
-
-  // Enhanced requestAnimationFrame and cancelAnimationFrame with React 19 timing
-  global.requestAnimationFrame = vi.fn().mockImplementation((cb) => {
-    // React 19 uses 16ms intervals for concurrent scheduling
-    return setTimeout(cb, 16)
-  })
-  global.cancelAnimationFrame = vi.fn().mockImplementation((id) => clearTimeout(id))
   
   // Enhanced keyboard event support
   global.KeyboardEvent = class MockKeyboardEvent extends Event {

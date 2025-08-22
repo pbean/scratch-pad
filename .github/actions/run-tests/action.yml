@@ -80,6 +80,11 @@ runs:
       run: |
         start_time=$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)
         
+        # Set NODE_OPTIONS for macOS memory management
+        if [[ "$RUNNER_OS" == "macOS" ]]; then
+          export NODE_OPTIONS="--max-old-space-size=4096"
+        fi
+        
         # Use CI-specific config in GitHub Actions environment
         if [ "$GITHUB_ACTIONS" = "true" ]; then
           echo "Using CI test configuration"
