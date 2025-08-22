@@ -110,14 +110,14 @@ beforeAll(() => {
   
   // Extend Element prototype with focus/blur methods (for test environment)
   // Only set up if not already mocked
-  if (!Element.prototype.focus || !vi.isMockFunction(Element.prototype.focus)) {
+  if (!(Element.prototype as any).focus || !vi.isMockFunction((Element.prototype as any).focus)) {
     (Element.prototype as any).focus = vi.fn().mockImplementation(function(this: Element) {
       currentFocusedElement = this
       this.dispatchEvent(new Event('focus', { bubbles: true }))
     });
   }
   
-  if (!Element.prototype.blur || !vi.isMockFunction(Element.prototype.blur)) {
+  if (!(Element.prototype as any).blur || !vi.isMockFunction((Element.prototype as any).blur)) {
     (Element.prototype as any).blur = vi.fn().mockImplementation(function(this: Element) {
       if (currentFocusedElement === this) {
         currentFocusedElement = null

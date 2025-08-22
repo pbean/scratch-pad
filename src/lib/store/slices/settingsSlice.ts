@@ -1,6 +1,6 @@
 import { StateCreator } from "zustand"
 import { invoke } from "@tauri-apps/api/core"
-import type { Settings, LayoutMode, NoteFormat, ApiError } from "../../../types"
+import type { Settings, NoteFormat, ApiError } from "../../../types"
 import type { 
   SettingParseResult, 
   SettingValidator, 
@@ -34,18 +34,41 @@ export interface SettingsSlice {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  global_shortcut: "Ctrl+Shift+N",
-  ui_font: "system-ui",
-  editor_font: "monospace", 
-  default_note_format: "plaintext" as NoteFormat,
-  layout_mode: "default" as LayoutMode,
-  window_width: 800,
-  window_height: 600,
-  auto_save_delay_ms: 500,
-  search_limit: 100,
-  fuzzy_search_threshold: 0.6,
   theme: "system",
-  note_directory: ""
+  autoSave: true,
+  autoSaveDelay: 500,
+  showLineNumbers: false,
+  wordWrap: true,
+  fontSize: 14,
+  fontFamily: "system-ui",
+  globalShortcut: "Ctrl+Shift+N",
+  saveOnBlur: true,
+  confirmDelete: true,
+  showWordCount: true,
+  enableSpellCheck: false,
+  defaultNoteFormat: "plaintext" as NoteFormat,
+  note_directory: "",
+  searchHighlighting: {
+    enabled: true,
+    maxSnippets: 3,
+    contextLength: 100
+  },
+  performance: {
+    enableAnalytics: true,
+    enableCaching: true,
+    cacheMaxAge: 300000,
+    maxCacheSize: 100
+  },
+  security: {
+    encryptNotes: false,
+    requirePassword: false,
+    sessionTimeout: 3600000
+  },
+  accessibility: {
+    highContrast: false,
+    reduceMotion: false,
+    screenReaderOptimized: false
+  }
 }
 
 // ============================================================================
@@ -86,33 +109,8 @@ const createNumberValidator = (
 /**
  * Create validator for float settings with bounds checking
  */
-const createFloatValidator = (
-  min: number, 
-  max: number, 
-  defaultValue: number
-): SettingValidator<number> => {
-  return (value: string): SettingParseResult<number> => {
-    const parsed = parseFloat(value)
-    
-    if (isNaN(parsed)) {
-      return {
-        success: false,
-        error: `Invalid float format: ${value}`,
-        fallback: defaultValue
-      }
-    }
-    
-    if (parsed < min || parsed > max) {
-      return {
-        success: false,
-        error: `Value ${parsed} is outside valid range [${min}, ${max}]`,
-        fallback: Math.max(min, Math.min(max, parsed))
-      }
-    }
-    
-    return { success: true, value: parsed }
-  }
-}
+// Removed unused createFloatValidator - keeping for future use if needed
+// const createFloatValidator = ...
 
 /**
  * Create validator for enum settings
@@ -167,17 +165,19 @@ const createStringValidator = (
  * Type-safe setting validator registry
  */
 const SETTING_VALIDATORS: SettingValidatorRegistry = {
-  window_width: createNumberValidator(400, 3840, DEFAULT_SETTINGS.window_width),
-  window_height: createNumberValidator(300, 2160, DEFAULT_SETTINGS.window_height),
-  auto_save_delay_ms: createNumberValidator(100, 10000, DEFAULT_SETTINGS.auto_save_delay_ms),
-  search_limit: createNumberValidator(10, 1000, DEFAULT_SETTINGS.search_limit),
-  fuzzy_search_threshold: createFloatValidator(0.0, 1.0, DEFAULT_SETTINGS.fuzzy_search_threshold),
-  default_note_format: createEnumValidator(['plaintext', 'markdown'] as const, DEFAULT_SETTINGS.default_note_format),
-  layout_mode: createEnumValidator(['default', 'half', 'full'] as const, DEFAULT_SETTINGS.layout_mode),
-  global_shortcut: createStringValidator(50, DEFAULT_SETTINGS.global_shortcut, false),
-  ui_font: createStringValidator(100, DEFAULT_SETTINGS.ui_font, false),
-  editor_font: createStringValidator(100, DEFAULT_SETTINGS.editor_font, false),
   theme: createEnumValidator(['light', 'dark', 'system'] as const, DEFAULT_SETTINGS.theme),
+  autoSave: (value: string) => ({ success: true, value: value.toLowerCase() === 'true' }),
+  autoSaveDelay: createNumberValidator(100, 10000, DEFAULT_SETTINGS.autoSaveDelay),
+  showLineNumbers: (value: string) => ({ success: true, value: value.toLowerCase() === 'true' }),
+  wordWrap: (value: string) => ({ success: true, value: value.toLowerCase() === 'true' }),
+  fontSize: createNumberValidator(8, 48, DEFAULT_SETTINGS.fontSize),
+  fontFamily: createStringValidator(100, DEFAULT_SETTINGS.fontFamily, false),
+  globalShortcut: createStringValidator(50, DEFAULT_SETTINGS.globalShortcut, false),
+  saveOnBlur: (value: string) => ({ success: true, value: value.toLowerCase() === 'true' }),
+  confirmDelete: (value: string) => ({ success: true, value: value.toLowerCase() === 'true' }),
+  showWordCount: (value: string) => ({ success: true, value: value.toLowerCase() === 'true' }),
+  enableSpellCheck: (value: string) => ({ success: true, value: value.toLowerCase() === 'true' }),
+  defaultNoteFormat: createEnumValidator(['plaintext', 'markdown'] as const, DEFAULT_SETTINGS.defaultNoteFormat),
   note_directory: createStringValidator(500, DEFAULT_SETTINGS.note_directory, true)
 }
 
@@ -208,7 +208,7 @@ const parseAllSettings = (rawSettings: Record<string, string>): Partial<Settings
       } else {
         // Use fallback value and log error
         (typedSettings as any)[key] = parseResult.fallback
-        parseErrors.push({ key, error: parseResult.error })
+        parseErrors.push({ key, error: parseResult.error || 'Unknown error' })
       }
     } else {
       // Unknown setting - keep as string for backward compatibility
@@ -469,28 +469,32 @@ export const getValidSettingKeys = (): Array<keyof Settings> => {
  */
 export const getSettingValidationRules = (key: keyof Settings): string => {
   switch (key) {
-    case 'window_width':
-      return 'Number between 400 and 3840'
-    case 'window_height':
-      return 'Number between 300 and 2160'
-    case 'auto_save_delay_ms':
-      return 'Number between 100 and 10,000 milliseconds'
-    case 'search_limit':
-      return 'Number between 10 and 1,000'
-    case 'fuzzy_search_threshold':
-      return 'Decimal between 0.0 and 1.0'
-    case 'default_note_format':
-      return 'Either "plaintext" or "markdown"'
-    case 'layout_mode':
-      return 'One of: "default", "half", or "full"'
-    case 'global_shortcut':
-      return 'Keyboard shortcut string (max 50 characters)'
-    case 'ui_font':
-      return 'Font name or CSS font-family (max 100 characters)'
-    case 'editor_font':
-      return 'Font name or CSS font-family (max 100 characters)'
     case 'theme':
       return 'One of: "light", "dark", or "system"'
+    case 'autoSave':
+      return 'Boolean: true or false'
+    case 'autoSaveDelay':
+      return 'Number between 100 and 10,000 milliseconds'
+    case 'showLineNumbers':
+      return 'Boolean: true or false'
+    case 'wordWrap':
+      return 'Boolean: true or false'
+    case 'fontSize':
+      return 'Number between 8 and 48'
+    case 'fontFamily':
+      return 'Font name or CSS font-family (max 100 characters)'
+    case 'globalShortcut':
+      return 'Keyboard shortcut string (max 50 characters)'
+    case 'saveOnBlur':
+      return 'Boolean: true or false'
+    case 'confirmDelete':
+      return 'Boolean: true or false'
+    case 'showWordCount':
+      return 'Boolean: true or false'
+    case 'enableSpellCheck':
+      return 'Boolean: true or false'
+    case 'defaultNoteFormat':
+      return 'Either "plaintext" or "markdown"'
     case 'note_directory':
       return 'Directory path (max 500 characters, can be empty)'
     default:

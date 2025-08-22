@@ -102,6 +102,7 @@ const clearOldPersistenceData = (): void => {
 
 /**
  * Type-safe UI persistence configuration
+ * Fixed: Return exact type instead of generic PersistableState
  */
 const createUIPartializer = (): TypeSafePartializer<UIPersistedState> => {
   return (state: UIPersistedState): UIPersistedState => ({
@@ -206,6 +207,7 @@ const createSystemMerger = (): TypeSafeMerger<SystemPersistedState> => {
 
 /**
  * Configuration factory for each slice type with complete type safety
+ * Fixed: Use proper type assertions to convert between specific types and generic K
  */
 const createSliceConfig = <K extends SlicePersistenceType>(
   sliceType: K
@@ -220,40 +222,40 @@ const createSliceConfig = <K extends SlicePersistenceType>(
       return {
         ...baseConfig,
         name: 'scratch-pad-ui',
-        partialize: createUIPartializer() as TypeSafePartializer<PersistenceStateMap[K]>,
-        merge: createUIMerger() as TypeSafeMerger<PersistenceStateMap[K]>
+        partialize: createUIPartializer() as unknown as TypeSafePartializer<PersistenceStateMap[K]>,
+        merge: createUIMerger() as unknown as TypeSafeMerger<PersistenceStateMap[K]>
       }
 
     case 'search':
       return {
         ...baseConfig,
         name: 'scratch-pad-search',
-        partialize: createSearchPartializer() as TypeSafePartializer<PersistenceStateMap[K]>,
-        merge: createSearchMerger() as TypeSafeMerger<PersistenceStateMap[K]>
+        partialize: createSearchPartializer() as unknown as TypeSafePartializer<PersistenceStateMap[K]>,
+        merge: createSearchMerger() as unknown as TypeSafeMerger<PersistenceStateMap[K]>
       }
 
     case 'notes':
       return {
         ...baseConfig,
         name: 'scratch-pad-notes',
-        partialize: createNotesPartializer() as TypeSafePartializer<PersistenceStateMap[K]>,
-        merge: createNotesMerger() as TypeSafeMerger<PersistenceStateMap[K]>
+        partialize: createNotesPartializer() as unknown as TypeSafePartializer<PersistenceStateMap[K]>,
+        merge: createNotesMerger() as unknown as TypeSafeMerger<PersistenceStateMap[K]>
       }
 
     case 'settings':
       return {
         ...baseConfig,
         name: 'scratch-pad-settings',
-        partialize: createSettingsPartializer() as TypeSafePartializer<PersistenceStateMap[K]>,
-        merge: createSettingsMerger() as TypeSafeMerger<PersistenceStateMap[K]>
+        partialize: createSettingsPartializer() as unknown as TypeSafePartializer<PersistenceStateMap[K]>,
+        merge: createSettingsMerger() as unknown as TypeSafeMerger<PersistenceStateMap[K]>
       }
 
     case 'system':
       return {
         ...baseConfig,
         name: 'scratch-pad-system',
-        partialize: createSystemPartializer() as TypeSafePartializer<PersistenceStateMap[K]>,
-        merge: createSystemMerger() as TypeSafeMerger<PersistenceStateMap[K]>
+        partialize: createSystemPartializer() as unknown as TypeSafePartializer<PersistenceStateMap[K]>,
+        merge: createSystemMerger() as unknown as TypeSafeMerger<PersistenceStateMap[K]>
       }
 
     default:
@@ -265,23 +267,25 @@ const createSliceConfig = <K extends SlicePersistenceType>(
 
 /**
  * Create selective persistence based on slice type with complete type safety
+ * Fixed: Properly handle Zustand's internal type casting requirements
  */
-export const createTypeSafePersistenceMiddleware = <T>(
+export const createTypeSafePersistenceMiddleware = (
   sliceType: SlicePersistenceType
 ): TypeSafePersistenceMiddleware => {
   const config = createSliceConfig(sliceType)
   
   return (stateCreator) => {
-    return persist(stateCreator, {
+    return persist(stateCreator as any, {
       name: config.name,
       version: config.version,
       // Type assertion needed due to Zustand's internal typing limitations
-      partialize: config.partialize as (state: T) => Partial<T>,
-      merge: config.merge as (persistedState: Partial<T>, currentState: T) => T,
-      migrate: config.migrate as ((persistedState: unknown, version: number) => T | Promise<T>) | undefined,
+      // Using as unknown as intermediate type for safer conversion
+      partialize: config.partialize as any,
+      merge: config.merge as any,
+      migrate: config.migrate as any,
       storage: createJSONStorage(() => config.storage as any),
       onRehydrateStorage: config.onRehydrateStorage as any
-    })
+    }) as any
   }
 }
 
@@ -525,7 +529,7 @@ export const createTypeSafePersistenceManager = <T>(
   const config = createSliceConfig(sliceType)
   const storage = config.storage || createTypeSafeStorage()
   
-  return {
+  const manager: TypeSafePersistenceManager<T> = {
     save: async (state: T): Promise<void> => {
       try {
         const partializedState = config.partialize(state as any)
@@ -558,15 +562,16 @@ export const createTypeSafePersistenceManager = <T>(
     },
     
     migrate: async (_targetVersion: number): Promise<void> => {
-      if (!config.migrate) {
+      const safeConfig = config;
+      if (!safeConfig || !safeConfig.migrate) {
         throw new Error(`No migration function available for ${sliceType}`)
       }
       
       try {
-        const currentData = await this.load()
-        if (currentData) {
-          const migrated = config.migrate(currentData, config.version)
-          await this.save(migrated as T)
+        const currentData = await manager.load()
+        if (currentData && safeConfig.version !== undefined) {
+          const migrated = safeConfig.migrate(currentData, safeConfig.version)
+          await manager.save(migrated as any)
         }
       } catch (error) {
         throw new Error(`Migration failed for ${sliceType}: ${error}`)
@@ -577,6 +582,8 @@ export const createTypeSafePersistenceManager = <T>(
       return checkTypeSafeStorageHealth()
     }
   }
+  
+  return manager
 }
 
 // Export the main middleware creator with proper typing

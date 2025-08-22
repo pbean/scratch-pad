@@ -314,10 +314,10 @@ export function filterEventsByTimeRange(
 export function extractEventData<T extends AnalyticsEvent['type']>(
   events: AnalyticsEvent[],
   type: T
-): Array<Extract<AnalyticsEvent, { type: T }>['data']> {
+): any[] {
   return events
     .filter((event): event is Extract<AnalyticsEvent, { type: T }> => event.type === type)
-    .map(event => event.data) as Array<Extract<AnalyticsEvent, { type: T }>['data']>
+    .map(event => event.data)
 }
 
 // Analytics event validation

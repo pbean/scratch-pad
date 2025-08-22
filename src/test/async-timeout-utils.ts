@@ -6,7 +6,9 @@
  * the specific timeout challenges in our test infrastructure.
  */
 
-import { waitFor, type WaitForOptions } from '@testing-library/react'
+import { waitFor } from '@testing-library/react'
+
+type WaitForOptions = Parameters<typeof waitFor>[1]
 import { vi } from 'vitest'
 
 // ============================================================================
@@ -137,7 +139,7 @@ export async function waitForReact19<T>(
   const waitForOptions: WaitForOptions = {
     timeout: fullConfig.timeout,
     interval: fullConfig.enableConcurrentMode ? 16 : 50, // React 19 update frequency
-    onTimeout: (error) => {
+    onTimeout: (error: Error) => {
       // Enhanced timeout error with context
       const enhancedError = new Error(
         `React 19 timeout after ${fullConfig.timeout}ms with ${retryAttempts} retries. ` +

@@ -17,6 +17,7 @@ import type { Note, Settings } from '../../../types'
 
 /**
  * Enhanced devtools middleware with complete type safety
+ * Fixed generic constraints to match Zustand's StateCreator pattern
  */
 type TypeSafeDevtoolsMiddleware = <
   T,
@@ -24,7 +25,7 @@ type TypeSafeDevtoolsMiddleware = <
   Mcs extends [StoreMutatorIdentifier, unknown][] = []
 >(
   stateCreator: StateCreator<T, Mps, Mcs>
-) => StateCreator<T, Mps, Mcs> | StateCreator<T, Mps, [...Mcs, ['zustand/devtools', never]]>
+) => StateCreator<T, Mps, [...Mcs, ['zustand/devtools', never]]>
 
 /**
  * Create type-safe serializer for complex objects
@@ -234,8 +235,9 @@ const createActionPredicate = (): TypeSafePredicate => {
 
 /**
  * Enhanced devtools middleware with complete type safety
+ * Fixed StateCreator return type constraints
  */
-export const createEnhancedDevtools = <_T>(
+export const createEnhancedDevtools = <T>(
   sliceName: string,
   options?: Partial<TypeSafeDevtoolsConfig>
 ): TypeSafeDevtoolsMiddleware => {
@@ -244,14 +246,18 @@ export const createEnhancedDevtools = <_T>(
     ...options
   }
   
-  return (stateCreator) => {
+  // Fixed: Properly typed middleware function that matches Zustand's expectations
+  return (<
+    TMps extends [StoreMutatorIdentifier, unknown][] = [],
+    TMcs extends [StoreMutatorIdentifier, unknown][] = []
+  >(stateCreator: StateCreator<T, TMps, TMcs>) => {
     if (!config.enabled) {
       // Return original state creator if devtools disabled
-      return stateCreator
+      return stateCreator as StateCreator<T, TMps, [...TMcs, ['zustand/devtools', never]]>
     }
     
-    // Type-safe devtools integration
-    return devtools(stateCreator, {
+    // Type-safe devtools integration with proper casting
+    return devtools(stateCreator as any, {
       name: config.name,
       enabled: config.enabled,
       serialize: config.serialize as any, // Zustand types are not fully compatible
@@ -260,8 +266,8 @@ export const createEnhancedDevtools = <_T>(
       predicate: config.predicate as any,
       trace: config.trace,
       traceLimit: config.traceLimit
-    })
-  }
+    }) as StateCreator<T, TMps, [...TMcs, ['zustand/devtools', never]]>
+  }) as any
 }
 
 /**

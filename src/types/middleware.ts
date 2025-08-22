@@ -6,7 +6,83 @@
  */
 
 import { StateCreator, StoreMutatorIdentifier } from 'zustand'
-import type { Settings, LayoutMode, NoteFormat } from './index'
+import type { Settings, LayoutMode } from './index'
+
+// ============================================================================
+// ERROR HANDLING TYPE SAFETY
+// ============================================================================
+
+/**
+ * Categorized error interface for type-safe error handling
+ */
+export interface CategorizedError {
+  category: 'network' | 'validation' | 'database' | 'system' | 'user' | 'unknown' | 'tauri' | 'runtime' | 'async'
+  subtype: string
+  message: string
+  code?: string
+  stack?: string
+  timestamp: number
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  recoverable: boolean
+  context?: Record<string, any>
+  originalError?: unknown
+}
+
+/**
+ * Type-safe error handler interface
+ */
+export interface TypeSafeErrorHandler {
+  (error: CategorizedError): void
+  handle?: (error: CategorizedError) => void
+  canHandle?: (error: unknown) => boolean
+  priority?: number
+}
+
+/**
+ * Error reporting configuration
+ */
+export interface ErrorReportingConfig {
+  enabled: boolean
+  endpoint?: string
+  apiKey?: string
+  includeStackTrace: boolean
+  includeBrowserInfo: boolean
+  includeUserAgent: boolean
+  maxRetries: number
+  retryDelay: number
+  enableBackendReporting?: boolean
+  enableConsoleLogging?: boolean
+  enableToast?: boolean
+  filterPredicate?: (error: CategorizedError) => boolean
+}
+
+// ============================================================================
+// SETTINGS VALIDATION TYPE SAFETY
+// ============================================================================
+
+/**
+ * Setting validation result interface
+ */
+export interface SettingParseResult<T> {
+  success: boolean
+  value?: T
+  error?: string
+  fallback?: T
+}
+
+/**
+ * Type-safe setting validator function
+ */
+export interface SettingValidator<T = any> {
+  (value: string): SettingParseResult<T>
+}
+
+/**
+ * Setting validator registry interface
+ */
+export interface SettingValidatorRegistry {
+  [K: string]: SettingValidator
+}
 
 // ============================================================================
 // PERFORMANCE MIDDLEWARE TYPE SAFETY
@@ -180,14 +256,16 @@ export type PersistenceConfig<T> = {
 
 /**
  * Type-safe partializer for selective state persistence
+ * Fixed: Simplified to use T directly instead of complex PersistableState
  */
-export type TypeSafePartializer<T> = (state: T) => PersistableState<T>
+export type TypeSafePartializer<T> = (state: T) => T
 
 /**
  * Type-safe merger for rehydrating persisted state
+ * Fixed: Simplified to use T directly for consistent typing
  */
 export type TypeSafeMerger<T> = (
-  persistedState: PersistableState<T>, 
+  persistedState: T, 
   currentState: T
 ) => T
 
@@ -232,11 +310,6 @@ export interface PersistenceStateMap {
 }
 
 /**
- * Generic persistable state constraint
- */
-type PersistableState<T> = PersistenceStateMap[keyof PersistenceStateMap] | Partial<T>
-
-/**
  * UI slice persistent state
  */
 export interface UIPersistedState {
@@ -277,176 +350,267 @@ export interface SystemPersistedState {
 }
 
 // ============================================================================
-// ERROR HANDLING TYPE SAFETY
+// ENHANCED SEARCH MIDDLEWARE TYPE SAFETY
 // ============================================================================
 
 /**
- * Error categorization with discriminated unions
+ * Search highlighting configuration
  */
-export type CategorizedError = 
-  | { category: 'tauri'; subtype: 'ipc_failure' | 'window_error' | 'permission_denied'; originalError: unknown }
-  | { category: 'network'; subtype: 'fetch_error' | 'timeout' | 'connection_lost'; originalError: unknown }
-  | { category: 'runtime'; subtype: 'type_error' | 'reference_error' | 'syntax_error'; originalError: unknown }
-  | { category: 'async'; subtype: 'unhandled_rejection' | 'promise_error'; originalError: unknown }
-  | { category: 'unknown'; subtype: 'unclassified'; originalError: unknown }
+export interface SearchHighlight {
+  enabled: boolean
+  className?: string
+  maxHighlights?: number
+}
 
 /**
- * Type-safe error handler function
+ * Advanced search options with type safety
  */
-export type TypeSafeErrorHandler = (error: CategorizedError) => void
+export interface SearchOptions {
+  caseSensitive: boolean
+  wholeWords: boolean
+  useRegex: boolean
+  fuzzySearch: boolean
+  highlight: SearchHighlight
+}
 
 /**
- * Error reporting configuration with type safety
+ * Search result with highlighting information
  */
-export interface ErrorReportingConfig {
-  enableToast: boolean
-  enableBackendReporting: boolean
-  enableConsoleLogging: boolean
-  filterPredicate?: (error: CategorizedError) => boolean
+export interface SearchResult<T = unknown> {
+  item: T
+  matches: SearchMatch[]
+  score: number
+  highlights: string[]
+}
+
+/**
+ * Individual search match details
+ */
+export interface SearchMatch {
+  field: string
+  value: string
+  indices: [number, number][]
+  score: number
+}
+
+/**
+ * Type-safe search slice interface
+ */
+export interface SearchSlice<T = unknown> {
+  query: string
+  results: SearchResult<T>[]
+  isSearching: boolean
+  options: SearchOptions
+  filters: SearchFilters
+  history: SearchHistory[]
+  suggestions: SearchSuggestion[]
+}
+
+/**
+ * Search filters with type constraints
+ */
+export interface SearchFilters {
+  dateRange?: {
+    start?: Date
+    end?: Date
+  }
+  tags?: string[]
+  type?: string
+  status?: 'active' | 'archived' | 'deleted'
+}
+
+/**
+ * Search history entry
+ */
+export interface SearchHistory {
+  query: string
+  timestamp: Date
+  resultCount: number
+  filters?: SearchFilters
+}
+
+/**
+ * Search suggestion with confidence scoring
+ */
+export interface SearchSuggestion {
+  text: string
+  type: 'query' | 'filter' | 'tag'
+  confidence: number
+  metadata?: Record<string, unknown>
 }
 
 // ============================================================================
-// SETTINGS VALIDATION TYPE SAFETY
+// UI ENHANCEMENT MIDDLEWARE TYPE SAFETY
 // ============================================================================
 
 /**
- * Setting parse result with discriminated union
+ * UI enhancement configuration
  */
-export type SettingParseResult<T> = 
-  | { success: true; value: T }
-  | { success: false; error: string; fallback: T }
+export interface UIEnhancement {
+  animations: boolean
+  transitions: boolean
+  accessibility: boolean
+  theme: 'light' | 'dark' | 'auto'
+  density: 'compact' | 'normal' | 'comfortable'
+}
 
 /**
- * Type-safe setting validator function
+ * Type-safe UI slice interface
  */
-export type SettingValidator<T> = (value: string) => SettingParseResult<T>
+export interface UISlice {
+  currentView: string
+  previousView?: string
+  sidebarCollapsed: boolean
+  commandPaletteOpen: boolean
+  modals: UIModal[]
+  notifications: UINotification[]
+  enhancement: UIEnhancement
+  isFullscreen: boolean
+  error: string | null
+  loading: boolean
+}
 
 /**
- * Setting validator registry with complete type safety
+ * UI modal configuration
  */
-export interface SettingValidatorRegistry {
-  window_width: SettingValidator<number>
-  window_height: SettingValidator<number>
-  auto_save_delay_ms: SettingValidator<number>
-  search_limit: SettingValidator<number>
-  fuzzy_search_threshold: SettingValidator<number>
-  default_note_format: SettingValidator<NoteFormat>
-  layout_mode: SettingValidator<LayoutMode>
-  global_shortcut: SettingValidator<string>
-  ui_font: SettingValidator<string>
-  editor_font: SettingValidator<string>
-  theme: SettingValidator<string>
-  note_directory: SettingValidator<string>
+export interface UIModal {
+  id: string
+  type: 'confirmation' | 'form' | 'info' | 'error'
+  title: string
+  content: string
+  data?: Record<string, unknown>
+  onConfirm?: () => void
+  onCancel?: () => void
+}
+
+/**
+ * UI notification with type safety
+ */
+export interface UINotification {
+  id: string
+  type: 'success' | 'error' | 'warning' | 'info'
+  message: string
+  title?: string
+  duration?: number
+  actions?: UINotificationAction[]
+  metadata?: Record<string, unknown>
+}
+
+/**
+ * Notification action button
+ */
+export interface UINotificationAction {
+  label: string
+  action: () => void
+  style?: 'primary' | 'secondary' | 'danger'
 }
 
 // ============================================================================
-// ADVANCED MIDDLEWARE PATTERNS
+// MIDDLEWARE COMPOSITION TYPE SAFETY
 // ============================================================================
 
 /**
- * Type-safe middleware creator pattern
+ * Advanced middleware composition with proper type inference
  */
-export type TypeSafeMiddleware<
-  TSlice,
+export type MiddlewareComposer<
+  T,
+  TSlice = {},
   TMps extends [StoreMutatorIdentifier, unknown][] = [],
   TMcs extends [StoreMutatorIdentifier, unknown][] = []
-> = <
+> = (
+  config: StateCreator<T, TMps, TMcs>
+) => StateCreator<T & TSlice, [...TMps, ...TMps], [...TMcs, ...TMcs]>
+
+/**
+ * Middleware pipeline type for composing multiple middlewares
+ */
+export type MiddlewarePipeline<
   T,
-  Mps extends [StoreMutatorIdentifier, unknown][] = [],
-  Mcs extends [StoreMutatorIdentifier, unknown][] = []
->(
-  config: StateCreator<T, Mps, Mcs>
-) => StateCreator<T & TSlice, [...Mps, ...TMps], [...Mcs, ...TMcs]>
-
-/**
- * Middleware composition helper with type safety
- */
-export type ComposeMiddleware<
-  TMiddlewares extends readonly TypeSafeMiddleware<any>[]
-> = TMiddlewares extends readonly [
-  TypeSafeMiddleware<infer TFirst>,
-  ...infer TRest
-] 
-  ? TRest extends readonly TypeSafeMiddleware<any>[]
+  TMiddlewares extends readonly unknown[] = []
+> = TMiddlewares extends readonly [infer TFirst, ...infer TRest]
+  ? TFirst extends MiddlewareComposer<T, infer _TSlice>
     ? (config: StateCreator<any>) => StateCreator<TFirst & ComposeMiddlewareSlices<TRest>>
-    : TypeSafeMiddleware<TFirst>
-  : never
+    : never
+  : StateCreator<T>
 
-type ComposeMiddlewareSlices<
-  TMiddlewares extends readonly TypeSafeMiddleware<any>[]
-> = TMiddlewares extends readonly [
-  TypeSafeMiddleware<infer TFirst>,
-  ...infer TRest
-] 
-  ? TRest extends readonly TypeSafeMiddleware<any>[]
+/**
+ * Helper type to compose middleware slice types
+ */
+export type ComposeMiddlewareSlices<T extends readonly unknown[]> = 
+  T extends readonly [infer TFirst, ...infer TRest]
     ? TFirst & ComposeMiddlewareSlices<TRest>
-    : TFirst
-  : {}
-
-/**
- * Development helpers with type safety
- */
-export interface TypeSafeDevHelpers<T> {
-  logStateChanges: (state: T, actionName?: string) => void
-  trackPerformance: (state: T) => PerformanceMetrics
-  validateState: (state: T) => Array<{ path: string; issue: string }>
-}
-
-/**
- * Middleware configuration builder with type safety
- */
-export interface TypeSafeMiddlewareConfig<T> {
-  devtools?: Partial<TypeSafeDevtoolsConfig>
-  persistence?: Partial<PersistenceConfig<T>>
-  performance?: {
-    enabled: boolean
-    slowThreshold: number
-    maxTrackedUpdates: number
-  }
-  errorHandling?: Partial<ErrorReportingConfig>
-}
-
-/**
- * Middleware builder function with complete type safety
- */
-export type TypeSafeMiddlewareBuilder = <T>(
-  config: TypeSafeMiddlewareConfig<T>
-) => TypeSafeMiddleware<T & PerformanceSlice>
+    : {}
 
 // ============================================================================
-// UTILITY TYPES FOR ADVANCED PATTERNS
+// STORE VALIDATION MIDDLEWARE TYPE SAFETY
 // ============================================================================
 
 /**
- * Extract slice types from middleware
+ * Validation rule with type constraints
  */
-export type ExtractSliceType<TMiddleware> = TMiddleware extends TypeSafeMiddleware<infer TSlice>
-  ? TSlice
-  : never
+export interface ValidationRule<T = unknown> {
+  field: keyof T
+  validator: (value: unknown) => boolean
+  message: string
+  severity: 'error' | 'warning'
+}
 
 /**
- * Combine multiple slice types
+ * Validation result
  */
-export type CombineSliceTypes<TSlices extends readonly unknown[]> = TSlices extends readonly [
-  infer TFirst,
-  ...infer TRest
-]
-  ? TFirst & CombineSliceTypes<TRest>
-  : {}
+export interface ValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+  warnings: ValidationError[]
+}
 
 /**
- * Type-safe selector creator
+ * Validation error details
  */
-export type TypeSafeSelector<TState, TSelected> = (state: TState) => TSelected
+export interface ValidationError {
+  field: string
+  message: string
+  value: unknown
+  severity: 'error' | 'warning'
+}
 
 /**
- * Store with all middleware applied
+ * Type-safe validation slice
  */
-export type TypeSafeStoreWithMiddleware<
-  TState,
-  TMiddlewares extends readonly TypeSafeMiddleware<any>[]
-> = TState & CombineSliceTypes<{
+export interface ValidationSlice<T = unknown> {
+  validationRules: ValidationRule<T>[]
+  lastValidation?: ValidationResult
+  autoValidate: boolean
+  isValid: boolean
+  _validate: (data: T) => ValidationResult
+  _addRule: (rule: ValidationRule<T>) => void
+  _removeRule: (field: keyof T) => void
+  _clearRules: () => void
+}
+
+// ============================================================================
+// EXPORT TYPE UTILITIES
+// ============================================================================
+
+/**
+ * Extract slice type from middleware
+ */
+export type ExtractSliceType<T> = T extends MiddlewareComposer<any, infer TSlice> ? TSlice : never
+
+/**
+ * Create typed store with all middleware applied
+ */
+export type TypedStore<
+  TBase,
+  TMiddlewares extends readonly MiddlewareComposer<any>[] = []
+> = TBase & ComposeMiddlewareSlices<{
   [K in keyof TMiddlewares]: ExtractSliceType<TMiddlewares[K]>
 }>
 
-export default TypeSafeMiddleware
+/**
+ * Helper type for middleware-enhanced state creators
+ */
+export type EnhancedStateCreator<
+  T,
+  TSlices extends readonly unknown[] = []
+> = StateCreator<T & ComposeMiddlewareSlices<TSlices>>

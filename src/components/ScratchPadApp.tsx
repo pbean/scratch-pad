@@ -4,6 +4,7 @@ import { CommandPalette } from "./command-palette/CommandPalette"
 import { SearchHistoryView } from "./search-history/SearchHistoryView"
 import { FullPageLoading, Skeleton } from "./ui/loading"
 import { useToast } from "./ui/toast"
+import type { CategorizedError } from "../types/middleware"
 import { useScratchPadStore } from "../lib/store"
 import { useMemoryCleanup, useDataCleanup } from "../hooks/useMemoryCleanup"
 import { useRenderPerformance, useMemoryMonitor, useStartupPerformance } from "../hooks/usePerformanceMonitor"
@@ -167,7 +168,7 @@ export function ScratchPadApp() {
       <AsyncErrorHandler 
         enableToast={true}
         enableReporting={true}
-        onError={(error) => {
+        onError={(error: CategorizedError) => {
           // Handle critical async errors that might affect connection state
           if (error.category === "tauri") {
             setTauriConnectionState({ isConnected: false })
