@@ -144,8 +144,7 @@ beforeAll(() => {
   global.cancelAnimationFrame = vi.fn().mockImplementation((id) => clearTimeout(id))
   
   // FE-FIX-002: Simplified requestIdleCallback for CI stability
-  global.requestIdleCallback = vi.fn().mockImplementation((cb: IdleRequestCallback, options?: IdleRequestOptions) => {
-    const timeout = options?.timeout || 100
+  global.requestIdleCallback = vi.fn().mockImplementation((cb: IdleRequestCallback) => {
     // Use simple setTimeout instead of complex microtask scheduling for CI reliability
     return setTimeout(() => {
       const deadline = {

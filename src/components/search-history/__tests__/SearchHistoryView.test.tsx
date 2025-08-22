@@ -48,37 +48,37 @@ vi.mock('lucide-react', () => ({
 const mockNote1: Note = {
   id: 1,
   content: 'First note content with searchable text',
-  title: 'First Note',
   created_at: '2024-01-01T12:00:00Z',
   updated_at: '2024-01-03T12:00:00Z',
   is_favorite: false,
   search_content: 'first note content searchable text',
   word_count: 6,
-  language: null
+  language: null,
+  format: 'markdown'
 }
 
 const mockNote2: Note = {
   id: 2,
   content: 'Second note with different content for testing search functionality',
-  title: 'Second note with different content',
   created_at: '2024-01-02T12:00:00Z',
   updated_at: '2024-01-02T12:00:00Z',
   is_favorite: true,
   search_content: 'second note different content testing search functionality',
   word_count: 9,
-  language: null
+  language: null,
+  format: 'markdown'
 }
 
 const mockNote3: Note = {
   id: 3,
   content: '',
-  title: null,
   created_at: '2024-01-03T12:00:00Z',
   updated_at: '2024-01-03T12:00:00Z',
   is_favorite: false,
   search_content: '',
   word_count: 0,
-  language: null
+  language: null,
+  format: 'markdown'
 }
 
 describe('SearchHistoryView', () => {
@@ -423,13 +423,13 @@ describe('SearchHistoryView', () => {
     const newNote: Note = {
       id: 4,
       content: 'New note content',
-      title: 'New Note',
       created_at: '2024-01-05T12:00:00Z',
       updated_at: '2024-01-05T12:00:00Z',
       is_favorite: false,
       search_content: 'new note content',
       word_count: 3,
-      language: null
+      language: null,
+      format: 'markdown'
     }
     
     act(() => {

@@ -41,23 +41,6 @@ configure({
 })
 
 // CRITICAL: Complete DOM isolation strategy
-function createIsolatedContainer(): HTMLElement {
-  // Create a completely unique container with timestamp
-  const container = document.createElement('div')
-  const timestamp = Date.now()
-  const random = Math.random().toString(36).substring(7)
-  const containerId = `test-container-${timestamp}-${random}`
-  
-  container.setAttribute('data-testid', 'test-container')
-  container.setAttribute('id', containerId)
-  container.setAttribute('data-isolation-id', `${process.pid}-${timestamp}`)
-  
-  // Add to tracking
-  testContainers.add(container)
-  
-  return container
-}
-
 function destroyAllContainers(): void {
   // Remove all tracked containers
   testContainers.forEach(container => {
