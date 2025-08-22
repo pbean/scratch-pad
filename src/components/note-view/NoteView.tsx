@@ -11,7 +11,7 @@ export function NoteView() {
     activeNoteId,
     getActiveNote,
     saveNote,
-    saveNoteDebounced,
+    saveNoteDebounced: _saveNoteDebounced,
     setActiveNote,
     setCommandPaletteOpen,
     createNote,

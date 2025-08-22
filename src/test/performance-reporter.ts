@@ -7,7 +7,7 @@
 
 // @ts-ignore - Vitest v1+ has changed the export path
 import { BaseReporter } from 'vitest/reporters'
-import type { File, Reporter, Task, TaskResult, TaskResultPack, TaskEventPack, Vitest, Awaitable } from 'vitest'
+import type { File, Reporter, TaskResultPack, RunnerTaskEventPack as TaskEventPack, Vitest, Awaitable } from 'vitest'
 import fs from 'fs/promises'
 import path from 'path'
 import {
@@ -91,14 +91,16 @@ export class PerformanceReporter extends BaseReporter implements Reporter {
     }
   }
 
-  onTaskUpdate(packs: TaskResultPack[], events?: TaskEventPack[]): Awaitable<void> {
+  onTaskUpdate(packs: TaskResultPack[], _events?: TaskEventPack[]): Awaitable<void> {
     // Track individual test updates for real-time monitoring
     for (const pack of packs) {
       const [_id, results] = pack
       if (!results) continue
       
-      for (const result of results) {
-        this.processTaskResult(result)
+      if (Array.isArray(results)) {
+        for (const result of results) {
+          this.processTaskResult(result)
+        }
       }
     }
   }
@@ -412,15 +414,5 @@ export function createOptimizationPerformanceReporter(exportPath: string): Perfo
 // ============================================================================
 // TASK RESULT TYPE (for TypeScript compatibility)
 // ============================================================================
-
-interface TaskResult {
-  type: string
-  name: string
-  file?: { name: string }
-  result?: {
-    state: 'pass' | 'fail' | 'skip' | 'todo'
-    errors?: Array<{ message: string }>
-  }
-}
 
 export { PerformanceReporter as default }

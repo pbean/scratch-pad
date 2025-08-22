@@ -7,7 +7,6 @@ import {
   TrendingUp,
   BookOpen,
   ArrowRight,
-  X,
   Zap,
   Code,
   FileText,
@@ -241,7 +240,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   enableTemplates = true,
   enableBooleanHelp = true,
   enableTypoCorrection = true,
-  enableFrequencyRanking = true
+  enableFrequencyRanking: _enableFrequencyRanking = true
 }) => {
   const {
     notes,
@@ -282,7 +281,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
         const recentSuggestions: SearchSuggestion[] = recentSearches
           .slice(0, 5)
           .map((search, index) => {
-            const historyEntry = searchHistory.find(h => h.query === search)
+            const historyEntry = searchHistory.find(h => typeof h === 'object' && h !== null && 'query' in h && h.query === search)
             return {
               id: `recent-${index}`,
               type: 'recent' as const,
@@ -290,8 +289,8 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
               displayText: search,
               description: 'Recent search',
               icon: <Clock size={14} />,
-              frequency: historyEntry?.results?.length || 0,
-              lastUsed: new Date(historyEntry?.timestamp || Date.now())
+              frequency: (typeof historyEntry === 'object' && historyEntry !== null && 'results' in historyEntry && historyEntry.results?.length) || 0,
+              lastUsed: new Date((typeof historyEntry === 'object' && historyEntry !== null && 'timestamp' in historyEntry && historyEntry.timestamp) || Date.now())
             }
           })
         
@@ -312,7 +311,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
         const matchingRecent = getRecentSearchSuggestions(searchQuery)
           .slice(0, 3)
           .map((search, index) => {
-            const historyEntry = searchHistory.find(h => h.query === search)
+            const historyEntry = searchHistory.find(h => typeof h === 'object' && h !== null && 'query' in h && h.query === search)
             return {
               id: `recent-match-${index}`,
               type: 'recent' as const,
@@ -320,7 +319,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
               displayText: search,
               description: 'Recent search',
               icon: <Clock size={14} />,
-              frequency: historyEntry?.results?.length || 0
+              frequency: (typeof historyEntry === 'object' && historyEntry !== null && 'results' in historyEntry && historyEntry.results?.length) || 0
             }
           })
         
@@ -603,14 +602,14 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
               </div>
               
               {/* Category suggestions */}
-              {category.suggestions.map((suggestion, categoryIndex) => {
+              {category.suggestions.map((suggestion, _categoryIndex) => {
                 const globalIndex = flatSuggestions.indexOf(suggestion)
                 const isSelected = globalIndex === selectedIndex
                 
                 return (
                   <div
                     key={suggestion.id}
-                    ref={el => suggestionRefs.current[globalIndex] = el}
+                    ref={(el) => { suggestionRefs.current[globalIndex] = el }}
                     className={`px-3 py-2 cursor-pointer transition-colors duration-150 ${
                       isSelected 
                         ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-500' 

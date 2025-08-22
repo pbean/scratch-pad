@@ -9,7 +9,7 @@ import React, { memo, useMemo, useCallback, useState } from 'react'
 import { FileText, Calendar, Star, Search, ChevronDown, ChevronRight, Eye, ExternalLink } from 'lucide-react'
 import type { 
   Note, 
-  HighlightMatch, 
+ 
   SearchSnippet, 
   SearchHighlightOptions 
 } from '../../types'

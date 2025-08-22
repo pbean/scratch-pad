@@ -12,7 +12,6 @@ import {
   RotateCcw,
   Save,
   Sliders,
-  Check
 } from 'lucide-react'
 import type { SearchFilters, SearchCriteria, NoteFormat } from '../../types'
 

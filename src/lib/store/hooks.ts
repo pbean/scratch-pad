@@ -7,7 +7,7 @@ import {
   useSettingsSlice,
   useSystemSlice
 } from './index'
-import type { Note, View, Settings } from '../../types'
+import type { Note, Settings } from '../../types'
 import { getDefaultSettingValue } from './slices/settingsSlice'
 
 // Store type imports for proper typing

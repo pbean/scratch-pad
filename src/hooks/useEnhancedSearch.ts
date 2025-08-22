@@ -12,7 +12,7 @@ import type {
   BooleanSearchResult, 
   EnhancedSearchResult, 
   SearchHighlightOptions, 
-  Note 
+ 
 } from '../types'
 import { 
   enhanceSearchResult, 
@@ -210,7 +210,7 @@ export function useEnhancedSearch(options: UseEnhancedSearchOptions = {}) {
 
     try {
       const startTime = performance.now()
-      let result: SearchResult | BooleanSearchResult
+      let result: SearchResult | BooleanSearchResult | null = null
       let enhanced: EnhancedSearchResult | undefined
       let wasHit = false
 
@@ -252,7 +252,8 @@ export function useEnhancedSearch(options: UseEnhancedSearchOptions = {}) {
       const queryTime = performance.now() - startTime
       updateStats(queryTime, wasHit)
 
-      setSearchResult('complexity' in result ? {
+      if (result) {
+        setSearchResult('complexity' in result ? {
         notes: result.notes,
         total_count: result.total_count,
         page: result.page,
@@ -260,6 +261,7 @@ export function useEnhancedSearch(options: UseEnhancedSearchOptions = {}) {
         has_more: result.has_more,
         query_time_ms: result.query_time_ms
       } : result)
+      }
       
       setEnhancedResult(enhanced || null)
 

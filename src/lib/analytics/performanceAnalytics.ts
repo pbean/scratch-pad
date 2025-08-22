@@ -17,7 +17,6 @@ import type {
   PerformanceReport,
   AnalyticsEvent,
   RealTimeMetrics,
-  PerformanceBudget,
   AnalyticsDashboardConfig
 } from '../../types/analytics'
 
@@ -32,8 +31,8 @@ export class PerformanceAnalyticsService {
 
   // Performance tracking
   private queryStartTimes: Map<string, number> = new Map()
-  private memoryBaseline: number = 0
-  private lastCleanup: number = Date.now()
+  private _memoryBaseline: number = 0 // eslint-disable-line @typescript-eslint/no-unused-vars
+  private _lastCleanup: number = Date.now() // eslint-disable-line @typescript-eslint/no-unused-vars
 
   // Default configuration
   private defaultConfig: AnalyticsDashboardConfig = {

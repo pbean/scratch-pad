@@ -33,14 +33,6 @@ type TypeSafePersistenceMiddleware = <
 ) => StateCreator<T, Mps, [...Mcs, ['zustand/persist', unknown]]>
 
 /**
- * Type-safe state interface for internal operations
- */
-interface TypedState<T> {
-  [key: string]: unknown
-  state: T
-}
-
-/**
  * Type-safe storage adapter with error handling
  */
 const createTypeSafeStorage = (): TypeSafeStorage => {

@@ -12,14 +12,12 @@ import {
   Settings, 
   Calendar, 
   Star, 
-  ChevronDown, 
-  ChevronUp,
+ 
   Clock,
   X,
   Filter,
   Zap,
   BarChart3,
-  AlertTriangle
 } from 'lucide-react'
 import { VirtualizedSearchResults } from './VirtualizedSearchResults'
 import { PerformanceWidget } from '../analytics/PerformanceWidget'
@@ -32,7 +30,6 @@ import type {
   SearchCriteria, 
   SearchFilters, 
   AdvancedSearchParams,
-  NoteFormat,
   SearchResult,
   BooleanSearchResult
 } from '../../types'
@@ -103,12 +100,13 @@ export const AdvancedSearchBarWithAnalytics: React.FC<AdvancedSearchBarWithAnaly
 
   // Performance monitoring hooks
   const searchTracking = useSearchPerformanceTracking('combined')
-  const performanceMonitoring = usePerformanceMonitoring({
+  const _performanceMonitoring = usePerformanceMonitoring({
     enableRealTime: true,
     enableAlerts: true,
     enableRecommendations: true,
     updateInterval: 2000
   })
+  void _performanceMonitoring
 
   const [searchState, setSearchState] = useState<EnhancedSearchState>({
     isAdvanced: false,
@@ -170,7 +168,7 @@ export const AdvancedSearchBarWithAnalytics: React.FC<AdvancedSearchBarWithAnaly
   }, [searchState.query, searchState.recentQueries, searchState.criteria.booleanOperators, getRecentSearchSuggestions])
 
   // Advanced search parameter builder
-  const buildSearchParams = useCallback((): AdvancedSearchParams => {
+  const _buildSearchParams = useCallback((): AdvancedSearchParams => {
     return {
       criteria: searchState.criteria,
       filters: searchState.filters,
@@ -178,6 +176,7 @@ export const AdvancedSearchBarWithAnalytics: React.FC<AdvancedSearchBarWithAnaly
       sortOrder: 'desc'
     }
   }, [searchState.criteria, searchState.filters])
+  void _buildSearchParams
 
   // Boolean operator query processor
   const processQueryWithOperators = useCallback((query: string): string => {
@@ -765,8 +764,8 @@ export const AdvancedSearchBarWithAnalytics: React.FC<AdvancedSearchBarWithAnaly
                     value={searchState.filters.dateRange?.startDate || ''}
                     onChange={(e) => updateFilters({
                       dateRange: {
-                        ...searchState.filters.dateRange,
-                        startDate: e.target.value || null
+                        startDate: e.target.value || null,
+                        endDate: searchState.filters.dateRange?.endDate || null
                       }
                     })}
                     className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500"
@@ -777,7 +776,7 @@ export const AdvancedSearchBarWithAnalytics: React.FC<AdvancedSearchBarWithAnaly
                     value={searchState.filters.dateRange?.endDate || ''}
                     onChange={(e) => updateFilters({
                       dateRange: {
-                        ...searchState.filters.dateRange,
+                        startDate: searchState.filters.dateRange?.startDate || null,
                         endDate: e.target.value || null
                       }
                     })}

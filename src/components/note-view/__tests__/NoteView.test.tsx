@@ -242,7 +242,7 @@ describe('NoteView', () => {
       useScratchPadStore.setState({ saveNote: mockSaveNote })
     })
     
-    const { container } = render(<NoteView />)
+    const { container: _container } = render(<NoteView />)
     
     const textarea = screen.getByRole('textbox')
     

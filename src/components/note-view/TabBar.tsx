@@ -82,7 +82,7 @@ export const TabBar = React.memo(() => {
       ))}
     </div>
   )
-}, (prevProps, nextProps) => {
+}, (_prevProps, _nextProps) => {
   // TabBar has no props, so it only re-renders when store data changes
   // The memo is mainly to prevent unnecessary re-renders from parent components
   return true // Always equal since no props

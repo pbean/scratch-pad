@@ -5,12 +5,6 @@ import type {
   TypeSafeReplacer, 
   TypeSafeReviver,
   DevtoolsAction,
-  NoteActionPayload,
-  SearchActionPayload,
-  UIActionPayload,
-  SettingsActionPayload,
-  SystemActionPayload,
-  PerformanceActionPayload,
   SerializationContext,
   JSONSerializable,
   TypeSafePredicate
@@ -230,7 +224,7 @@ export const createTypeSafeDevtoolsConfig = (sliceName: string): TypeSafeDevtool
  * Type-safe predicate for filtering devtools actions
  */
 const createActionPredicate = (): TypeSafePredicate => {
-  return <T>(state: T, action: DevtoolsAction): boolean => {
+  return <T>(_state: T, action: DevtoolsAction): boolean => {
     if (process.env.NODE_ENV === 'production') {
       // Filter out performance actions in production
       return action.type !== 'performance_action'
@@ -242,7 +236,7 @@ const createActionPredicate = (): TypeSafePredicate => {
 /**
  * Enhanced devtools middleware with complete type safety
  */
-export const createEnhancedDevtools = <T>(
+export const createEnhancedDevtools = <_T>(
   sliceName: string,
   options?: Partial<TypeSafeDevtoolsConfig>
 ): TypeSafeDevtoolsMiddleware => {
@@ -455,7 +449,7 @@ export const createTypeSafeTimeTravel = <T>(
 /**
  * Type-safe performance monitoring integration
  */
-export const integrateTypeSafePerformanceMonitoring = <T>(
+export const integrateTypeSafePerformanceMonitoring = <_T>(
   store: { setState: (...args: unknown[]) => unknown; _getPerformanceStats?: () => Record<string, number> }
 ): void => {
   if (process.env.NODE_ENV !== 'development') return

@@ -5,7 +5,7 @@
  * Tests XSS protection, performance, and accessibility features.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import {
   parseSearchQuery,
   escapeRegexForHighlighting,

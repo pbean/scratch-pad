@@ -5,7 +5,7 @@
  * Integrates VirtualizedSearchResults for optimal performance and UX.
  */
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { 
   ChevronRight, 
   ChevronDown, 
@@ -14,9 +14,7 @@ import {
   FolderOpen, 
   ArrowLeft, 
   Search, 
-  Filter,
   Grid,
-  List,
   Settings
 } from "lucide-react"
 import { LoadingSpinner, InlineLoading, Skeleton } from "../ui/loading"
@@ -50,7 +48,7 @@ export function EnhancedSearchHistoryView() {
     setCurrentView, 
     expandedFolders, 
     toggleFolder,
-    searchNotes,
+    searchNotes: _searchNotes,
     loadMoreNotes,
     hasMoreNotes,
     isLoadingMore
@@ -74,7 +72,7 @@ export function EnhancedSearchHistoryView() {
   
   // Refs
   const inputRef = useRef<HTMLInputElement>(null)
-  const listRef = useRef<HTMLDivElement>(null)
+  const _listRef = useRef<HTMLDivElement>(null); void _listRef
 
   // Search performance tracking
   const [searchStats, setSearchStats] = useState({

@@ -10,7 +10,6 @@ import { SystemSlice, createSystemSlice } from "./slices/systemSlice"
 
 // Import middleware
 import performanceMiddleware from "./middleware/performance"
-import createPersistenceMiddleware from "./middleware/persistence"
 import createEnhancedDevtools from "./middleware/devtools"
 
 // Combined store interface

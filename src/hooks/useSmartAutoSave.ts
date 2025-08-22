@@ -23,7 +23,7 @@ export function useSmartAutoSave({
   idleThreshold = 1500,
   fastTypingThreshold = 5
 }: SmartAutoSaveOptions): SmartAutoSaveReturn {
-  const saveTimeoutRef = useRef<NodeJS.Timeout>()
+  const saveTimeoutRef = useRef<number>()
   const lastActivityRef = useRef<number>(Date.now())
   const lastContentRef = useRef<string>('')
   const typingHistoryRef = useRef<number[]>([])
@@ -108,7 +108,7 @@ export function useSmartAutoSave({
     
     // Clear existing timeout
     if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
+      window.clearTimeout(saveTimeoutRef.current)
     }
     
     // Skip save if content hasn't changed
@@ -118,7 +118,7 @@ export function useSmartAutoSave({
     const delay = calculateDelay()
     
     // Set new timeout with calculated delay
-    saveTimeoutRef.current = setTimeout(() => {
+    saveTimeoutRef.current = window.setTimeout(() => {
       performSave(content)
     }, delay)
   }, [calculateDelay, performSave, cleanTypingHistory, updateIdleStatus])
@@ -127,7 +127,7 @@ export function useSmartAutoSave({
   const forceSave = useCallback(async (content: string) => {
     // Clear any pending timeouts
     if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
+      window.clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = undefined
     }
     
@@ -138,7 +138,7 @@ export function useSmartAutoSave({
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
+        window.clearTimeout(saveTimeoutRef.current)
       }
     }
   }, [])
@@ -148,7 +148,7 @@ export function useSmartAutoSave({
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && saveTimeoutRef.current) {
         // Force save when page becomes hidden
-        clearTimeout(saveTimeoutRef.current)
+        window.clearTimeout(saveTimeoutRef.current)
         const currentContent = lastContentRef.current
         if (currentContent) {
           performSave(currentContent)
@@ -165,7 +165,7 @@ export function useSmartAutoSave({
     const handleBeforeUnload = () => {
       if (saveTimeoutRef.current) {
         // Attempt synchronous save on page unload
-        clearTimeout(saveTimeoutRef.current)
+        window.clearTimeout(saveTimeoutRef.current)
         const currentContent = lastContentRef.current
         if (currentContent && navigator.sendBeacon) {
           // Use sendBeacon for reliable save on unload
