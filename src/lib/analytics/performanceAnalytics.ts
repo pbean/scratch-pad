@@ -1,71 +1,62 @@
 /**
- * Performance Analytics Service - Week 2 Day 4
+ * Performance Analytics System - Week 2 Day 4
  * 
- * Comprehensive performance monitoring and analytics system for search operations.
- * Provides real-time insights, trend analysis, and optimization recommendations
- * with minimal overhead (<1ms per operation).
+ * Real-time performance monitoring and analytics with type-safe event tracking.
+ * Provides comprehensive insights into search performance, caching efficiency,
+ * and system health metrics.
  */
 
-import type {
-  PerformanceMetrics,
+import type { 
+  PerformanceMetrics, 
   PerformanceTrend,
   PerformanceAlert,
+  PerformanceBudget,
   SearchPattern,
   CacheAnalytics,
   SystemPerformance,
-  OptimizationRecommendation,
   PerformanceReport,
+  OptimizationRecommendation,
   AnalyticsEvent,
-  RealTimeMetrics,
-  AnalyticsDashboardConfig
+  RealTimeMetrics
 } from '../../types/analytics'
 
-export class PerformanceAnalyticsService {
+/**
+ * Main performance analytics class for tracking and analyzing performance metrics
+ */
+export class PerformanceAnalytics {
   private metrics: PerformanceMetrics[] = []
+  private trends: PerformanceTrend[] = []
   private alerts: PerformanceAlert[] = []
-  private patterns: Map<string, SearchPattern> = new Map()
-  private events: AnalyticsEvent[] = []
-  private config: AnalyticsDashboardConfig
-  private alertCallbacks: Array<(alert: PerformanceAlert) => void> = []
-  private metricsCallbacks: Array<(metrics: RealTimeMetrics) => void> = []
-
-  // Performance tracking
-  private queryStartTimes: Map<string, number> = new Map()
-  private _memoryBaseline: number = 0 // eslint-disable-line @typescript-eslint/no-unused-vars
-  private _lastCleanup: number = Date.now() // eslint-disable-line @typescript-eslint/no-unused-vars
-
-  // Default configuration
-  private defaultConfig: AnalyticsDashboardConfig = {
-    showRealTime: true,
-    updateInterval: 1000, // 1 second
-    metricsHistoryLimit: 1000,
-    performanceBudget: {
-      maxQueryTime: 200,
-      targetCacheHitRate: 80,
-      maxMemoryUsage: 100 * 1024 * 1024, // 100MB
-      queryTimeAlert: 100,
-      cacheMissAlert: 20
-    },
-    enableAlerts: true,
-    alertConfig: {
-      queryTimeThreshold: 100,
-      cacheMissThreshold: 20,
-      memoryThreshold: 50 * 1024 * 1024, // 50MB
-      enableEmailAlerts: false,
-      enableBrowserNotifications: true
-    },
-    viewPreferences: {
-      defaultTimeRange: '1h',
-      showAdvancedMetrics: false,
-      enableHeatmaps: true,
-      chartType: 'line'
-    }
+  private recommendations: OptimizationRecommendation[] = []
+  private searchPatterns: Map<string, SearchPattern> = new Map()
+  private cacheAnalytics: CacheAnalytics = {
+    totalEntries: 0,
+    hitRate: 0,
+    avgLookupTime: 0,
+    hotEntries: [],
+    evictionRate: 0,
+    memoryUsage: 0
   }
-
-  constructor(config?: Partial<AnalyticsDashboardConfig>) {
-    this.config = { ...this.defaultConfig, ...config }
-    this.startCleanupInterval()
-    this.initializeMemoryBaseline()
+  
+  // Performance budgets and thresholds
+  private budget: PerformanceBudget = {
+    maxQueryTime: 100,
+    targetCacheHitRate: 80,
+    maxMemoryUsage: 50 * 1024 * 1024, // 50MB
+    queryTimeAlert: 150,
+    cacheMissAlert: 70
+  }
+  
+  // Internal tracking
+  private queryStartTimes: Map<string, number> = new Map()
+  private eventListeners: Array<(event: AnalyticsEvent) => void> = []
+  private lastCleanup: number = Date.now()
+  private readonly CLEANUP_INTERVAL = 5 * 60 * 1000 // 5 minutes
+  private readonly MAX_METRICS_HISTORY = 1000
+  
+  constructor() {
+    // Initialize cleanup interval
+    setInterval(() => this.cleanup(), this.CLEANUP_INTERVAL)
   }
 
   /**
@@ -75,11 +66,21 @@ export class PerformanceAnalyticsService {
     const startTime = performance.now()
     this.queryStartTimes.set(queryId, startTime)
     
+    // Map operationType to searchType for analytics
+    const searchType: 'simple' | 'paginated' | 'boolean' = 
+      operationType === 'combined' ? 'boolean' : operationType
+    
     this.recordEvent({
       type: 'search_start',
       timestamp: Date.now(),
-      data: { queryId, query, operationType },
-      source: 'user'
+      data: { 
+        queryId, 
+        query, 
+        operationType, 
+        searchType 
+      },
+      source: 'user',
+      eventId: crypto.randomUUID()
     })
   }
 
@@ -114,9 +115,10 @@ export class PerformanceAnalyticsService {
       operationType,
       complexityScore
     }
-
+    
     // Store metrics
-    this.addMetrics(metrics)
+    this.metrics.push(metrics)
+    this.queryStartTimes.delete(queryId)
     
     // Update search patterns
     this.updateSearchPattern(query, queryTime, cacheHit)
@@ -124,12 +126,26 @@ export class PerformanceAnalyticsService {
     // Check for performance issues
     this.checkPerformanceIssues(metrics)
     
+    // Map operationType to searchType for analytics
+    const searchType: 'simple' | 'paginated' | 'boolean' = 
+      operationType === 'combined' ? 'boolean' : operationType
+    
     // Record completion event
     this.recordEvent({
       type: 'search_complete',
       timestamp: Date.now(),
-      data: { queryId, metrics },
-      source: 'system'
+      data: { 
+        queryId, 
+        query, 
+        resultCount, 
+        queryTime, 
+        cacheHit, 
+        complexityScore,
+        searchType,
+        operationType
+      },
+      source: 'system',
+      eventId: crypto.randomUUID()
     })
 
     // Record cache events
@@ -137,176 +153,71 @@ export class PerformanceAnalyticsService {
       this.recordEvent({
         type: 'cache_hit',
         timestamp: Date.now(),
-        data: { query, queryTime },
-        source: 'system'
+        data: { 
+          cacheKey: query, 
+          hitRate: this.calculateCacheHitRate(), 
+          size: this.metrics.length 
+        },
+        source: 'system',
+        eventId: crypto.randomUUID()
       })
     } else {
       this.recordEvent({
         type: 'cache_miss',
         timestamp: Date.now(),
-        data: { query, queryTime },
-        source: 'system'
+        data: { 
+          cacheKey: query, 
+          hitRate: this.calculateCacheHitRate(), 
+          size: this.metrics.length 
+        },
+        source: 'system',
+        eventId: crypto.randomUUID()
       })
     }
 
-    // Clean up
-    this.queryStartTimes.delete(queryId)
-    
     return metrics
   }
 
   /**
-   * Add performance metrics to the history
+   * Get current performance metrics for dashboard
    */
-  private addMetrics(metrics: PerformanceMetrics): void {
-    this.metrics.push(metrics)
+  getCurrentMetrics(): RealTimeMetrics {
+    const recentMetrics = this.getRecentMetrics(60000) // Last minute
+    const totalMetrics = this.metrics.length
     
-    // Limit history size
-    if (this.metrics.length > this.config.metricsHistoryLimit) {
-      this.metrics = this.metrics.slice(-this.config.metricsHistoryLimit)
-    }
-  }
-
-  /**
-   * Update search pattern analytics
-   */
-  private updateSearchPattern(query: string, queryTime: number, cacheHit: boolean): void {
-    const existing = this.patterns.get(query)
-    
-    if (existing) {
-      const newFrequency = existing.frequency + 1
-      const newAvgQueryTime = ((existing.avgQueryTime * existing.frequency) + queryTime) / newFrequency
-      const totalHits = Math.round(existing.cacheHitRate * existing.frequency / 100)
-      const newCacheHitRate = ((totalHits + (cacheHit ? 1 : 0)) / newFrequency) * 100
-      
-      this.patterns.set(query, {
-        ...existing,
-        frequency: newFrequency,
-        avgQueryTime: Math.round(newAvgQueryTime),
-        cacheHitRate: Math.round(newCacheHitRate * 100) / 100,
-        lastSearched: Date.now()
-      })
-    } else {
-      this.patterns.set(query, {
-        query,
-        frequency: 1,
-        avgQueryTime: queryTime,
-        cacheHitRate: cacheHit ? 100 : 0,
-        lastSearched: Date.now(),
-        optimization: this.suggestOptimization(query, queryTime, cacheHit)
-      })
-    }
-  }
-
-  /**
-   * Check for performance issues and trigger alerts
-   */
-  private checkPerformanceIssues(metrics: PerformanceMetrics): void {
-    const { performanceBudget, alertConfig } = this.config
-    
-    // Query time alert
-    if (metrics.queryTime > alertConfig.queryTimeThreshold) {
-      this.triggerAlert({
-        id: `query_time_${Date.now()}`,
-        severity: metrics.queryTime > performanceBudget.maxQueryTime ? 'error' : 'warning',
-        type: 'query_time',
-        message: `Slow query detected: ${metrics.queryTime}ms (threshold: ${alertConfig.queryTimeThreshold}ms)`,
-        timestamp: Date.now(),
-        isActive: true,
-        relatedMetric: metrics,
-        suggestion: this.getQueryOptimizationSuggestion(metrics)
-      })
-    }
-
-    // Memory usage alert
-    if (metrics.memoryUsage && metrics.memoryUsage > alertConfig.memoryThreshold) {
-      this.triggerAlert({
-        id: `memory_${Date.now()}`,
-        severity: metrics.memoryUsage > performanceBudget.maxMemoryUsage ? 'error' : 'warning',
-        type: 'memory_usage',
-        message: `High memory usage: ${this.formatBytes(metrics.memoryUsage)} (threshold: ${this.formatBytes(alertConfig.memoryThreshold)})`,
-        timestamp: Date.now(),
-        isActive: true,
-        relatedMetric: metrics,
-        suggestion: 'Consider clearing search cache or reducing result set size'
-      })
-    }
-
-    // Cache miss rate alert
-    const recentCacheHitRate = this.getRecentCacheHitRate()
-    if (recentCacheHitRate < performanceBudget.targetCacheHitRate) {
-      this.triggerAlert({
-        id: `cache_miss_${Date.now()}`,
-        severity: 'warning',
-        type: 'cache_miss',
-        message: `Low cache hit rate: ${recentCacheHitRate.toFixed(1)}% (target: ${performanceBudget.targetCacheHitRate}%)`,
-        timestamp: Date.now(),
-        isActive: true,
-        suggestion: 'Consider adjusting cache size or TTL settings'
-      })
-    }
-  }
-
-  /**
-   * Trigger a performance alert
-   */
-  private triggerAlert(alert: PerformanceAlert): void {
-    this.alerts.push(alert)
-    
-    // Limit alerts history
-    if (this.alerts.length > 100) {
-      this.alerts = this.alerts.slice(-100)
-    }
-
-    // Notify callbacks
-    this.alertCallbacks.forEach(callback => {
-      try {
-        callback(alert)
-      } catch (error) {
-        console.error('Error in alert callback:', error)
+    if (recentMetrics.length === 0) {
+      return {
+        queriesPerSecond: 0,
+        recentAvgQueryTime: 0,
+        currentCacheHitRate: 0,
+        activeAlertsCount: this.alerts.filter(a => a.isActive).length,
+        memoryTrend: 'stable',
+        status: 'excellent'
       }
-    })
-
-    // Record alert event
-    this.recordEvent({
-      type: 'alert_triggered',
-      timestamp: Date.now(),
-      data: alert,
-      source: 'system'
-    })
-
-    // Browser notification if enabled
-    if (this.config.alertConfig.enableBrowserNotifications && alert.severity === 'error') {
-      this.showBrowserNotification(alert)
     }
-  }
 
-  /**
-   * Get real-time performance metrics
-   */
-  getRealTimeMetrics(): RealTimeMetrics {
-    const now = Date.now()
-    const oneMinuteAgo = now - 60000
-    const recentMetrics = this.metrics.filter(m => m.timestamp > oneMinuteAgo)
-    
     const queriesPerSecond = recentMetrics.length / 60
-    const recentAvgQueryTime = recentMetrics.length > 0 
-      ? recentMetrics.reduce((sum, m) => sum + m.queryTime, 0) / recentMetrics.length
-      : 0
-    
-    const currentCacheHitRate = this.getRecentCacheHitRate()
+    const avgQueryTime = recentMetrics.reduce((sum, m) => sum + m.queryTime, 0) / recentMetrics.length
+    const cacheHitRate = this.calculateCacheHitRate()
     const activeAlertsCount = this.alerts.filter(a => a.isActive).length
     
-    // Memory trend analysis
-    const memoryTrend = this.analyzeMemoryTrend()
+    // Determine memory trend
+    const memoryTrend = this.calculateMemoryTrend()
     
-    // Performance status
-    const status = this.calculatePerformanceStatus(recentAvgQueryTime, currentCacheHitRate, activeAlertsCount)
+    // Determine overall status
+    let status: RealTimeMetrics['status'] = 'excellent'
+    if (avgQueryTime > this.budget.queryTimeAlert || cacheHitRate < this.budget.cacheMissAlert) {
+      status = 'critical'
+    } else if (avgQueryTime > this.budget.maxQueryTime || cacheHitRate < this.budget.targetCacheHitRate) {
+      status = 'warning'
+    } else if (avgQueryTime > this.budget.maxQueryTime * 0.8) {
+      status = 'good'
+    }
 
     return {
-      queriesPerSecond: Math.round(queriesPerSecond * 100) / 100,
-      recentAvgQueryTime: Math.round(recentAvgQueryTime),
-      currentCacheHitRate: Math.round(currentCacheHitRate * 100) / 100,
+      queriesPerSecond,
+      recentAvgQueryTime: avgQueryTime,
+      currentCacheHitRate: cacheHitRate,
       activeAlertsCount,
       memoryTrend,
       status
@@ -316,131 +227,187 @@ export class PerformanceAnalyticsService {
   /**
    * Generate comprehensive performance report
    */
-  generateReport(periodHours: number = 1): PerformanceReport {
+  generateReport(startTime?: number, endTime?: number): PerformanceReport {
     const now = Date.now()
-    const periodStart = now - (periodHours * 60 * 60 * 1000)
-    const periodMetrics = this.metrics.filter(m => m.timestamp >= periodStart)
+    const start = startTime || now - (24 * 60 * 60 * 1000) // Last 24 hours
+    const end = endTime || now
     
-    const summary = {
-      totalQueries: periodMetrics.length,
-      avgQueryTime: periodMetrics.length > 0 
-        ? Math.round(periodMetrics.reduce((sum, m) => sum + m.queryTime, 0) / periodMetrics.length)
-        : 0,
-      cacheHitRate: this.getCacheHitRate(periodMetrics),
-      slowQueryCount: periodMetrics.filter(m => m.queryTime > this.config.performanceBudget.queryTimeAlert).length,
-      alertCount: this.alerts.filter(a => a.timestamp >= periodStart).length,
-      improvementOpportunities: this.getOptimizationRecommendations().length
-    }
-
-    const trends = this.calculateTrends(periodMetrics, periodHours)
-    const topPatterns = this.getTopSearchPatterns(10)
-    const cacheAnalytics = this.getCacheAnalytics()
-    const systemPerformance = this.getSystemPerformance()
-    const activeAlerts = this.alerts.filter(a => a.isActive)
-    const recommendations = this.getOptimizationRecommendations()
-
+    const periodMetrics = this.metrics.filter(m => m.timestamp >= start && m.timestamp <= end)
+    
     return {
       timestamp: now,
-      period: {
-        start: periodStart,
-        end: now,
-        duration: periodHours * 60 * 60 * 1000
+      period: { start, end, duration: end - start },
+      summary: {
+        totalQueries: periodMetrics.length,
+        avgQueryTime: periodMetrics.length > 0 ? 
+          periodMetrics.reduce((sum, m) => sum + m.queryTime, 0) / periodMetrics.length : 0,
+        cacheHitRate: this.calculateCacheHitRate(periodMetrics),
+        slowQueryCount: periodMetrics.filter(m => m.queryTime > this.budget.maxQueryTime).length,
+        alertCount: this.alerts.filter(a => a.timestamp >= start && a.timestamp <= end).length,
+        improvementOpportunities: this.recommendations.filter(r => !r.implemented).length
       },
-      summary,
-      trends,
-      topPatterns,
-      cacheAnalytics,
-      systemPerformance,
-      alerts: activeAlerts,
-      recommendations
+      trends: this.trends.filter(t => t.period >= start && t.period <= end),
+      topPatterns: Array.from(this.searchPatterns.values())
+        .sort((a, b) => b.frequency - a.frequency)
+        .slice(0, 10),
+      cacheAnalytics: this.cacheAnalytics,
+      systemPerformance: this.getSystemPerformance(),
+      alerts: this.alerts.filter(a => a.timestamp >= start && a.timestamp <= end),
+      recommendations: this.recommendations
     }
   }
 
   /**
-   * Subscribe to performance alerts
+   * Add event listener for real-time updates
    */
-  onAlert(callback: (alert: PerformanceAlert) => void): () => void {
-    this.alertCallbacks.push(callback)
-    return () => {
-      const index = this.alertCallbacks.indexOf(callback)
-      if (index > -1) {
-        this.alertCallbacks.splice(index, 1)
-      }
+  addEventListener(listener: (event: AnalyticsEvent) => void): void {
+    this.eventListeners.push(listener)
+  }
+
+  /**
+   * Remove event listener
+   */
+  removeEventListener(listener: (event: AnalyticsEvent) => void): void {
+    const index = this.eventListeners.indexOf(listener)
+    if (index > -1) {
+      this.eventListeners.splice(index, 1)
     }
   }
 
   /**
-   * Subscribe to real-time metrics updates
+   * Set performance budget
    */
-  onMetricsUpdate(callback: (metrics: RealTimeMetrics) => void): () => void {
-    this.metricsCallbacks.push(callback)
-    return () => {
-      const index = this.metricsCallbacks.indexOf(callback)
-      if (index > -1) {
-        this.metricsCallbacks.splice(index, 1)
-      }
-    }
+  setPerformanceBudget(budget: Partial<PerformanceBudget>): void {
+    this.budget = { ...this.budget, ...budget }
   }
 
   /**
-   * Update configuration
+   * Get performance budget
    */
-  updateConfig(newConfig: Partial<AnalyticsDashboardConfig>): void {
-    this.config = { ...this.config, ...newConfig }
-  }
-
-  /**
-   * Clear all analytics data
-   */
-  clearData(): void {
-    this.metrics = []
-    this.alerts = []
-    this.patterns.clear()
-    this.events = []
+  getPerformanceBudget(): PerformanceBudget {
+    return { ...this.budget }
   }
 
   // Private helper methods
 
-  private initializeMemoryBaseline(): void {
-    this.memoryBaseline = this.getCurrentMemoryUsage()
-  }
-
-  private getCurrentMemoryUsage(): number {
-    // Estimate memory usage based on data structures
-    const metricsSize = this.metrics.length * 200 // Rough estimate per metric
-    const alertsSize = this.alerts.length * 300 // Rough estimate per alert
-    const patternsSize = this.patterns.size * 150 // Rough estimate per pattern
-    const eventsSize = this.events.length * 100 // Rough estimate per event
-    
-    return metricsSize + alertsSize + patternsSize + eventsSize
-  }
-
   private recordEvent(event: AnalyticsEvent): void {
-    this.events.push(event)
+    // Notify listeners
+    this.eventListeners.forEach(listener => {
+      try {
+        listener(event)
+      } catch (error) {
+        console.error('Error in analytics event listener:', error)
+      }
+    })
+  }
+
+  private updateSearchPattern(query: string, queryTime: number, cacheHit: boolean): void {
+    const existing = this.searchPatterns.get(query)
     
-    // Limit events history
-    if (this.events.length > 500) {
-      this.events = this.events.slice(-500)
+    if (existing) {
+      const totalQueries = existing.frequency + 1
+      const newAvgTime = (existing.avgQueryTime * existing.frequency + queryTime) / totalQueries
+      const newCacheHitRate = existing.cacheHitRate + (cacheHit ? 1 : 0)
+      
+      this.searchPatterns.set(query, {
+        ...existing,
+        frequency: totalQueries,
+        avgQueryTime: newAvgTime,
+        cacheHitRate: newCacheHitRate / totalQueries * 100,
+        lastSearched: Date.now()
+      })
+    } else {
+      this.searchPatterns.set(query, {
+        query,
+        frequency: 1,
+        avgQueryTime: queryTime,
+        cacheHitRate: cacheHit ? 100 : 0,
+        lastSearched: Date.now(),
+        optimization: this.determineOptimization(queryTime, cacheHit)
+      })
     }
   }
 
-  private getRecentCacheHitRate(): number {
-    const recentMetrics = this.metrics.slice(-20) // Last 20 queries
-    if (recentMetrics.length === 0) return 0
+  private checkPerformanceIssues(metrics: PerformanceMetrics): void {
+    // Check query time threshold
+    if (metrics.queryTime > this.budget.queryTimeAlert) {
+      this.createAlert('query_time', 'warning', 
+        `Slow query detected: ${metrics.queryTime}ms (threshold: ${this.budget.queryTimeAlert}ms)`,
+        metrics)
+    }
     
-    const cacheHits = recentMetrics.filter(m => m.cacheHit).length
-    return (cacheHits / recentMetrics.length) * 100
+    // Check cache miss rate
+    const cacheHitRate = this.calculateCacheHitRate()
+    if (cacheHitRate < this.budget.cacheMissAlert) {
+      this.createAlert('cache_miss', 'warning',
+        `Low cache hit rate: ${cacheHitRate.toFixed(1)}% (threshold: ${this.budget.cacheMissAlert}%)`)
+    }
+    
+    // Check memory usage
+    if (metrics.memoryUsage && metrics.memoryUsage > this.budget.maxMemoryUsage) {
+      this.createAlert('memory_usage', 'error',
+        `High memory usage: ${(metrics.memoryUsage / 1024 / 1024).toFixed(1)}MB`)
+    }
   }
 
-  private getCacheHitRate(metrics: PerformanceMetrics[]): number {
+  private createAlert(
+    type: PerformanceAlert['type'], 
+    severity: PerformanceAlert['severity'],
+    message: string,
+    relatedMetric?: PerformanceMetrics
+  ): void {
+    const alert: PerformanceAlert = {
+      id: crypto.randomUUID(),
+      severity,
+      type,
+      message,
+      timestamp: Date.now(),
+      isActive: true,
+      relatedMetric,
+      suggestion: this.generateSuggestion(type, relatedMetric)
+    }
+    
+    this.alerts.push(alert)
+    
+    this.recordEvent({
+      type: 'alert_triggered',
+      timestamp: Date.now(),
+      data: {
+        alertId: alert.id,
+        severity,
+        message,
+        relatedMetric
+      },
+      source: 'system',
+      eventId: crypto.randomUUID()
+    })
+  }
+
+  private generateSuggestion(type: PerformanceAlert['type'], metrics?: PerformanceMetrics): string {
+    switch (type) {
+      case 'query_time':
+        return 'Consider optimizing query complexity or adding appropriate indexes'
+      case 'cache_miss':
+        return 'Review cache strategy and consider preloading frequently accessed data'
+      case 'memory_usage':
+        return 'Check for memory leaks and consider implementing memory cleanup'
+      case 'regression':
+        return 'Compare recent changes and consider rolling back problematic updates'
+      default:
+        return 'Review system performance and consider optimization strategies'
+    }
+  }
+
+  private calculateCacheHitRate(metricsSubset?: PerformanceMetrics[]): number {
+    const metrics = metricsSubset || this.metrics
     if (metrics.length === 0) return 0
     
-    const cacheHits = metrics.filter(m => m.cacheHit).length
-    return Math.round((cacheHits / metrics.length) * 100 * 100) / 100
+    const hits = metrics.filter(m => m.cacheHit).length
+    return (hits / metrics.length) * 100
   }
 
-  private analyzeMemoryTrend(): 'increasing' | 'decreasing' | 'stable' {
-    const recentMetrics = this.metrics.slice(-10)
+  private calculateMemoryTrend(): RealTimeMetrics['memoryTrend'] {
+    const recentMetrics = this.getRecentMetrics(5 * 60 * 1000) // Last 5 minutes
     if (recentMetrics.length < 3) return 'stable'
     
     const firstHalf = recentMetrics.slice(0, Math.floor(recentMetrics.length / 2))
@@ -449,221 +416,65 @@ export class PerformanceAnalyticsService {
     const firstAvg = firstHalf.reduce((sum, m) => sum + (m.memoryUsage || 0), 0) / firstHalf.length
     const secondAvg = secondHalf.reduce((sum, m) => sum + (m.memoryUsage || 0), 0) / secondHalf.length
     
-    const change = ((secondAvg - firstAvg) / firstAvg) * 100
+    const threshold = firstAvg * 0.1 // 10% change threshold
     
-    if (change > 10) return 'increasing'
-    if (change < -10) return 'decreasing'
+    if (secondAvg > firstAvg + threshold) return 'increasing'
+    if (secondAvg < firstAvg - threshold) return 'decreasing'
     return 'stable'
   }
 
-  private calculatePerformanceStatus(
-    avgQueryTime: number,
-    cacheHitRate: number,
-    alertCount: number
-  ): 'excellent' | 'good' | 'warning' | 'critical' {
-    if (alertCount > 3 || avgQueryTime > this.config.performanceBudget.maxQueryTime) {
-      return 'critical'
-    }
-    
-    if (alertCount > 1 || avgQueryTime > this.config.performanceBudget.queryTimeAlert) {
-      return 'warning'
-    }
-    
-    if (cacheHitRate > this.config.performanceBudget.targetCacheHitRate && avgQueryTime < 50) {
-      return 'excellent'
-    }
-    
-    return 'good'
+  private getRecentMetrics(timeWindow: number): PerformanceMetrics[] {
+    const cutoff = Date.now() - timeWindow
+    return this.metrics.filter(m => m.timestamp >= cutoff)
   }
 
-  private calculateTrends(metrics: PerformanceMetrics[], periodHours: number): PerformanceTrend[] {
-    const trends: PerformanceTrend[] = []
-    const intervalMinutes = Math.max(5, Math.floor((periodHours * 60) / 12)) // 12 data points max
-    
-    const now = Date.now()
-    const intervalMs = intervalMinutes * 60 * 1000
-    
-    for (let i = 0; i < 12; i++) {
-      const periodEnd = now - (i * intervalMs)
-      const periodStart = periodEnd - intervalMs
-      const periodMetrics = metrics.filter(m => m.timestamp >= periodStart && m.timestamp < periodEnd)
-      
-      if (periodMetrics.length > 0) {
-        trends.unshift({
-          period: intervalMinutes,
-          avgQueryTime: Math.round(periodMetrics.reduce((sum, m) => sum + m.queryTime, 0) / periodMetrics.length),
-          queryCount: periodMetrics.length,
-          cacheHitRate: this.getCacheHitRate(periodMetrics),
-          peakQueryTime: Math.max(...periodMetrics.map(m => m.queryTime)),
-          avgMemoryUsage: Math.round(periodMetrics.reduce((sum, m) => sum + (m.memoryUsage || 0), 0) / periodMetrics.length),
-          issueCount: periodMetrics.filter(m => m.queryTime > this.config.performanceBudget.queryTimeAlert).length
-        })
-      }
+  private getCurrentMemoryUsage(): number {
+    // In a browser environment, we can approximate memory usage
+    if (typeof window !== 'undefined' && 'performance' in window && 'memory' in window.performance) {
+      return (window.performance as any).memory.usedJSHeapSize || 0
     }
-    
-    return trends
-  }
-
-  private getTopSearchPatterns(limit: number): SearchPattern[] {
-    return Array.from(this.patterns.values())
-      .sort((a, b) => b.frequency - a.frequency)
-      .slice(0, limit)
-  }
-
-  private getCacheAnalytics(): CacheAnalytics {
-    const totalEntries = this.patterns.size
-    const hitRate = this.getRecentCacheHitRate()
-    
-    const hotEntries = Array.from(this.patterns.entries())
-      .map(([query, pattern]) => ({
-        query,
-        hitCount: Math.round(pattern.frequency * pattern.cacheHitRate / 100),
-        lastAccessed: pattern.lastSearched
-      }))
-      .sort((a, b) => b.hitCount - a.hitCount)
-      .slice(0, 5)
-
-    return {
-      totalEntries,
-      hitRate: Math.round(hitRate * 100) / 100,
-      avgLookupTime: 1, // Cache lookup is very fast
-      hotEntries,
-      evictionRate: 0, // Manual cache management
-      memoryUsage: this.patterns.size * 150 // Rough estimate
-    }
+    return 0
   }
 
   private getSystemPerformance(): SystemPerformance {
-    const currentMemory = this.getCurrentMemoryUsage()
-    const peakMemory = Math.max(...this.metrics.map(m => m.memoryUsage || 0), currentMemory)
-    
     return {
-      currentMemoryUsage: currentMemory,
-      peakMemoryUsage: peakMemory,
+      currentMemoryUsage: this.getCurrentMemoryUsage(),
+      peakMemoryUsage: Math.max(...this.metrics.map(m => m.memoryUsage || 0)),
+      cpuUsage: undefined, // Not available in browser
+      activeConnections: 1, // Simplified for browser environment
       databaseMetrics: {
-        connectionTime: 5, // Typical SQLite connection time
-        queryQueueSize: 0, // SQLite doesn't queue
+        connectionTime: 5, // Simplified
+        queryQueueSize: 0,
         avgConnectionTime: 5
       }
     }
   }
 
-  private getOptimizationRecommendations(): OptimizationRecommendation[] {
-    const recommendations: OptimizationRecommendation[] = []
-    
-    // Analyze patterns for optimization opportunities
-    const slowPatterns = Array.from(this.patterns.values())
-      .filter(p => p.avgQueryTime > this.config.performanceBudget.queryTimeAlert)
-    
-    if (slowPatterns.length > 0) {
-      recommendations.push({
-        id: 'slow_patterns_optimization',
-        type: 'query_optimization',
-        priority: 'high',
-        title: 'Optimize Slow Search Patterns',
-        description: `${slowPatterns.length} search patterns are consistently slow. Consider query simplification or indexing improvements.`,
-        expectedImprovement: '20-40% query time reduction',
-        complexity: 'medium',
-        relatedData: slowPatterns,
-        implemented: false
-      })
-    }
-    
-    // Cache optimization
-    const lowHitRatePatterns = Array.from(this.patterns.values())
-      .filter(p => p.cacheHitRate < 50 && p.frequency > 3)
-    
-    if (lowHitRatePatterns.length > 0) {
-      recommendations.push({
-        id: 'cache_optimization',
-        type: 'cache_tuning',
-        priority: 'medium',
-        title: 'Improve Cache Hit Rate',
-        description: `${lowHitRatePatterns.length} frequently used patterns have low cache hit rates. Consider cache TTL adjustments.`,
-        expectedImprovement: '15-25% performance improvement',
-        complexity: 'low',
-        relatedData: lowHitRatePatterns,
-        implemented: false
-      })
-    }
-    
-    return recommendations
-  }
-
-  private suggestOptimization(
-    query: string,
-    queryTime: number,
-    cacheHit: boolean
-  ): SearchPattern['optimization'] {
-    if (queryTime > this.config.performanceBudget.queryTimeAlert) {
-      if (query.length > 100) return 'query_simplify'
-      return 'index_optimize'
-    }
-    
-    if (!cacheHit && queryTime < 50) {
-      return 'cache_optimize'
-    }
-    
+  private determineOptimization(queryTime: number, cacheHit: boolean): SearchPattern['optimization'] {
+    if (queryTime > this.budget.maxQueryTime * 2) return 'query_simplify'
+    if (!cacheHit && queryTime > this.budget.maxQueryTime) return 'cache_optimize'
+    if (queryTime > this.budget.maxQueryTime) return 'index_optimize'
     return 'none'
   }
 
-  private getQueryOptimizationSuggestion(metrics: PerformanceMetrics): string {
-    if (metrics.complexityScore && metrics.complexityScore > 7) {
-      return 'Consider simplifying Boolean query operators or reducing nesting depth'
+  private cleanup(): void {
+    const now = Date.now()
+    const cutoff = now - (24 * 60 * 60 * 1000) // Keep 24 hours of data
+    
+    // Clean old metrics
+    this.metrics = this.metrics.filter(m => m.timestamp >= cutoff)
+    
+    // Clean old alerts (keep active ones regardless of age)
+    this.alerts = this.alerts.filter(a => a.isActive || a.timestamp >= cutoff)
+    
+    // Limit metrics history size
+    if (this.metrics.length > this.MAX_METRICS_HISTORY) {
+      this.metrics = this.metrics.slice(-this.MAX_METRICS_HISTORY)
     }
     
-    if (metrics.query.length > 100) {
-      return 'Consider breaking down long queries into simpler terms'
-    }
-    
-    if (metrics.resultCount > 1000) {
-      return 'Consider adding filters to reduce result set size'
-    }
-    
-    return 'Consider using cache-friendly query patterns or adding relevant search indexes'
-  }
-
-  private showBrowserNotification(alert: PerformanceAlert): void {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Performance Alert', {
-        body: alert.message,
-        icon: '/icon.png',
-        tag: `alert-${alert.type}`
-      })
-    }
-  }
-
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 Bytes'
-    
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
-  private startCleanupInterval(): void {
-    setInterval(() => {
-      const now = Date.now()
-      
-      // Cleanup old alerts (keep only last 24 hours)
-      this.alerts = this.alerts.filter(a => now - a.timestamp < 24 * 60 * 60 * 1000)
-      
-      // Cleanup old events (keep only last 6 hours)
-      this.events = this.events.filter(e => now - e.timestamp < 6 * 60 * 60 * 1000)
-      
-      // Cleanup old patterns (remove patterns not used in last 7 days)
-      for (const [query, pattern] of this.patterns.entries()) {
-        if (now - pattern.lastSearched > 7 * 24 * 60 * 60 * 1000) {
-          this.patterns.delete(query)
-        }
-      }
-      
-      this.lastCleanup = now
-    }, 60000) // Run every minute
+    this.lastCleanup = now
   }
 }
 
-// Singleton instance for global use
-export const performanceAnalytics = new PerformanceAnalyticsService()
+// Export singleton instance
+export const performanceAnalytics = new PerformanceAnalytics()

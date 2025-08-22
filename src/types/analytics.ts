@@ -228,18 +228,22 @@ interface BaseAnalyticsEvent {
 // Specific event data types with strict typing
 export interface SearchStartEventData {
   query: string
+  queryId: string
   searchType: 'simple' | 'paginated' | 'boolean'
+  operationType: 'simple' | 'paginated' | 'boolean' | 'combined'
   userId?: string
   filters?: Record<string, unknown>
 }
 
 export interface SearchCompleteEventData {
   query: string
+  queryId: string
   resultCount: number
   queryTime: number
   cacheHit: boolean
   complexityScore?: number
   searchType: 'simple' | 'paginated' | 'boolean'
+  operationType: 'simple' | 'paginated' | 'boolean' | 'combined'
   errorOccurred?: boolean
   errorMessage?: string
 }
@@ -297,9 +301,12 @@ export function validateEventData(type: AnalyticsEvent['type'], data: unknown): 
   switch (type) {
     case 'search_start':
       return typeof (data as SearchStartEventData).query === 'string' &&
-             typeof (data as SearchStartEventData).searchType === 'string'
+             typeof (data as SearchStartEventData).queryId === 'string' &&
+             typeof (data as SearchStartEventData).searchType === 'string' &&
+             typeof (data as SearchStartEventData).operationType === 'string'
     case 'search_complete':
       return typeof (data as SearchCompleteEventData).query === 'string' &&
+             typeof (data as SearchCompleteEventData).queryId === 'string' &&
              typeof (data as SearchCompleteEventData).resultCount === 'number' &&
              typeof (data as SearchCompleteEventData).queryTime === 'number'
     case 'cache_hit':
@@ -319,12 +326,18 @@ export function validateEventData(type: AnalyticsEvent['type'], data: unknown): 
 
 // Event creation utilities with type safety
 export const createAnalyticsEvent = {
-  searchStart: (query: string, searchType: SearchStartEventData['searchType'], filters?: Record<string, unknown>): AnalyticsEvent => ({
+  searchStart: (
+    query: string, 
+    queryId: string,
+    searchType: SearchStartEventData['searchType'], 
+    operationType: SearchStartEventData['operationType'],
+    filters?: Record<string, unknown>
+  ): AnalyticsEvent => ({
     type: 'search_start',
     timestamp: Date.now(),
     source: 'user',
     eventId: crypto.randomUUID(),
-    data: { query, searchType, filters }
+    data: { query, queryId, searchType, operationType, filters }
   }),
   
   searchComplete: (data: SearchCompleteEventData): AnalyticsEvent => ({

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { useScratchPadStore } from '../../lib/store'
 import { useSmartAutoSave } from '../../hooks/useSmartAutoSave'
-import type { Note } from '../../types'
+import type { Note, SearchHistoryEntry, isSearchHistoryEntry } from '../../types'
 
 // Type definitions for search suggestions
 export interface SearchSuggestion {
@@ -51,7 +51,7 @@ export interface SuggestionCategory {
   priority: number
 }
 
-interface SearchSuggestionsProps {
+export interface SearchSuggestionsProps {
   query: string
   isVisible: boolean
   onSuggestionSelect: (suggestion: SearchSuggestion) => void
@@ -64,7 +64,7 @@ interface SearchSuggestionsProps {
   enableFrequencyRanking?: boolean
 }
 
-// Pre-defined search templates for common patterns
+// Search templates configuration
 const SEARCH_TEMPLATES: SearchTemplate[] = [
   {
     id: 'recent-notes',
@@ -281,7 +281,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
         const recentSuggestions: SearchSuggestion[] = recentSearches
           .slice(0, 5)
           .map((search, index) => {
-            const historyEntry = searchHistory.find(h => typeof h === 'object' && h !== null && 'query' in h && h.query === search)
+            const historyEntry = searchHistory.find(h => isSearchHistoryEntry(h) && h.query === search)
             return {
               id: `recent-${index}`,
               type: 'recent' as const,
@@ -289,8 +289,8 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
               displayText: search,
               description: 'Recent search',
               icon: <Clock size={14} />,
-              frequency: (typeof historyEntry === 'object' && historyEntry !== null && 'results' in historyEntry && historyEntry.results?.length) || 0,
-              lastUsed: new Date((typeof historyEntry === 'object' && historyEntry !== null && 'timestamp' in historyEntry && historyEntry.timestamp) || Date.now())
+              frequency: historyEntry?.results?.length || 0,
+              lastUsed: new Date(historyEntry?.timestamp || Date.now())
             }
           })
         
@@ -311,7 +311,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
         const matchingRecent = getRecentSearchSuggestions(searchQuery)
           .slice(0, 3)
           .map((search, index) => {
-            const historyEntry = searchHistory.find(h => typeof h === 'object' && h !== null && 'query' in h && h.query === search)
+            const historyEntry = searchHistory.find(h => isSearchHistoryEntry(h) && h.query === search)
             return {
               id: `recent-match-${index}`,
               type: 'recent' as const,
@@ -319,7 +319,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
               displayText: search,
               description: 'Recent search',
               icon: <Clock size={14} />,
-              frequency: (typeof historyEntry === 'object' && historyEntry !== null && 'results' in historyEntry && historyEntry.results?.length) || 0
+              frequency: historyEntry?.results?.length || 0
             }
           })
         
@@ -672,18 +672,20 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
       {/* Footer with keyboard shortcuts */}
       <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 text-xs text-gray-500 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <span>↑↓ Navigate</span>
-          <span>Enter Select</span>
-          <span>Esc Close</span>
-        </div>
-        {flatSuggestions.length > 0 && (
-          <span>
-            {selectedIndex + 1} of {flatSuggestions.length}
+          <span className="flex items-center">
+            <kbd className="px-1 py-0.5 rounded text-xs bg-gray-200 text-gray-600">↑↓</kbd>
+            <span className="ml-1">Navigate</span>
           </span>
-        )}
+          <span className="flex items-center">
+            <kbd className="px-1 py-0.5 rounded text-xs bg-gray-200 text-gray-600">Enter</kbd>
+            <span className="ml-1">Select</span>
+          </span>
+          <span className="flex items-center">
+            <kbd className="px-1 py-0.5 rounded text-xs bg-gray-200 text-gray-600">Esc</kbd>
+            <span className="ml-1">Close</span>
+          </span>
+        </div>
       </div>
     </div>
   )
 }
-
-export default SearchSuggestions
