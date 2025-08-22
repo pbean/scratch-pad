@@ -71,13 +71,23 @@ export function ScratchPadApp() {
 
         // Load notes with a small delay to improve perceived startup performance
         setTimeout(async () => {
-          await loadNotes()
-          setIsInitializing(false)
+          try {
+            await loadNotes()
+            setIsInitializing(false)
 
-          // Add a brief delay for smooth window appearance
-          setTimeout(() => {
-            setIsAppReady(true)
-          }, 100)
+            // Add a brief delay for smooth window appearance
+            setTimeout(() => {
+              setIsAppReady(true)
+            }, 100)
+          } catch (error) {
+            console.error("Failed to load notes:", error)
+            toast.error("Failed to load notes", "Your notes may not be available")
+            setIsInitializing(false)
+            // Still set app as ready even if notes fail to load
+            setTimeout(() => {
+              setIsAppReady(true)
+            }, 100)
+          }
         }, 150)
       } catch (error) {
         console.error("Failed to initialize app:", error)
@@ -86,6 +96,7 @@ export function ScratchPadApp() {
       }
     }
     initializeApp()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadNotes, initializeSettings])
 
   // Global Esc key handler for window dismissal

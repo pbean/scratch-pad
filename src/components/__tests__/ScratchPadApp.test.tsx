@@ -344,4 +344,48 @@ describe('ScratchPadApp', () => {
     // Component should be rendered
     expect(container.firstChild).toBeTruthy()
   })
+  
+  it('should handle loadNotes errors gracefully', async () => {
+    // Mock console.error and toast to verify error handling
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const toastErrorSpy = vi.fn()
+    
+    // Mock successful initializeSettings but failed loadNotes
+    const mockLoadNotes = vi.fn().mockRejectedValue(new Error('Load failed'))
+    const mockInitializeSettings = vi.fn().mockResolvedValue(undefined)
+    
+    useScratchPadStore.setState({
+      loadNotes: mockLoadNotes,
+      initializeSettings: mockInitializeSettings
+    })
+    
+    // Mock the toast.error function
+    const originalToast = (window as any).toast
+    ;(window as any).toast = { error: toastErrorSpy }
+    
+    // Render the component
+    const { container } = render(<ScratchPadApp />)
+    
+    // Wait for initializeSettings to be called and succeed
+    await waitFor(() => {
+      expect(mockInitializeSettings).toHaveBeenCalled()
+    }, { timeout: 2000 })
+    
+    // Wait for the setTimeout to trigger and loadNotes to fail (150ms + processing time)
+    await new Promise(resolve => setTimeout(resolve, 300))
+    
+    // Verify loadNotes was called and error was handled
+    expect(mockLoadNotes).toHaveBeenCalled()
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Failed to load notes:",
+      expect.any(Error)
+    )
+    
+    // Component should still be rendered despite loadNotes error
+    expect(container.firstChild).toBeTruthy()
+    
+    // Clean up
+    ;(window as any).toast = originalToast
+    consoleErrorSpy.mockRestore()
+  })
 })
