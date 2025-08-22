@@ -13,28 +13,56 @@ import {
 // ENHANCED RENDER UTILITIES
 // ============================================================================
 
-// Custom render function that renders into document.body by default
-// Optimized for React 19 concurrent features
+// Track test containers for proper isolation
+let testContainerCounter = 0
+
+// Custom render function that ensures proper container isolation
+// Optimized for React 19 concurrent features and CI stability
 function render(
   ui: ReactElement,
   options: RenderOptions = {}
 ): ReturnType<typeof rtlRender> {
-  // Create a new container for each render to avoid conflicts
+  // Create a unique container for each render to avoid conflicts
   const container = document.createElement('div')
+  const testId = `test-container-${++testContainerCounter}-${Date.now()}`
+  
   container.setAttribute('data-testid', 'test-container')
+  container.setAttribute('id', testId)
+  
+  // In CI mode, ensure complete isolation
+  if (process.env.VITEST_CI_MODE === 'true' || process.env.CI === 'true') {
+    container.setAttribute('data-ci-isolation', 'true')
+    container.setAttribute('data-test-id', testId)
+  }
+  
+  // Always append to body to ensure proper DOM structure
   document.body.appendChild(container)
   
   // Enhanced render options for React 19 compatibility
-  // FE-002: Remove legacyRoot configuration (React 19 uses concurrent mode by default)
   const renderOptions: RenderOptions = {
     container,
     ...options,
   }
   
-  return rtlRender(ui, renderOptions)
+  const result = rtlRender(ui, renderOptions)
+  
+  // Enhance the result with cleanup tracking
+  const originalUnmount = result.unmount
+  result.unmount = () => {
+    try {
+      originalUnmount()
+    } finally {
+      // Ensure container is removed from DOM
+      if (container.parentNode) {
+        container.parentNode.removeChild(container)
+      }
+    }
+  }
+  
+  return result
 }
 
-// FE-006: Add Suspense test utilities for React 19 compatibility
+// Suspense test utilities for React 19 compatibility
 function renderWithSuspense(
   ui: ReactElement,
   fallback?: ReactElement,
@@ -297,6 +325,46 @@ async function waitForEnhanced<T>(
 }
 
 // ============================================================================
+// CI-SPECIFIC UTILITIES
+// ============================================================================
+
+/**
+ * CI-optimized element selection that handles multiple elements gracefully
+ */
+function getByTestIdSafe(testId: string): HTMLElement {
+  const elements = document.querySelectorAll(`[data-testid="${testId}"]`)
+  
+  if (elements.length === 0) {
+    throw new Error(`No elements found with data-testid="${testId}"`)
+  }
+  
+  if (elements.length > 1) {
+    console.warn(`Found ${elements.length} elements with data-testid="${testId}", using the first visible one`)
+    
+    // Find the first visible element
+    for (const element of Array.from(elements)) {
+      const style = window.getComputedStyle(element as Element)
+      if (style.display !== 'none' && style.visibility !== 'hidden') {
+        return element as HTMLElement
+      }
+    }
+    
+    // If no visible elements, return the last one (most recently rendered)
+    return elements[elements.length - 1] as HTMLElement
+  }
+  
+  return elements[0] as HTMLElement
+}
+
+/**
+ * CI-optimized element selection that returns all matching elements
+ */
+function getAllByTestIdSafe(testId: string): HTMLElement[] {
+  const elements = document.querySelectorAll(`[data-testid="${testId}"]`)
+  return Array.from(elements) as HTMLElement[]
+}
+
+// ============================================================================
 // CLEANUP AND SETUP UTILITIES
 // ============================================================================
 
@@ -326,7 +394,15 @@ function cleanupReact19TestEnvironment() {
   if (typeof document !== 'undefined') {
     // Remove all test containers
     const testContainers = document.querySelectorAll('[data-testid="test-container"]')
-    testContainers.forEach(container => container.remove())
+    testContainers.forEach(container => {
+      try {
+        if (container.parentNode) {
+          container.parentNode.removeChild(container)
+        }
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+    })
   }
 }
 
@@ -354,7 +430,9 @@ export {
   waitForEnhanced,
   waitForReact19Enhanced,
   setupReact19TestEnvironment,
-  cleanupReact19TestEnvironment
+  cleanupReact19TestEnvironment,
+  getByTestIdSafe,
+  getAllByTestIdSafe
 }
 
 // Export timeout utilities

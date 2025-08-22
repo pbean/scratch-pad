@@ -1,29 +1,142 @@
 /**
- * Minimal CI Test Setup
+ * Enhanced CI Test Setup - Complete DOM Isolation
  * 
- * Optimized setup file for CI environments that eliminates performance tracking
- * overhead and provides minimal necessary mocks for React 19 compatibility.
+ * This setup provides complete test isolation for CI environments by:
+ * 1. Creating fresh DOM containers for each test
+ * 2. Comprehensive cleanup between tests
+ * 3. Process-level isolation through Vitest forks
+ * 4. Eliminating all shared state between tests
  */
 
 import '@testing-library/jest-dom'
-import { vi, beforeAll, beforeEach, afterEach } from 'vitest'
+import { vi, beforeAll, beforeEach, afterEach, afterAll } from 'vitest'
 import { cleanup } from '@testing-library/react'
 
 // Global setup to ensure React Testing Library works properly with jsdom
 import { configure } from '@testing-library/react'
+
+// Track all created containers for complete cleanup
+let testContainers: Set<Element> = new Set()
+let globalCleanupFunctions: Array<() => void> = []
+
 configure({
-  // Use document.body as container by default
+  // Use unique container creation strategy
   defaultHidden: true,
   // Reasonable timeout for CI environment
-  asyncUtilTimeout: 5000,
-  testIdAttribute: 'data-testid'
+  asyncUtilTimeout: 8000,
+  testIdAttribute: 'data-testid',
+  // Enhanced error reporting for CI debugging
+  getElementError: (message, container) => {
+    const prettyDOM = require('@testing-library/dom').prettyDOM
+    const error = new Error(
+      [
+        message,
+        `Container count: ${testContainers.size}`,
+        prettyDOM(container)
+      ].filter(Boolean).join('\n\n')
+    )
+    error.name = 'TestingLibraryElementError'
+    return error
+  }
 })
 
-// CI-specific cleanup strategy
-afterEach(() => {
-  cleanup()
-  vi.clearAllTimers()
-  vi.clearAllMocks()
+// CRITICAL: Complete DOM isolation strategy
+function createIsolatedContainer(): HTMLElement {
+  // Create a completely unique container with timestamp
+  const container = document.createElement('div')
+  const timestamp = Date.now()
+  const random = Math.random().toString(36).substring(7)
+  const containerId = `test-container-${timestamp}-${random}`
+  
+  container.setAttribute('data-testid', 'test-container')
+  container.setAttribute('id', containerId)
+  container.setAttribute('data-isolation-id', `${process.pid}-${timestamp}`)
+  
+  // Add to tracking
+  testContainers.add(container)
+  
+  return container
+}
+
+function destroyAllContainers(): void {
+  // Remove all tracked containers
+  testContainers.forEach(container => {
+    try {
+      if (container.parentNode) {
+        container.parentNode.removeChild(container)
+      }
+    } catch (error) {
+      // Ignore removal errors
+    }
+  })
+  
+  // Clear the tracking set
+  testContainers.clear()
+  
+  // Also remove any untracked test containers
+  const remainingContainers = document.querySelectorAll('[data-testid="test-container"]')
+  remainingContainers.forEach(container => {
+    try {
+      if (container.parentNode) {
+        container.parentNode.removeChild(container)
+      }
+    } catch (error) {
+      // Ignore removal errors
+    }
+  })
+}
+
+// CRITICAL: Enhanced cleanup strategy for CI
+afterEach(async () => {
+  try {
+    // Force cleanup of all React Testing Library containers
+    cleanup()
+    
+    // Clear all mocks and timers
+    vi.clearAllTimers()
+    vi.clearAllMocks()
+    
+    // Destroy all test containers
+    destroyAllContainers()
+    
+    // Force garbage collection if available
+    if (global.gc) {
+      global.gc()
+    }
+    
+    // Reset focus state aggressively
+    try {
+      if (document.activeElement && document.activeElement !== document.body) {
+        (document.activeElement as HTMLElement).blur?.()
+      }
+      // Force focus back to body
+      if (document.body && document.body.focus) {
+        document.body.focus()
+      }
+    } catch (error) {
+      // Ignore focus cleanup errors
+    }
+    
+    // Complete DOM reset - remove ALL children from body
+    while (document.body.firstChild) {
+      try {
+        document.body.removeChild(document.body.firstChild)
+      } catch (error) {
+        // Break if we can't remove children
+        break
+      }
+    }
+    
+    // Reset document title
+    document.title = 'Test'
+    
+    // Wait for cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 0))
+    
+  } catch (error) {
+    // Log cleanup errors but don't fail tests
+    console.warn('Enhanced test cleanup error:', error)
+  }
 })
 
 // Mock Tauri API globally
@@ -43,12 +156,10 @@ beforeAll(() => {
   global.requestIdleCallback = vi.fn().mockImplementation((cb: IdleRequestCallback, options?: IdleRequestOptions) => {
     const timeout = options?.timeout || 50
     return setTimeout(() => {
-      // Use microtask for more reliable scheduling in CI
-      Promise.resolve().then(() => {
-        cb({
-          didTimeout: false,
-          timeRemaining: () => Math.max(0, timeout - 16)
-        })
+      // Simple callback execution for CI stability
+      cb({
+        didTimeout: false,
+        timeRemaining: () => Math.max(0, timeout - 16)
       })
     }, 16) as any
   })
@@ -97,17 +208,24 @@ beforeAll(() => {
     Element.prototype.scrollIntoView = vi.fn()
   }
   
-  // Simplified focus/blur handling for CI
-  let currentFocusedElement: Element | null = null
+  // CRITICAL: Process-isolated focus handling for CI
+  let processCurrentFocusedElement: Element | null = null
   
   const originalFocus = (Element.prototype as any).focus
   if (!vi.isMockFunction(originalFocus)) {
     (Element.prototype as any).focus = vi.fn().mockImplementation(function(this: Element) {
       const element = this
-      currentFocusedElement = element
+      processCurrentFocusedElement = element
       
+      // Set focus state immediately and synchronously
       Object.defineProperty(element, 'matches', {
         value: vi.fn((selector: string) => selector === ':focus'),
+        configurable: true
+      })
+      
+      // Update document.activeElement immediately
+      Object.defineProperty(document, 'activeElement', {
+        get: () => element,
         configurable: true
       })
       
@@ -120,12 +238,18 @@ beforeAll(() => {
   if (!vi.isMockFunction(originalBlur)) {
     (Element.prototype as any).blur = vi.fn().mockImplementation(function(this: Element) {
       const element = this
-      if (currentFocusedElement === element) {
-        currentFocusedElement = null
+      if (processCurrentFocusedElement === element) {
+        processCurrentFocusedElement = null
       }
       
       Object.defineProperty(element, 'matches', {
         value: vi.fn((selector: string) => selector !== ':focus'),
+        configurable: true
+      })
+      
+      // Update document.activeElement to body
+      Object.defineProperty(document, 'activeElement', {
+        get: () => document.body,
         configurable: true
       })
       
@@ -134,12 +258,7 @@ beforeAll(() => {
     })
   }
   
-  Object.defineProperty(document, 'activeElement', {
-    get: () => currentFocusedElement || document.body,
-    configurable: true
-  })
-  
-  // Simplified CSS mocking for CI
+  // CRITICAL: Simplified CSS mocking for CI stability
   global.getComputedStyle = vi.fn().mockImplementation((element: Element | null) => {
     if (!element) {
       return {
@@ -223,7 +342,7 @@ beforeAll(() => {
     }
   } as any
 
-  // CRITICAL FIX: Ultra-simplified performance.now() for CI
+  // CRITICAL: Ultra-simplified performance.now() for CI
   performanceBaseTime = Date.now()
   
   if (!global.performance) {
@@ -259,14 +378,12 @@ beforeAll(() => {
   })
 })
 
-beforeEach(() => {
+beforeEach(async () => {
   // Clear all mocks between tests
   vi.clearAllMocks()
   
-  // Reset DOM to clean state
-  if (document?.body) {
-    document.body.innerHTML = '<div id="test-root"></div>'
-  }
+  // Complete DOM reset with fresh container creation
+  destroyAllContainers()
   
   // Reset performance base time for each test
   performanceBaseTime = Date.now()
@@ -279,9 +396,40 @@ beforeEach(() => {
       return Math.max(0, elapsed || 0)
     })
   }
+  
+  // Reset focus state completely
+  try {
+    if (document.activeElement && document.activeElement !== document.body) {
+      (document.activeElement as HTMLElement).blur?.()
+    }
+    
+    Object.defineProperty(document, 'activeElement', {
+      get: () => document.body,
+      configurable: true
+    })
+  } catch (error) {
+    // Ignore focus reset errors
+  }
+  
+  // Wait for setup to complete
+  await new Promise(resolve => setTimeout(resolve, 0))
 })
 
-export const waitForStableDOM = async (_timeout: number = 3000): Promise<void> => {
+afterAll(() => {
+  // Run all global cleanup functions
+  globalCleanupFunctions.forEach(cleanup => {
+    try {
+      cleanup()
+    } catch (error) {
+      console.warn('Global cleanup error:', error)
+    }
+  })
+  
+  // Final DOM cleanup
+  destroyAllContainers()
+})
+
+export const waitForStableDOM = async (_timeout: number = 5000): Promise<void> => {
   return new Promise((resolve) => {
     // Simplified for CI - just wait for next tick
     setTimeout(resolve, 0)

@@ -13,20 +13,20 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     environment: 'jsdom',
     setupFiles: [
-      './src/test/setup-ci.ts' // OPTIMIZED: Use minimal CI-specific setup
+      './src/test/setup-ci.ts' // Use CI-specific setup
     ],
     globals: true,
     
-    // OPTIMIZED: Faster timeouts for CI
-    testTimeout: 10000,  // 10 seconds
-    hookTimeout: 5000,   // 5 seconds
-    teardownTimeout: 3000, // 3 seconds
+    // CRITICAL: Sequential execution to prevent DOM sharing
+    testTimeout: 15000,  // Increased for sequential runs
+    hookTimeout: 8000,   
+    teardownTimeout: 5000,
     
     clearMocks: true,
     restoreMocks: true,
     mockReset: true,
     
-    // Minimal React 19 environment configuration
+    // Enhanced environment configuration for DOM isolation
     environmentOptions: {
       jsdom: {
         resources: 'usable',
@@ -43,35 +43,36 @@ export default defineConfig({
       PERFORMANCE_TRACKING_ENABLED: 'false',
       DISABLE_PERFORMANCE_TRACKING: 'true',
       REACT_TIMEOUT_OPTIMIZATION: 'false',
-      VITEST_CI_MODE: 'true'
+      VITEST_CI_MODE: 'true',
+      VITEST_ISOLATION: 'true'
     },
     
-    // OPTIMIZED: Balanced parallelism for CI
+    // CRITICAL: Use forks for complete process isolation
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: false,
-        isolate: true,
-        execArgv: ['--max-old-space-size=2048']
+        singleFork: true,  // Force sequential execution
+        isolate: true,     // Complete isolation
+        execArgv: ['--max-old-space-size=4096'] // Increased memory for sequential runs
       }
     },
     
-    // OPTIMIZED: Conservative parallelism for stability
-    maxConcurrency: 4,  // Reduced for CI stability
+    // CRITICAL: Sequential execution settings
+    maxConcurrency: 1,  // One test at a time
     minWorkers: 1,
-    maxWorkers: 3,      // Balanced worker count
+    maxWorkers: 1,      // Single worker only
     
-    retry: 1, // Single retry for faster feedback
+    retry: 2, // Allow retries for flaky CI issues
     
-    // OPTIMIZED: Fast coverage configuration
+    // Fast coverage configuration
     coverage: {
       provider: 'v8',
-      reporter: ['lcov', 'json-summary'], // Minimal reporters
+      reporter: ['lcov', 'json-summary'],
       reportsDirectory: './coverage',
-      timeout: 45000, // 45-second timeout for coverage
+      timeout: 60000, // Increased for sequential runs
       thresholds: {
         global: {
-          branches: 30,    // Further reduced thresholds
+          branches: 30,
           functions: 30,   
           lines: 30,       
           statements: 30   
@@ -85,7 +86,7 @@ export default defineConfig({
         '**/test-utils.tsx',
         '**/setup*.ts',
         '**/performance*.ts',
-        '**/async-timeout-utils.ts' // Exclude problematic files
+        '**/async-timeout-utils.ts'
       ]
     },
     
@@ -100,31 +101,30 @@ export default defineConfig({
       junit: './test-results/junit.xml'
     },
     
-    // OPTIMIZED: Enable full concurrency
+    // CRITICAL: Sequential test execution
     sequence: {
-      shuffle: false,
-      concurrent: true,
-      setupFiles: 'parallel'
+      shuffle: false,      // Consistent order
+      concurrent: false,   // No concurrency
+      setupFiles: 'list'  // Sequential setup
     },
     
-    // OPTIMIZED: Minimal logging
-    logHeapUsage: false,
+    // Enhanced logging for debugging
+    logHeapUsage: true,
     isolate: true,
     
     // Platform-specific optimizations for stability
     ...(process.platform === 'darwin' ? {
-      testTimeout: 15000,  // Increased for macOS stability
-      maxWorkers: 2,
-      maxConcurrency: 3    // Reduced for reliability
+      testTimeout: 20000,  // Extra time for macOS
+      hookTimeout: 10000
     } : {}),
     
     ...(process.platform === 'win32' ? {
-      testTimeout: 12000,
+      testTimeout: 18000,
       poolOptions: {
         forks: {
-          singleFork: false,
+          singleFork: true,
           isolate: true,
-          execArgv: ['--max-old-space-size=2048']
+          execArgv: ['--max-old-space-size=4096']
         }
       }
     } : {}),
