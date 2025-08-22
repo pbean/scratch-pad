@@ -18,6 +18,7 @@
     "test": "vitest",
     "test:ci": "vitest --run --config vitest.ci.config.ts",
     "test:ci:hybrid": "node scripts/ci-test-runner.js",
+    "test:ci:simple": "vitest run --config vitest.ci.simple.config.ts",
     "test:ci:fast": "VITEST_BAIL=5 node scripts/ci-test-runner.js",
     "test:ci:coverage": "VITEST_COVERAGE=true node scripts/ci-test-runner.js",
     "test:ci:emergency": "vitest --run --config vitest.ci.config.emergency.ts --reporter=basic",

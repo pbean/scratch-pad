@@ -77,27 +77,27 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
-          echo "Running frontend tests with hybrid parallel/sequential optimization"
+          echo "Running frontend tests with simple sequential execution"
           export NODE_OPTIONS="--max-old-space-size=4096"
           export DISPLAY=:99
-          pnpm test:ci:hybrid
+          pnpm test:ci:simple
 
       - name: Run frontend tests (macOS)
         if: matrix.os == 'macos-latest'
         shell: bash
         run: |
-          echo "Running frontend tests with hybrid parallel/sequential optimization"
+          echo "Running frontend tests with simple sequential execution"
           export NODE_OPTIONS="--max-old-space-size=6144"
           export FORCE_COLOR=0
-          pnpm test:ci:hybrid
+          pnpm test:ci:simple
 
       - name: Run frontend tests (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          Write-Host "Running frontend tests with hybrid parallel/sequential optimization"
+          Write-Host "Running frontend tests with simple sequential execution"
           $env:NODE_OPTIONS = "--max-old-space-size=4096"
-          pnpm test:ci:hybrid
+          pnpm test:ci:simple
         
       - name: Run TypeScript type check
         shell: bash
