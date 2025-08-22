@@ -6,7 +6,7 @@
  * and integration with Rust backend performance metrics.
  */
 
-import { beforeEach, afterEach, vi, type MockedFunction } from 'vitest'
+import { beforeEach, afterEach } from 'vitest'
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -657,7 +657,7 @@ export function generatePerformanceReport(config: PerformanceReportConfig): stri
 function generateConsoleReport(
   stats: PerformanceStats,
   metrics: TestPerformanceMetrics[],
-  config: PerformanceReportConfig
+  _config: PerformanceReportConfig
 ): string {
   const lines: string[] = []
   
@@ -708,7 +708,7 @@ function generateConsoleReport(
 /**
  * Generate CSV report
  */
-function generateCSVReport(metrics: TestPerformanceMetrics[], config: PerformanceReportConfig): string {
+function generateCSVReport(metrics: TestPerformanceMetrics[], _config: PerformanceReportConfig): string {
   const lines = [
     'TestName,TestFile,Duration(μs),Status,BudgetViolations,MemoryUsed(bytes)'
   ]
@@ -732,7 +732,7 @@ function generateCSVReport(metrics: TestPerformanceMetrics[], config: Performanc
 function generateHTMLReport(
   stats: PerformanceStats,
   metrics: TestPerformanceMetrics[],
-  config: PerformanceReportConfig
+  _config: PerformanceReportConfig
 ): string {
   return `
 <!DOCTYPE html>

@@ -513,8 +513,8 @@ export function withReact19Timeout<T extends (...args: any[]) => any>(
   return ((...args: Parameters<T>) => {
     const fullConfig = { ...DEFAULT_REACT19_CONFIG, ...config }
     
-    // Set test timeout
-    const originalTimeout = vi.getConfig().testTimeout
+    // Set test timeout (store original as a constant since vi.getConfig doesn't exist)
+    const originalTimeout = 60000 // Default vitest timeout
     vi.setConfig({ testTimeout: fullConfig.timeout + 2000 })
     
     try {

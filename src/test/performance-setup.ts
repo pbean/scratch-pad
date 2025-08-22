@@ -204,9 +204,11 @@ function formatBytes(bytes: number): string {
 // Re-export performance tracking utilities for use in individual tests
 export {
   performanceTracker,
-  PERFORMANCE_BUDGETS,
-  PERFORMANCE_CONFIG
+  PERFORMANCE_BUDGETS
 } from './performance-tracking'
+
+// Export local PERFORMANCE_CONFIG
+export { PERFORMANCE_CONFIG }
 
 // Export helper functions for manual performance tracking
 export const perf = {

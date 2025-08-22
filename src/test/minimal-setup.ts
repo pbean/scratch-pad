@@ -72,8 +72,8 @@ beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn()
   
   // Simple focus tracking without complex state
-  Element.prototype.focus = vi.fn()
-  Element.prototype.blur = vi.fn()
+  (Element.prototype as any).focus = vi.fn();
+  (Element.prototype as any).blur = vi.fn()
   
   // Basic getComputedStyle mock - minimal implementation
   global.getComputedStyle = vi.fn().mockImplementation(() => ({

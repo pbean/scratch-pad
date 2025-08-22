@@ -6,7 +6,7 @@
  */
 
 import { BaseReporter } from 'vitest/reporters'
-import type { File, Reporter, Task, UserConsoleLog, Vitest } from 'vitest'
+import type { File, Reporter, Task, TaskResult, TaskResultPack, TaskEventPack, Vitest, Awaitable } from 'vitest'
 import fs from 'fs/promises'
 import path from 'path'
 import {
@@ -90,9 +90,10 @@ export class PerformanceReporter extends BaseReporter implements Reporter {
     }
   }
 
-  onTaskUpdate(packs: Array<[string, TaskResult[] | undefined]>) {
+  onTaskUpdate(packs: TaskResultPack[], events?: TaskEventPack[]): Awaitable<void> {
     // Track individual test updates for real-time monitoring
-    for (const [_id, results] of packs) {
+    for (const pack of packs) {
+      const [_id, results] = pack
       if (!results) continue
       
       for (const result of results) {
@@ -101,8 +102,8 @@ export class PerformanceReporter extends BaseReporter implements Reporter {
     }
   }
 
-  onFinished(files: File[], errors: unknown[]) {
-    this.generatePerformanceReport(files, errors)
+  onFinished(files?: File[], errors?: unknown[]) {
+    this.generatePerformanceReport(files || [], errors || [])
   }
 
   // ============================================================================
@@ -144,7 +145,7 @@ export class PerformanceReporter extends BaseReporter implements Reporter {
   // PERFORMANCE REPORT GENERATION
   // ============================================================================
 
-  private async generatePerformanceReport(files: File[], errors: unknown[]) {
+  private async generatePerformanceReport(_files: File[], _errors: unknown[]) {
     const suiteEndTime = performance.now()
     const totalSuiteDuration = (suiteEndTime - this.suiteStartTime) * 1000 // microseconds
     

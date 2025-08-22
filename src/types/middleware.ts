@@ -194,7 +194,7 @@ export type TypeSafeMerger<T> = (
 /**
  * Type-safe migrator for handling schema changes
  */
-export type TypeSafeMigrator<T = unknown> = (
+export type TypeSafeMigrator = (
   persistedState: unknown, 
   version: number
 ) => unknown

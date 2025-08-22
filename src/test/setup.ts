@@ -106,12 +106,13 @@ beforeAll(() => {
   // Mock focus and blur methods for all elements with proper focus tracking
   let currentFocusedElement: Element | null = null
   
-  Element.prototype.focus = vi.fn().mockImplementation(function(this: Element) {
+  // Extend Element prototype with focus/blur methods (for test environment)
+  (Element.prototype as any).focus = vi.fn().mockImplementation(function(this: Element) {
     currentFocusedElement = this
     this.dispatchEvent(new Event('focus', { bubbles: true }))
-  })
+  });
   
-  Element.prototype.blur = vi.fn().mockImplementation(function(this: Element) {
+  (Element.prototype as any).blur = vi.fn().mockImplementation(function(this: Element) {
     if (currentFocusedElement === this) {
       currentFocusedElement = null
     }

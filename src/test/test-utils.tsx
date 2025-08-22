@@ -3,8 +3,7 @@ import { ReactElement, Suspense } from 'react'
 import { 
   waitForReact19, 
   waitForComponent, 
-  waitForFocus, 
-  waitForStateUpdate,
+  waitForFocus,
   TIMEOUT_PRESETS,
   type React19TimeoutConfig,
   type TimeoutResult 
@@ -256,7 +255,7 @@ async function waitForCondition(
  * Wait for mock function to be called with specific arguments
  */
 async function waitForMockCall(
-  mockFn: jest.Mock | vi.Mock,
+  mockFn: any, // Support both jest and vi mocks
   expectedArgs?: any[],
   options: Partial<React19TimeoutConfig> = {}
 ): Promise<void> {
@@ -266,7 +265,7 @@ async function waitForMockCall(
     }
     
     if (expectedArgs) {
-      const matchingCall = mockFn.mock.calls.find(call => 
+      const matchingCall = mockFn.mock.calls.find((call: any) => 
         expectedArgs.every((arg, index) => 
           JSON.stringify(call[index]) === JSON.stringify(arg)
         )

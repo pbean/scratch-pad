@@ -333,19 +333,7 @@ export function cleanupSimpleTestEnvironment(): void {
 // ============================================================================
 
 export {
-  TIMEOUT_CONFIG as default,
-  setupFakeTimers,
-  advanceTimersSafely,
-  cleanupFakeTimers,
-  waitForSimple,
-  waitForComponentRender,
-  waitForStateUpdate,
-  setupReact19Environment,
-  cleanupReact19Environment,
-  withTimeoutDetection,
-  setupSimpleTestEnvironment,
-  cleanupSimpleTestEnvironment,
-  disableTimeoutOverrides
+  TIMEOUT_CONFIG as default
 }
 
 // ============================================================================
