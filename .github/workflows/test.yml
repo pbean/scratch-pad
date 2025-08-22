@@ -36,6 +36,18 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         uses: ./.github/actions/install-linux-deps
 
+      - name: Configure macOS resources
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          # Increase file descriptor limit for macOS
+          ulimit -n 10240
+          # Show system resources
+          sysctl hw.ncpu hw.memsize
+          # Set conservative test environment for macOS
+          echo "RUST_TEST_THREADS=1" >> $GITHUB_ENV
+          echo "NODE_OPTIONS=--max-old-space-size=4096" >> $GITHUB_ENV
+
       - name: Build frontend
         uses: ./.github/actions/build-frontend
         with:

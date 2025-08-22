@@ -51,14 +51,23 @@ runs:
         # Create performance monitoring directory
         mkdir -p .performance-metrics
         
+        # Platform-specific resource detection
+        if [[ "$RUNNER_OS" == "macOS" ]]; then
+          cpu_count=$(sysctl -n hw.ncpu)
+          memory_total=$(( $(sysctl -n hw.memsize) / 1024 / 1024 ))
+        else
+          cpu_count=$(nproc)
+          memory_total=$(free -m | awk 'NR==2{print $2}')
+        fi
+        
         # Initialize performance metrics with high-resolution timestamp
         cat > .performance-metrics/start.json << EOF
         {
           "workflow_start": "$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)",
           "platform": "${{ inputs.platform }}",
           "hostname": "$(hostname)",
-          "cpu_count": "$(nproc)",
-          "memory_total": "$(free -m | awk 'NR==2{print $2}')"
+          "cpu_count": "$cpu_count",
+          "memory_total": "$memory_total"
         }
         EOF
         
