@@ -29,10 +29,19 @@ runs:
       if: inputs.run-tests == 'true'
       shell: bash
       run: |
-        if [ "${{ inputs.test-coverage }}" = "true" ]; then
-          pnpm test --run --coverage
+        # Use CI-specific config in CI environment
+        if [ "$CI" = "true" ]; then
+          if [ "${{ inputs.test-coverage }}" = "true" ]; then
+            pnpm test --run --coverage --config vitest.ci.config.ts
+          else
+            pnpm test --run --config vitest.ci.config.ts
+          fi
         else
-          pnpm test --run
+          if [ "${{ inputs.test-coverage }}" = "true" ]; then
+            pnpm test --run --coverage
+          else
+            pnpm test --run
+          fi
         fi
 
     - name: Run frontend type check

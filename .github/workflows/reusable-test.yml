@@ -64,6 +64,7 @@ jobs:
   test-matrix:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30  # Add timeout for CI jobs
     strategy:
       fail-fast: ${{ inputs.fail-fast }}
       matrix:
@@ -97,6 +98,7 @@ jobs:
           run-integration-tests: ${{ inputs.run-integration-tests }}
           performance-monitoring: ${{ inputs.performance-monitoring }}
           platform: ${{ matrix.os }}
+          test-timeout: '600'  # 10 minutes timeout for CI
 
       - name: Build test (no bundle)
         shell: bash

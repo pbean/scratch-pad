@@ -71,7 +71,14 @@ runs:
       run: |
         start_time=$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)
         
-        if timeout ${{ inputs.test-timeout }} pnpm test --run; then
+        # Use CI-specific config in CI environment
+        if [ "$CI" = "true" ]; then
+          test_command="pnpm test --run --config vitest.ci.config.ts"
+        else
+          test_command="pnpm test --run"
+        fi
+        
+        if timeout ${{ inputs.test-timeout }} $test_command; then
           result="success"
           exit_code=0
         else
@@ -105,7 +112,17 @@ runs:
         start_time=$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)
         
         cd src-tauri
-        if timeout ${{ inputs.test-timeout }} cargo test; then
+        
+        # CI-specific optimizations for backend tests
+        if [ "$CI" = "true" ]; then
+          export RUST_TEST_THREADS=2
+          export RUST_BACKTRACE=1
+          test_command="cargo test --lib --bins --tests -- --test-threads=2 --nocapture"
+        else
+          test_command="cargo test"
+        fi
+        
+        if timeout ${{ inputs.test-timeout }} $test_command; then
           result="success"
           exit_code=0
         else

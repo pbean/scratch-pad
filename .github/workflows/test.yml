@@ -16,6 +16,7 @@ jobs:
   test-matrix:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30  # Increase from default 6 minutes
     strategy:
       fail-fast: false
       matrix:
@@ -51,6 +52,7 @@ jobs:
           run-integration-tests: 'true'
           performance-monitoring: 'true'
           platform: ${{ matrix.os }}
+          test-timeout: '600'  # 10 minutes timeout for CI
 
       - name: Build test (no bundle)
         run: cd src-tauri && cargo build --release
@@ -58,6 +60,7 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 30  # Increase timeout for coverage
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
