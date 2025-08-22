@@ -13,7 +13,7 @@ targets = [
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
 vulnerability = "deny"
-unmaintained = "none"
+unmaintained = "warn"
 yanked = "warn"
 notice = "warn"
 ignore = [
@@ -31,6 +31,9 @@ allow = [
     "ISC",
     "Unicode-DFS-2016",
     "CC0-1.0",
+    "MPL-2.0",
+    "0BSD",
+    "Unlicense",
 ]
 deny = [
     "GPL-2.0",

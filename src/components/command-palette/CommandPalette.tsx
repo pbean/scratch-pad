@@ -19,6 +19,8 @@ export function CommandPalette() {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const [isExporting, setIsExporting] = useState(false)
+  // FE-FIX-005: Add ref for component-scoped event handling
+  const componentRef = useRef<HTMLDivElement>(null)
   const toast = useToast()
 
   const handleExportNote = async () => {
@@ -94,11 +96,25 @@ export function CommandPalette() {
       command.description?.toLowerCase().includes(query.toLowerCase()),
   )
 
+  // FE-FIX-006: Enhanced focus effect with React 19 scheduling compatibility
   useEffect(() => {
     if (isCommandPaletteOpen && inputRef.current) {
-      inputRef.current.focus()
-      setQuery("")
-      setSelectedIndex(0)
+      // Use microtask scheduling for React 19 compatibility
+      const focusInput = () => {
+        if (inputRef.current) {
+          inputRef.current.focus()
+          setQuery("")
+          setSelectedIndex(0)
+        }
+      }
+
+      // Schedule focus using requestIdleCallback for better CI performance
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(focusInput, { timeout: 100 })
+      } else {
+        // Fallback for environments without requestIdleCallback
+        setTimeout(focusInput, 0)
+      }
     }
   }, [isCommandPaletteOpen])
 
@@ -106,25 +122,35 @@ export function CommandPalette() {
     setSelectedIndex(0)
   }, [query])
 
+  // FE-FIX-007: Component-scoped keyboard handling instead of document-level
   useEffect(() => {
+    if (!isCommandPaletteOpen) return
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isCommandPaletteOpen) return
+      // Only handle events if the component is actually visible and focused
+      if (!componentRef.current || !componentRef.current.contains(document.activeElement)) {
+        return
+      }
 
       switch (e.key) {
         case "Escape":
           e.preventDefault()
+          e.stopPropagation()
           setCommandPaletteOpen(false)
           break
         case "ArrowDown":
           e.preventDefault()
+          e.stopPropagation()
           setSelectedIndex((prev) => (prev + 1) % filteredCommands.length)
           break
         case "ArrowUp":
           e.preventDefault()
+          e.stopPropagation()
           setSelectedIndex((prev) => (prev - 1 + filteredCommands.length) % filteredCommands.length)
           break
         case "Enter":
           e.preventDefault()
+          e.stopPropagation()
           if (filteredCommands[selectedIndex]) {
             filteredCommands[selectedIndex].action()
             setCommandPaletteOpen(false)
@@ -133,14 +159,38 @@ export function CommandPalette() {
       }
     }
 
-    document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
+    // FE-FIX-008: Add event listener to the component instead of document
+    if (componentRef.current) {
+      const element = componentRef.current
+      element.addEventListener("keydown", handleKeyDown, { capture: true })
+      
+      // Also add to document as fallback, but with a check
+      const documentHandler = (e: KeyboardEvent) => {
+        // Only handle if the component is open and no other element is handling
+        if (isCommandPaletteOpen && componentRef.current?.contains(document.activeElement)) {
+          handleKeyDown(e)
+        }
+      }
+      document.addEventListener("keydown", documentHandler)
+      
+      return () => {
+        element.removeEventListener("keydown", handleKeyDown, { capture: true })
+        document.removeEventListener("keydown", documentHandler)
+      }
+    }
+
+    return () => {}
   }, [isCommandPaletteOpen, selectedIndex, filteredCommands, setCommandPaletteOpen])
 
   if (!isCommandPaletteOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-start justify-center pt-[20vh] z-50 palette-backdrop">
+    <div 
+      ref={componentRef}
+      className="fixed inset-0 bg-black/50 flex items-start justify-center pt-[20vh] z-50 palette-backdrop"
+      // FE-FIX-009: Make component focusable for keyboard event handling
+      tabIndex={-1}
+    >
       <div className="bg-popover border border-border rounded-lg shadow-2xl w-full max-w-lg mx-4 palette-content">
         <div className="p-4 border-b border-border">
           <div className="relative">
@@ -151,6 +201,7 @@ export function CommandPalette() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Type a command or search..."
+              aria-label="Command search input"
               className="w-full bg-transparent text-foreground placeholder-muted-foreground outline-none text-sm focus-ring pl-10 pr-4 py-2"
             />
           </div>

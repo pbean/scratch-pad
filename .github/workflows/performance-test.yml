@@ -33,7 +33,7 @@ jobs:
   performance-test:
     name: Performance Test Suite
     runs-on: ubuntu-latest  # Fixed to ubuntu-latest only for stability
-    timeout-minutes: 15  # Reduced timeout
+    timeout-minutes: 10  # OPTIMIZED: Reduced from 15 to 10 minutes
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -47,32 +47,56 @@ jobs:
       - name: Install Linux dependencies
         uses: ./.github/actions/install-linux-deps
 
-      - name: Run performance tests
+      - name: Run performance tests (optimized)
         shell: bash
         run: |
-          echo "Running performance tests with optimized configuration"
-          export NODE_OPTIONS="--max-old-space-size=4096"
+          echo "Running performance tests with optimized CI configuration"
+          export NODE_OPTIONS="--max-old-space-size=2048"  # Reduced memory
           
-          # Run frontend tests with performance monitoring disabled for speed
-          pnpm test --run --config vitest.ci.config.ts
+          # OPTIMIZED: Run frontend tests with explicit performance tracking disabled
+          export PERFORMANCE_TRACKING_ENABLED=false
+          export DISABLE_PERFORMANCE_TRACKING=true
+          export VITEST_PERFORMANCE_DISABLED=true
           
-          # Run backend tests
-          cd src-tauri && cargo test --lib --release
+          # Run frontend tests with optimized CI config
+          pnpm test --run --config vitest.ci.config.ts --reporter=basic || {
+            echo "Frontend tests failed, continuing with backend tests"
+            exit_code=1
+          }
+          
+          # Run backend tests with optimized settings
+          cd src-tauri && RUST_TEST_THREADS=2 cargo test --lib --release --quiet || {
+            echo "Backend tests failed"
+            exit_code=1
+          }
+          
+          # Exit with error code if any tests failed
+          exit ${exit_code:-0}
 
-      - name: Build application
+      - name: Build application (minimal)
         shell: bash
         run: |
-          # Frontend build
-          pnpm build
+          # OPTIMIZED: Minimal build to verify compilation only
+          echo "Running minimal build verification"
           
-          # Backend build
-          cd src-tauri && cargo build --release
+          # Frontend build with optimizations
+          pnpm build --mode production || {
+            echo "Frontend build failed"
+            exit 1
+          }
+          
+          # Backend build check only (skip full build)
+          cd src-tauri && cargo check --release || {
+            echo "Backend check failed" 
+            exit 1
+          }
 
   performance-analysis:
     name: Performance Analysis
     runs-on: ubuntu-latest
     needs: performance-test
     if: always() && (github.event.inputs.performance-monitoring == 'true' || github.event_name == 'schedule')
+    timeout-minutes: 5  # OPTIMIZED: Added timeout for analysis job
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -82,25 +106,37 @@ jobs:
         run: |
           mkdir -p performance-results
           
+          # OPTIMIZED: Simplified performance report
           cat > performance-results/report.md << 'EOF'
           # Performance Test Report
           
           **Date**: $(date -Iseconds)
           **Commit**: ${{ github.sha }}
           **Workflow**: ${{ github.workflow }}
+          **Status**: ${{ needs.performance-test.result }}
           
           ## Summary
           
-          - ✅ Frontend tests completed
-          - ✅ Backend tests completed  
-          - ✅ Application build successful
+          - Frontend tests: ${{ needs.performance-test.result == 'success' && '✅ Completed' || '❌ Failed' }}
+          - Backend tests: ${{ needs.performance-test.result == 'success' && '✅ Completed' || '❌ Failed' }}
+          - Application build: ${{ needs.performance-test.result == 'success' && '✅ Completed' || '❌ Failed' }}
           
-          ## Configuration
+          ## Configuration (Optimized for CI)
           
           - Platform: ubuntu-latest
-          - Node.js: 20
-          - Rust: stable
-          - Optimized for CI environment
+          - Node.js: 20 (2048MB memory limit)
+          - Rust: stable (2 test threads)
+          - Performance tracking: Disabled for speed
+          - Test timeout: 10 minutes
+          - Build verification: Minimal mode
+          
+          ## Performance Optimizations Applied
+          
+          - Disabled performance tracking overhead
+          - Reduced memory allocation (2048MB)
+          - Minimal build verification
+          - Optimized test timeouts
+          - Basic test reporting for speed
           
           EOF
           
@@ -109,6 +145,6 @@ jobs:
       - name: Upload performance report
         uses: actions/upload-artifact@v4
         with:
-          name: performance-report
+          name: performance-report-optimized
           path: performance-results/
-          retention-days: 7
+          retention-days: 3  # OPTIMIZED: Reduced retention

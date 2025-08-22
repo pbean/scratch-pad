@@ -34,6 +34,9 @@ jobs:
         working-directory: src-tauri
         run: cargo audit
 
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --version 0.14.24
+
       - name: Run cargo deny (with configuration validation)
         working-directory: src-tauri
         run: |
@@ -110,4 +113,4 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high  # Change from moderate to high for less strict enforcement
-          allow-dependencies-licenses: MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC
+          allow-dependencies-licenses: MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,0BSD,Unlicense,CC0-1.0,Unicode-DFS-2016

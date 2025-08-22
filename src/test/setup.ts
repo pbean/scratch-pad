@@ -47,8 +47,43 @@ vi.mock('@tauri-apps/api/core', () => ({
 // FE-005: Remove useLayoutEffect mock (React 19 handles this properly)
 // FE-003: Remove manual act() environment configuration (React 19 handles automatically)
 
-// Global performance start time for consistent timing
+// PERFORMANCE FIX: Enhanced performance start time tracking with validation
 let performanceStartTime = Date.now()
+let performanceOriginTime = performanceStartTime
+
+// Utility function to create safe performance.now() implementation
+const createSafePerformanceNow = () => {
+  return vi.fn().mockImplementation(() => {
+    try {
+      const current = Date.now()
+      
+      // Validate all timing values before calculation
+      if (!isFinite(performanceStartTime) || isNaN(performanceStartTime)) {
+        console.warn('Performance: Invalid start time detected, resetting')
+        performanceStartTime = current
+        return 0
+      }
+      
+      if (!isFinite(current) || isNaN(current)) {
+        console.warn('Performance: Invalid current time detected')
+        return 0
+      }
+      
+      const elapsed = current - performanceStartTime
+      
+      // Ensure result is always a finite, non-negative number
+      if (!isFinite(elapsed) || isNaN(elapsed) || elapsed < 0) {
+        console.warn(`Performance: Invalid elapsed time calculated: ${elapsed}`)
+        return 0
+      }
+      
+      return Math.max(0, elapsed)
+    } catch (error) {
+      console.warn('Performance: Timing calculation failed:', error)
+      return 0
+    }
+  })
+}
 
 // Global window mocks
 beforeAll(() => {
@@ -59,6 +94,23 @@ beforeAll(() => {
     return setTimeout(cb, 16)
   })
   global.cancelAnimationFrame = vi.fn().mockImplementation((id) => clearTimeout(id))
+  
+  // FE-FIX-001: Enhanced requestIdleCallback polyfill with microtask scheduling
+  global.requestIdleCallback = vi.fn().mockImplementation((cb: IdleRequestCallback, options?: IdleRequestOptions) => {
+    const timeout = options?.timeout || 50
+    return setTimeout(() => {
+      // Use microtask for more reliable scheduling in React 19
+      Promise.resolve().then(() => {
+        const deadline = {
+          didTimeout: false,
+          timeRemaining: () => Math.max(0, timeout - 16)
+        }
+        cb(deadline)
+      })
+    }, 16) as any
+  })
+  
+  global.cancelIdleCallback = vi.fn().mockImplementation((id) => clearTimeout(id as any))
   
   // Mock window.confirm
   Object.defineProperty(window, 'confirm', {
@@ -106,45 +158,103 @@ beforeAll(() => {
     Element.prototype.scrollIntoView = vi.fn()
   }
   
-  // Mock focus and blur methods for all elements with proper focus tracking
+  // FE-FIX-002: Enhanced focus and blur methods with improved microtask queue
   let currentFocusedElement: Element | null = null
+  let focusChangeQueue: (() => void)[] = []
+  let focusProcessingScheduled = false
+  
+  // Process focus change queue asynchronously to simulate browser behavior
+  const processFocusQueue = () => {
+    if (focusChangeQueue.length > 0) {
+      const tasks = focusChangeQueue.splice(0)
+      tasks.forEach(task => {
+        try {
+          task()
+        } catch (error) {
+          console.warn('Focus queue task failed:', error)
+        }
+      })
+    }
+    focusProcessingScheduled = false
+  }
+  
+  // Schedule focus queue processing with microtasks for React 19 compatibility
+  const scheduleFocusProcessing = () => {
+    if (!focusProcessingScheduled) {
+      focusProcessingScheduled = true
+      Promise.resolve().then(processFocusQueue)
+    }
+  }
   
   // Extend Element prototype with focus/blur methods (for test environment)
   // Only set up if not already mocked
   if (!(Element.prototype as any).focus || !vi.isMockFunction((Element.prototype as any).focus)) {
     (Element.prototype as any).focus = vi.fn().mockImplementation(function(this: Element) {
-      currentFocusedElement = this
-      // Add immediate synchronous focus for CI environments
-      Object.defineProperty(this, 'matches', {
+      const element = this
+      
+      // Queue focus change for microtask processing
+      focusChangeQueue.push(() => {
+        currentFocusedElement = element
+        
+        // Set up focus state immediately for synchronous access
+        Object.defineProperty(element, 'matches', {
+          value: vi.fn((selector: string) => selector === ':focus'),
+          configurable: true
+        })
+        
+        // Dispatch focus events with proper timing for CI
+        const focusEvent = new Event('focus', { bubbles: true })
+        element.dispatchEvent(focusEvent)
+        
+        // For CI environments, also trigger focusin event with delay
+        if (process.env.CI === 'true') {
+          setTimeout(() => {
+            const focusinEvent = new Event('focusin', { bubbles: true })
+            element.dispatchEvent(focusinEvent)
+          }, 0)
+        }
+      })
+      
+      // Also set immediate state for synchronous tests
+      currentFocusedElement = element
+      Object.defineProperty(element, 'matches', {
         value: vi.fn((selector: string) => selector === ':focus'),
         configurable: true
       })
       
-      // Dispatch focus event synchronously for better CI reliability
-      const focusEvent = new Event('focus', { bubbles: true })
-      this.dispatchEvent(focusEvent)
-      
-      // For CI environments, also trigger focusin event
-      if (process.env.CI === 'true') {
-        const focusinEvent = new Event('focusin', { bubbles: true })
-        this.dispatchEvent(focusinEvent)
-      }
+      scheduleFocusProcessing()
     });
   }
   
   if (!(Element.prototype as any).blur || !vi.isMockFunction((Element.prototype as any).blur)) {
     (Element.prototype as any).blur = vi.fn().mockImplementation(function(this: Element) {
-      if (currentFocusedElement === this) {
+      const element = this
+      
+      focusChangeQueue.push(() => {
+        if (currentFocusedElement === element) {
+          currentFocusedElement = null
+        }
+        
+        // Remove focus selector matching
+        Object.defineProperty(element, 'matches', {
+          value: vi.fn((selector: string) => selector !== ':focus'),
+          configurable: true
+        })
+        
+        const blurEvent = new Event('blur', { bubbles: true })
+        element.dispatchEvent(blurEvent)
+      })
+      
+      // Also set immediate state
+      if (currentFocusedElement === element) {
         currentFocusedElement = null
       }
-      
-      // Remove focus selector matching
-      Object.defineProperty(this, 'matches', {
+      Object.defineProperty(element, 'matches', {
         value: vi.fn((selector: string) => selector !== ':focus'),
         configurable: true
       })
       
-      this.dispatchEvent(new Event('blur', { bubbles: true }))
+      scheduleFocusProcessing()
     })
   }
   
@@ -205,9 +315,9 @@ beforeAll(() => {
   }
   
   global.getComputedStyle = vi.fn().mockImplementation((element: Element | null) => {
-    // Handle null/undefined element gracefully
+    // Handle null/undefined element gracefully - CRITICAL FIX
     if (!element) {
-      return {
+      const fallbackStyle = {
         getPropertyValue: vi.fn().mockReturnValue(''),
         getPropertyPriority: vi.fn().mockReturnValue(''),
         setProperty: vi.fn(),
@@ -228,6 +338,7 @@ beforeAll(() => {
         cursor: 'auto',
         overflow: 'visible'
       }
+      return fallbackStyle
     }
     
     const classList = Array.from(element.classList || [])
@@ -418,22 +529,18 @@ beforeAll(() => {
     return originalAddEventListener.call(this, mappedType, listener, options)
   })
 
-  // FIXED: Enhanced performance.now() mock with defensive programming
-  // Initialize with current time to prevent NaN issues
+  // PERFORMANCE FIX: Enhanced performance.now() mock with improved error handling
+  // Initialize with validated current time to prevent NaN issues
   performanceStartTime = Date.now()
-  global.performance = global.performance || {} as Performance
+  performanceOriginTime = performanceStartTime
   
-  global.performance.now = vi.fn().mockImplementation(() => {
-    try {
-      const current = Date.now()
-      const elapsed = current - performanceStartTime
-      // Ensure we never return NaN - fallback to 0 if calculation fails
-      return (elapsed >= 0 && !isNaN(elapsed)) ? elapsed : 0
-    } catch (error) {
-      // Fallback for any timing calculation issues
-      return 0
-    }
-  })
+  // Ensure performance object exists
+  if (!global.performance) {
+    global.performance = {} as Performance
+  }
+  
+  // Create safe performance.now() implementation
+  global.performance.now = createSafePerformanceNow()
   
   global.performance.mark = vi.fn()
   global.performance.measure = vi.fn()
@@ -443,8 +550,7 @@ beforeAll(() => {
   // Add performance timing mock with proper property descriptors
   try {
     Object.defineProperty(global.performance, 'timeOrigin', {
-      value: performanceStartTime,
-      writable: false,
+      get: () => performanceOriginTime,
       configurable: true
     })
   } catch (error) {
@@ -453,7 +559,7 @@ beforeAll(() => {
   
   // Mock performance.timing with proper structure
   Object.defineProperty(global.performance, 'timing', {
-    value: {
+    get: () => ({
       navigationStart: performanceStartTime,
       loadEventEnd: performanceStartTime + 100,
       domContentLoadedEventEnd: performanceStartTime + 50,
@@ -470,71 +576,134 @@ beforeAll(() => {
       domContentLoadedEventStart: performanceStartTime,
       domComplete: performanceStartTime + 100,
       loadEventStart: performanceStartTime + 100
-    },
-    writable: false,
+    }),
     configurable: true
   })
 })
+
+// FE-FIX-003: Enhanced waitForStableDOM utility for CI tests
+export const waitForStableDOM = async (timeout: number = 5000): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now()
+    let rafCount = 0
+    
+    const checkStability = () => {
+      rafCount++
+      
+      // Wait for at least 2 animation frames for React 19 concurrent mode
+      if (rafCount >= 2) {
+        // Check if DOM is stable (no pending mutations)
+        if (document.readyState === 'complete') {
+          resolve()
+          return
+        }
+      }
+      
+      // Check timeout
+      if (Date.now() - startTime > timeout) {
+        reject(new Error(`DOM did not stabilize within ${timeout}ms`))
+        return
+      }
+      
+      // Schedule next check
+      requestAnimationFrame(checkStability)
+    }
+    
+    requestAnimationFrame(checkStability)
+  })
+}
 
 beforeEach(() => {
   // Clear all mocks between tests
   vi.clearAllMocks()
   
-  // Reset DOM to clean state
+  // CRITICAL: Complete DOM reset to prevent multiple elements
   if (document?.body) {
-    document.body.innerHTML = ''
+    // Remove all child elements completely
+    while (document.body.firstChild) {
+      document.body.removeChild(document.body.firstChild)
+    }
   }
   
-  // Create a test root element in body for React components
+  // Create a fresh test root element in body for React components
   const testRoot = document.createElement('div')
   testRoot.setAttribute('id', 'test-root')
   document.body.appendChild(testRoot)
   
-  // Reset performance timing for each test - prevent NaN accumulation
-  performanceStartTime = Date.now()
-  if (global.performance && global.performance.now) {
-    global.performance.now = vi.fn().mockImplementation(() => {
-      try {
-        const current = Date.now()
-        const elapsed = current - performanceStartTime
-        return (elapsed >= 0 && !isNaN(elapsed)) ? elapsed : 0
-      } catch (error) {
-        return 0
-      }
-    })
+  // Force focus back to body to reset focus state
+  if (document.body.focus) {
+    try {
+      document.body.focus()
+    } catch (error) {
+      // Ignore focus errors
+    }
   }
   
-  // Reset any global state that might affect tests
+  // PERFORMANCE FIX: Reset performance timing for each test with validation
+  const newStartTime = Date.now()
+  
+  // Validate the new start time
+  if (isFinite(newStartTime) && !isNaN(newStartTime)) {
+    performanceStartTime = newStartTime
+    performanceOriginTime = newStartTime
+  } else {
+    console.warn('Performance: Invalid new start time, keeping previous value')
+  }
+  
+  // Recreate performance.now() mock with fresh timing
+  if (global.performance) {
+    global.performance.now = createSafePerformanceNow()
+    
+    // Update timeOrigin to match new start time
+    try {
+      Object.defineProperty(global.performance, 'timeOrigin', {
+        get: () => performanceOriginTime,
+        configurable: true
+      })
+    } catch (error) {
+      // Ignore if property cannot be redefined
+    }
+  }
+  
+  // Reset performance marks and measures
   if (global.performance && global.performance.mark) {
     global.performance.mark = vi.fn()
     global.performance.measure = vi.fn()
+    global.performance.clearMarks = vi.fn()
+    global.performance.clearMeasures = vi.fn()
   }
   
-  // Mock document.createElement for each test with proper focus handling
+  // FE-FIX-004: Enhanced document.createElement mock with better focus handling
   const originalCreateElement = document.createElement.bind(document)
   document.createElement = vi.fn((tagName: string) => {
     const element = originalCreateElement(tagName)
     
-    // Add enhanced focus support for input elements
+    // Add enhanced focus support for input elements with React 19 compatibility
     if (tagName === 'input' || tagName === 'textarea') {
       // Use Object.defineProperty to safely override focus method
       Object.defineProperty(element, 'focus', {
         value: vi.fn().mockImplementation(function(this: HTMLElement) {
-          // Set up focus state for testing
-          Object.defineProperty(this, 'matches', {
+          const inputElement = this
+          
+          // Set up focus state immediately for synchronous tests
+          Object.defineProperty(inputElement, 'matches', {
             value: vi.fn((selector: string) => selector === ':focus'),
             configurable: true
           })
           
-          // Dispatch focus event synchronously for CI reliability
-          const focusEvent = new Event('focus', { bubbles: true })
-          this.dispatchEvent(focusEvent)
-          
-          // For CI environments, add additional focus events
-          if (process.env.CI === 'true') {
-            const focusinEvent = new Event('focusin', { bubbles: true })
-            this.dispatchEvent(focusinEvent)
-          }
+          // Use microtask for more realistic browser behavior in React 19
+          Promise.resolve().then(() => {
+            const focusEvent = new Event('focus', { bubbles: true })
+            inputElement.dispatchEvent(focusEvent)
+            
+            // For CI environments, add additional events with proper timing
+            if (process.env.CI === 'true') {
+              setTimeout(() => {
+                const focusinEvent = new Event('focusin', { bubbles: true })
+                inputElement.dispatchEvent(focusinEvent)
+              }, 0)
+            }
+          })
         }),
         configurable: true,
         writable: true
@@ -543,13 +712,17 @@ beforeEach(() => {
       // Also handle blur for completeness
       Object.defineProperty(element, 'blur', {
         value: vi.fn().mockImplementation(function(this: HTMLElement) {
-          Object.defineProperty(this, 'matches', {
+          const inputElement = this
+          
+          Object.defineProperty(inputElement, 'matches', {
             value: vi.fn((selector: string) => selector !== ':focus'),
             configurable: true
           })
           
-          const blurEvent = new Event('blur', { bubbles: true })
-          this.dispatchEvent(blurEvent)
+          Promise.resolve().then(() => {
+            const blurEvent = new Event('blur', { bubbles: true })
+            inputElement.dispatchEvent(blurEvent)
+          })
         }),
         configurable: true,
         writable: true
@@ -582,5 +755,5 @@ beforeEach(() => {
     return element
   })
 
-  // Removed setupReact19Timeouts() to prevent circular timeout dependencies
+  // Skip setupReact19Timeouts() to prevent circular timeout dependencies
 })
