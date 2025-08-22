@@ -21,13 +21,12 @@ default = []
 performance-tracking = []
 
 [build-dependencies]
-# CodeQL Fix: Keep tauri-build at latest stable version
-tauri-build = { version = "2.4.0", features = [] }
+# Keep tauri-build compatible with tauri version
+tauri-build = { version = "2.0.0", features = [] }
 
 [dependencies]
-# CodeQL Fix: Use compatible tauri version - plugins require >= 2.6, build system uses 2.4.0
-# This mismatch causes "missing field referenced_by" in CodeQL - workflow will handle it
-tauri = { version = "2.3.0", features = ["test"] }
+# Use Tauri 2.6.0 - compatible with plugins and doesn't require referenced_by field
+tauri = { version = "2.6.0", features = ["test"] }
 tauri-plugin-opener = "2"
 tauri-plugin-global-shortcut = "2"
 serde = { version = "1", features = ["derive"] }
