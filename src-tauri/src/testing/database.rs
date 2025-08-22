@@ -49,7 +49,9 @@ impl TestDatabase {
     
     /// Create an in-memory database (fastest for unit tests)
     async fn create_in_memory(test_id: u64) -> Result<Self, AppError> {
-        let db_path = PathBuf::from(format!(":memory:test_{}", test_id));
+        // Use unique in-memory database URIs with mode=memory parameter
+        // This ensures each test gets a completely isolated database
+        let db_path = PathBuf::from(format!("file:memdb_test_{}?mode=memory&cache=private", test_id));
         let service = Arc::new(DbService::new(&db_path)?);
         
         Ok(TestDatabase {
