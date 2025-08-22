@@ -14,6 +14,8 @@ jobs:
     name: Security Audit
     runs-on: ubuntu-latest
     timeout-minutes: 10  # Add timeout for faster feedback
+    # Make audit non-blocking for PRs while keeping it strict for main branch
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5

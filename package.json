@@ -16,7 +16,12 @@
     "type-check": "tsc --noEmit",
     "type-check:ci": "tsc --noEmit -p tsconfig.ci.json",
     "test": "vitest",
-    "test:ci": "vitest --run --config vitest.ci.config.ts"
+    "test:ci": "vitest --run --config vitest.ci.config.ts",
+    "test:ci:hybrid": "node scripts/ci-test-runner.js",
+    "test:ci:fast": "VITEST_BAIL=5 node scripts/ci-test-runner.js",
+    "test:ci:coverage": "VITEST_COVERAGE=true node scripts/ci-test-runner.js",
+    "test:ci:emergency": "vitest --run --config vitest.ci.config.emergency.ts --reporter=basic",
+    "test:analyze": "node scripts/ci-test-runner.js --analyze"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",
@@ -57,6 +62,7 @@
     "eslint": "^9.33.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
+    "glob": "^11.0.3",
     "globals": "^16.3.0",
     "jsdom": "^26.1.0",
     "postcss": "^8.5.6",

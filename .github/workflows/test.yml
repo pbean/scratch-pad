@@ -16,7 +16,7 @@ jobs:
   test-matrix:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20  # Reduce from 30 minutes for faster feedback
+    timeout-minutes: 15  # Optimized with hybrid test execution
     strategy:
       fail-fast: false
       matrix:
@@ -77,27 +77,27 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
-          echo "Running frontend tests with Linux optimizations"
+          echo "Running frontend tests with hybrid parallel/sequential optimization"
           export NODE_OPTIONS="--max-old-space-size=4096"
           export DISPLAY=:99
-          pnpm test --run --config vitest.ci.config.ts --reporter=verbose
+          pnpm test:ci:hybrid
 
       - name: Run frontend tests (macOS)
         if: matrix.os == 'macos-latest'
         shell: bash
         run: |
-          echo "Running frontend tests with macOS optimizations"
+          echo "Running frontend tests with hybrid parallel/sequential optimization"
           export NODE_OPTIONS="--max-old-space-size=6144"
           export FORCE_COLOR=0
-          pnpm test --run --config vitest.ci.config.ts --reporter=verbose --no-coverage
+          pnpm test:ci:hybrid
 
       - name: Run frontend tests (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          Write-Host "Running frontend tests with Windows optimizations"
+          Write-Host "Running frontend tests with hybrid parallel/sequential optimization"
           $env:NODE_OPTIONS = "--max-old-space-size=4096"
-          pnpm test --run --config vitest.ci.config.ts --reporter=verbose
+          pnpm test:ci:hybrid
         
       - name: Run TypeScript type check
         shell: bash
