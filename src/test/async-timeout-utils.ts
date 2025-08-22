@@ -162,12 +162,19 @@ export async function waitForReact19<T>(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
       
-      // Check if error should be filtered out
+      // Check if error should be filtered out (non-retryable)
       if (fullConfig.errorFilter && !fullConfig.errorFilter(lastError)) {
-        throw lastError
+        // Return failure immediately for filtered errors
+        return {
+          result: undefined as T,
+          duration: Date.now() - startTime,
+          retryAttempts,
+          success: false,
+          error: lastError
+        }
       }
       
-      // If retries disabled or max attempts reached, throw
+      // If retries disabled or max attempts reached, break
       if (!fullConfig.retryEnabled || retryAttempts >= fullConfig.maxRetries) {
         break
       }

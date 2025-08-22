@@ -29,13 +29,12 @@ import {
 
 describe('React 19 Async Timeout Utilities', () => {
   beforeEach(() => {
-    vi.useFakeTimers()
     // Reset DOM
     document.body.innerHTML = ''
   })
 
   afterEach(() => {
-    vi.useRealTimers()
+    vi.useRealTimers() // Ensure real timers are restored
     vi.clearAllMocks()
   })
 
@@ -52,15 +51,11 @@ describe('React 19 Async Timeout Utilities', () => {
 
     it('should handle async operations with timeout', async () => {
       const asyncOperation = async () => {
-        await new Promise(resolve => setTimeout(resolve, 100))
+        await new Promise(resolve => setTimeout(resolve, 50))
         return 'async success'
       }
 
-      // Fast-forward timers to resolve the timeout
-      const resultPromise = waitForReact19(asyncOperation, { timeout: 1000 })
-      vi.advanceTimersByTime(150)
-      
-      const result = await resultPromise
+      const result = await waitForReact19(asyncOperation, { timeout: 1000 })
       
       expect(result.success).toBe(true)
       expect(result.result).toBe('async success')
@@ -120,6 +115,8 @@ describe('React 19 Async Timeout Utilities', () => {
     })
 
     it('should handle concurrent mode optimizations', async () => {
+      vi.useFakeTimers()
+      
       const concurrentOperation = () => {
         // Simulate React 19 concurrent rendering
         return new Promise(resolve => {
@@ -132,11 +129,13 @@ describe('React 19 Async Timeout Utilities', () => {
         timeout: 1000
       })
       
-      vi.advanceTimersByTime(20) // Advance past one animation frame
+      await vi.advanceTimersByTimeAsync(20) // Advance past one animation frame
       const result = await resultPromise
 
       expect(result.success).toBe(true)
       expect(result.result).toBe('concurrent success')
+      
+      vi.useRealTimers()
     })
   })
 
