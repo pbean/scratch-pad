@@ -228,7 +228,7 @@ export function useTypeSafeFocusManagement<T>(
   }, [focusedIndex])
 
   // Check if item is selected (for multi-select scenarios)
-  const isSelected = useCallback((item: T, index: number): boolean => {
+  const isSelected = useCallback((_item: T, index: number): boolean => {
     // This can be extended for multi-select functionality
     return isFocused(index)
   }, [isFocused])
@@ -504,7 +504,7 @@ export function useKeyboardNavigation<T>(
  * Create ARIA attributes for focused items
  */
 export function createFocusAriaAttributes<T>(
-  item: T,
+  _item: T,
   index: number,
   focusReturn: TypeSafeFocusReturn<T>
 ): {

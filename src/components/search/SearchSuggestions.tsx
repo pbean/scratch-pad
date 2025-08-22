@@ -7,7 +7,6 @@ import {
   TrendingUp,
   BookOpen,
   ArrowRight,
-  X,
   Zap,
   Code,
   FileText,
@@ -52,7 +51,7 @@ export interface SuggestionCategory {
   priority: number
 }
 
-interface SearchSuggestionsProps {
+export interface SearchSuggestionsProps {
   query: string
   isVisible: boolean
   onSuggestionSelect: (suggestion: SearchSuggestion) => void
@@ -65,7 +64,7 @@ interface SearchSuggestionsProps {
   enableFrequencyRanking?: boolean
 }
 
-// Pre-defined search templates for common patterns
+// Search templates configuration
 const SEARCH_TEMPLATES: SearchTemplate[] = [
   {
     id: 'recent-notes',
@@ -241,7 +240,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   enableTemplates = true,
   enableBooleanHelp = true,
   enableTypoCorrection = true,
-  enableFrequencyRanking = true
+  enableFrequencyRanking: _enableFrequencyRanking = true
 }) => {
   const {
     notes,
@@ -281,16 +280,19 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
       if (searchQuery.trim() === '') {
         const recentSuggestions: SearchSuggestion[] = recentSearches
           .slice(0, 5)
-          .map((search, index) => ({
-            id: `recent-${index}`,
-            type: 'recent' as const,
-            text: search,
-            displayText: search,
-            description: 'Recent search',
-            icon: <Clock size={14} />,
-            frequency: searchHistory.find(h => h.query === search)?.results.length || 0,
-            lastUsed: new Date(searchHistory.find(h => h.query === search)?.timestamp || Date.now())
-          }))
+          .map((search, index) => {
+            const historyEntry = searchHistory.find(h => h.query === search)
+            return {
+              id: `recent-${index}`,
+              type: 'recent' as const,
+              text: search,
+              displayText: search,
+              description: 'Recent search',
+              icon: <Clock size={14} />,
+              frequency: historyEntry?.results?.length || 0,
+              lastUsed: new Date(historyEntry?.timestamp || Date.now())
+            }
+          })
         
         if (recentSuggestions.length > 0) {
           categories.push({
@@ -308,15 +310,18 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
         // Get recent search suggestions from store
         const matchingRecent = getRecentSearchSuggestions(searchQuery)
           .slice(0, 3)
-          .map((search, index) => ({
-            id: `recent-match-${index}`,
-            type: 'recent' as const,
-            text: search,
-            displayText: search,
-            description: 'Recent search',
-            icon: <Clock size={14} />,
-            frequency: searchHistory.find(h => h.query === search)?.results.length || 0
-          }))
+          .map((search, index) => {
+            const historyEntry = searchHistory.find(h => h.query === search)
+            return {
+              id: `recent-match-${index}`,
+              type: 'recent' as const,
+              text: search,
+              displayText: search,
+              description: 'Recent search',
+              icon: <Clock size={14} />,
+              frequency: historyEntry?.results?.length || 0
+            }
+          })
         
         if (matchingRecent.length > 0) {
           categories.push({
@@ -597,14 +602,14 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
               </div>
               
               {/* Category suggestions */}
-              {category.suggestions.map((suggestion, categoryIndex) => {
+              {category.suggestions.map((suggestion, _categoryIndex) => {
                 const globalIndex = flatSuggestions.indexOf(suggestion)
                 const isSelected = globalIndex === selectedIndex
                 
                 return (
                   <div
                     key={suggestion.id}
-                    ref={el => suggestionRefs.current[globalIndex] = el}
+                    ref={(el) => { suggestionRefs.current[globalIndex] = el }}
                     className={`px-3 py-2 cursor-pointer transition-colors duration-150 ${
                       isSelected 
                         ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-500' 
@@ -667,18 +672,20 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
       {/* Footer with keyboard shortcuts */}
       <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 text-xs text-gray-500 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <span>↑↓ Navigate</span>
-          <span>Enter Select</span>
-          <span>Esc Close</span>
-        </div>
-        {flatSuggestions.length > 0 && (
-          <span>
-            {selectedIndex + 1} of {flatSuggestions.length}
+          <span className="flex items-center">
+            <kbd className="px-1 py-0.5 rounded text-xs bg-gray-200 text-gray-600">↑↓</kbd>
+            <span className="ml-1">Navigate</span>
           </span>
-        )}
+          <span className="flex items-center">
+            <kbd className="px-1 py-0.5 rounded text-xs bg-gray-200 text-gray-600">Enter</kbd>
+            <span className="ml-1">Select</span>
+          </span>
+          <span className="flex items-center">
+            <kbd className="px-1 py-0.5 rounded text-xs bg-gray-200 text-gray-600">Esc</kbd>
+            <span className="ml-1">Close</span>
+          </span>
+        </div>
       </div>
     </div>
   )
 }
-
-export default SearchSuggestions

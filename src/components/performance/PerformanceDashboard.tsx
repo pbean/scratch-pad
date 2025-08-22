@@ -6,7 +6,7 @@
  * Week 3 Day 9 Implementation: Performance Monitoring Dashboard
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import {
   Activity,
   AlertTriangle,
@@ -36,7 +36,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert"
 import { Progress } from "../ui/progress"
-import { Separator } from "../ui/separator"
 import { LoadingSpinner } from "../ui/loading"
 import { useToast } from "../ui/toast"
 import {
@@ -109,7 +108,7 @@ export function PerformanceDashboard() {
   const { fetchOverview } = usePerformanceOverview()
   const { fetchAlerts } = usePerformanceAlerts()
   const { fetchBudget } = usePerformanceBudget()
-  const { fetchReport, fetchMetrics } = usePerformanceAnalytics()
+  const { fetchReport, fetchMetrics: _fetchMetrics } = usePerformanceAnalytics()
   
   // Real-time monitoring with configurable interval
   const { 
@@ -259,7 +258,7 @@ export function PerformanceDashboard() {
     overview: PerformanceOverview | null,
     metrics: AdvancedPerformanceMetrics | null
   ): PerformanceScore => {
-    const baseScore = overview ? overview.overallScore : 50
+    const _baseScore = overview ? overview.overallScore : 50; void _baseScore
     
     let frontend = 80
     let memory = 80

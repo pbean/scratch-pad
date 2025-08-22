@@ -7,7 +7,7 @@
  */
 
 import React, { memo, useMemo, useCallback, useState } from 'react'
-import { FixedSizeList as List } from 'react-window'
+import { FixedSizeList as List, ListChildComponentProps } from 'react-window'
 import { FileText, Calendar, Star, Search, ChevronDown, ChevronRight } from 'lucide-react'
 import type { 
   Note, 
@@ -34,18 +34,14 @@ interface VirtualizedSearchResultsProps {
   enableSnippetExpansion?: boolean
 }
 
-interface SearchResultItemProps {
-  index: number
-  style: React.CSSProperties
-  data: {
-    enhancedResult: EnhancedSearchResult
-    onNoteClick: (note: Note) => void
-    onNoteSelect?: (note: Note) => void
-    selectedNoteId?: number
-    showRelevanceScore: boolean
-    enableSnippetExpansion: boolean
-    highlightOptions: SearchHighlightOptions
-  }
+interface SearchResultItemData {
+  enhancedResult: EnhancedSearchResult
+  onNoteClick: (note: Note) => void
+  onNoteSelect?: (note: Note) => void
+  selectedNoteId?: number
+  showRelevanceScore: boolean
+  enableSnippetExpansion: boolean
+  highlightOptions: SearchHighlightOptions
 }
 
 // Memoized highlight segment component for performance
@@ -84,7 +80,7 @@ const HighlightedText = memo<{
   text: string
   highlights: Array<{ text: string; isHighlight: boolean; type?: string }>
   className?: string
-}>(({ text, highlights, className = '' }) => {
+}>(({ text: _text, highlights, className = '' }) => {
   return (
     <span className={className}>
       {highlights.map((segment, index) => (
@@ -103,7 +99,7 @@ const HighlightedText = memo<{
 HighlightedText.displayName = 'HighlightedText'
 
 // Individual search result item component
-const SearchResultItem = memo<SearchResultItemProps>(({ index, style, data }) => {
+const SearchResultItem = memo<ListChildComponentProps<SearchResultItemData>>(({ index, style, data }) => {
   const { 
     enhancedResult, 
     onNoteClick, 
@@ -111,7 +107,7 @@ const SearchResultItem = memo<SearchResultItemProps>(({ index, style, data }) =>
     selectedNoteId, 
     showRelevanceScore, 
     enableSnippetExpansion,
-    highlightOptions 
+    highlightOptions: _highlightOptions 
   } = data
 
   const [isSnippetExpanded, setIsSnippetExpanded] = useState(false)
@@ -146,7 +142,7 @@ const SearchResultItem = memo<SearchResultItemProps>(({ index, style, data }) =>
   const relevanceScore = useMemo(() => {
     if (!showRelevanceScore) return 0
     const titleMatches = titleHighlights.length
-    const contentMatches = snippets.reduce((sum, snippet) => sum + snippet.highlights.length, 0)
+    const contentMatches = snippets.reduce((sum, snippet) => sum + snippet.highlightIndices.length, 0)
     return Math.min(100, (titleMatches * 20) + (contentMatches * 5))
   }, [titleHighlights, snippets, showRelevanceScore])
 
@@ -207,7 +203,18 @@ const SearchResultItem = memo<SearchResultItemProps>(({ index, style, data }) =>
           {displaySnippets.length > 0 && (
             <div className="space-y-2">
               {displaySnippets.map((snippet, snippetIndex) => {
-                const snippetSegments = renderHighlightedText(snippet.text, snippet.highlights)
+                // Convert highlightIndices to HighlightMatch format
+                const highlightMatches = snippet.highlightIndices.map(indices => ({
+                  text: snippet.text.slice(indices.start, indices.end),
+                  startIndex: indices.start,
+                  endIndex: indices.end,
+                  start: indices.start,
+                  end: indices.end,
+                  isMatch: true,
+                  term: snippet.text.slice(indices.start, indices.end),
+                  type: 'primary' as const
+                }))
+                const snippetSegments = renderHighlightedText(snippet.text, highlightMatches)
                 
                 return (
                   <div key={snippetIndex} className="text-sm text-muted-foreground">
@@ -276,7 +283,7 @@ const SearchResultItem = memo<SearchResultItemProps>(({ index, style, data }) =>
           {snippets.length > 0 && (
             <div className="text-xs text-muted-foreground flex items-center gap-1">
               <Search size={12} />
-              {snippets.reduce((sum, s) => sum + s.highlights.length, 0)} match{snippets.reduce((sum, s) => sum + s.highlights.length, 0) !== 1 ? 'es' : ''}
+              {snippets.reduce((sum, s) => sum + s.highlightIndices.length, 0)} match{snippets.reduce((sum, s) => sum + s.highlightIndices.length, 0) !== 1 ? 'es' : ''}
             </div>
           )}
         </div>
@@ -307,7 +314,7 @@ export const VirtualizedSearchResults = memo<VirtualizedSearchResultsProps>(({
   }, [searchResult, query, highlightOptions])
 
   // Item data for virtual list
-  const itemData = useMemo(() => ({
+  const itemData = useMemo((): SearchResultItemData => ({
     enhancedResult,
     onNoteClick,
     onNoteSelect,
@@ -324,30 +331,6 @@ export const VirtualizedSearchResults = memo<VirtualizedSearchResultsProps>(({
     enableSnippetExpansion,
     highlightOptions
   ])
-
-  // Calculate dynamic item height based on content
-  const getItemSize = useCallback((index: number) => {
-    const note = enhancedResult.notes[index]
-    const snippets = enhancedResult.snippets[note.id] || []
-    
-    // Base height
-    let baseHeight = 80
-    
-    // Add height for snippets
-    baseHeight += snippets.length * 25
-    
-    // Add height for path if present
-    if (note.path && note.path !== '/') {
-      baseHeight += 20
-    }
-    
-    // Add height for snippet expansion button
-    if (enableSnippetExpansion && snippets.length > 1) {
-      baseHeight += 25
-    }
-    
-    return Math.max(baseHeight, 80)
-  }, [enhancedResult, enableSnippetExpansion])
 
   // Empty state
   if (enhancedResult.notes.length === 0) {
@@ -384,10 +367,11 @@ export const VirtualizedSearchResults = memo<VirtualizedSearchResultsProps>(({
       <List
         height={height - 40} // Account for summary bar
         itemCount={enhancedResult.notes.length}
-        itemSize={getItemSize}
+        itemSize={120} // Fixed size for consistent rendering
         itemData={itemData}
         className="search-results-list"
         overscanCount={5} // Pre-render a few items for smooth scrolling
+        width="100%"
       >
         {SearchResultItem}
       </List>

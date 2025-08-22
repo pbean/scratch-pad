@@ -11,8 +11,6 @@ import React, { useState, useEffect, useCallback, useMemo } from "react"
 import {
   Lightbulb,
   Zap,
-  TrendingUp,
-  Clock,
   MemoryStick,
   Database,
   MonitorSpeaker,
@@ -22,12 +20,9 @@ import {
   CheckCircle,
   AlertTriangle,
   Info,
-  Play,
-  Pause,
   RotateCcw,
   Download,
   Filter,
-  Star,
   Target
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
@@ -36,13 +31,11 @@ import { Button } from "../ui/button"
 import { Switch } from "../ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Progress } from "../ui/progress"
-import { Separator } from "../ui/separator"
 import { LoadingSpinner } from "../ui/loading"
 import { useToast } from "../ui/toast"
 import {
   usePerformanceAnalytics,
-  useRealTimePerformanceMonitoring,
-  type AdvancedPerformanceMetrics
+  useRealTimePerformanceMonitoring
 } from "../../hooks/useAdvancedPerformanceMonitor"
 
 // ============================================================================
@@ -118,7 +111,7 @@ export function OptimizationRecommendations() {
 
   const generateRecommendations = useCallback(async (): Promise<OptimizationRecommendation[]> => {
     try {
-      const [analyticsReport, detailedMetrics] = await Promise.all([
+      const [analyticsReport] = await Promise.all([
         fetchReport(1).catch(() => null), // Last hour
         fetchMetrics({ periodHours: 1, includeDetails: true }).catch(() => null)
       ])
@@ -455,14 +448,6 @@ export function OptimizationRecommendations() {
   // UTILITY FUNCTIONS
   // ============================================================================
 
-  const getPriorityColor = (priority: string): string => {
-    switch (priority) {
-      case 'high': return 'text-red-600'
-      case 'medium': return 'text-yellow-600'
-      case 'low': return 'text-green-600'
-      default: return 'text-muted-foreground'
-    }
-  }
 
   const getPriorityBadgeVariant = (priority: string): "default" | "secondary" | "destructive" => {
     switch (priority) {

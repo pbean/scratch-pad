@@ -10,6 +10,7 @@
 import { useEffect, useRef, useCallback, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { getMemoryUsage, getNavigationTiming } from "./usePerformanceMonitor"
+import type { PerformanceReport } from "../types/analytics"
 
 // ============================================================================
 // ADVANCED PERFORMANCE MONITORING TYPES
@@ -134,7 +135,6 @@ class PerformanceCollector {
     budgetViolations: 0,
     errorSamples: []
   }
-  private lastReportTime = 0
   private reportingInterval = 30000 // 30 seconds
 
   public static getInstance(): PerformanceCollector {
@@ -270,7 +270,7 @@ class PerformanceCollector {
       try {
         const metrics = await this.getCurrentMetrics()
         await this.reportToBackend(metrics)
-        this.lastReportTime = Date.now()
+        // Report completed successfully
       } catch (error) {
         console.warn('Failed to report performance metrics:', error)
       }
@@ -521,7 +521,7 @@ export function useRealTimePerformanceMonitoring(options?: {
  * Performance analytics dashboard hook
  */
 export function usePerformanceAnalytics() {
-  const fetchReport = useCallback(async (periodHours?: number) => {
+  const fetchReport = useCallback(async (periodHours?: number): Promise<PerformanceReport> => {
     try {
       return await invoke('get_performance_analytics', { periodHours })
     } catch (error) {

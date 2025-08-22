@@ -81,7 +81,7 @@ impl WindowManager {
             .unwrap_or_else(|| "default".to_string());
 
         let layout = LayoutMode::from_string(&layout_str);
-        
+
         // Set the layout mode
         {
             let mut current_layout = self.current_layout.lock().await;
@@ -104,9 +104,11 @@ impl WindowManager {
             message: "AppHandle not available".to_string(),
         })?;
 
-        let window = app_handle.get_webview_window("main").ok_or_else(|| AppError::Runtime {
-            message: "Main window not found".to_string(),
-        })?;
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| AppError::Runtime {
+                message: "Main window not found".to_string(),
+            })?;
 
         if window.is_visible().unwrap_or(false) {
             window.hide().map_err(|e| AppError::Runtime {
@@ -134,9 +136,11 @@ impl WindowManager {
             message: "AppHandle not available".to_string(),
         })?;
 
-        let window = app_handle.get_webview_window("main").ok_or_else(|| AppError::Runtime {
-            message: "Main window not found".to_string(),
-        })?;
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| AppError::Runtime {
+                message: "Main window not found".to_string(),
+            })?;
 
         window.show().map_err(|e| AppError::Runtime {
             message: format!("Failed to show window: {}", e),
@@ -155,9 +159,11 @@ impl WindowManager {
             message: "AppHandle not available".to_string(),
         })?;
 
-        let window = app_handle.get_webview_window("main").ok_or_else(|| AppError::Runtime {
-            message: "Main window not found".to_string(),
-        })?;
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| AppError::Runtime {
+                message: "Main window not found".to_string(),
+            })?;
 
         window.hide().map_err(|e| AppError::Runtime {
             message: format!("Failed to hide window: {}", e),
@@ -176,9 +182,11 @@ impl WindowManager {
             message: "AppHandle not available".to_string(),
         })?;
 
-        let window = app_handle.get_webview_window("main").ok_or_else(|| AppError::Runtime {
-            message: "Main window not found".to_string(),
-        })?;
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| AppError::Runtime {
+                message: "Main window not found".to_string(),
+            })?;
 
         window.is_visible().map_err(|e| AppError::Runtime {
             message: format!("Failed to check window visibility: {}", e),
@@ -221,9 +229,11 @@ impl WindowManager {
             message: "AppHandle not available".to_string(),
         })?;
 
-        let window = app_handle.get_webview_window("main").ok_or_else(|| AppError::Runtime {
-            message: "Main window not found".to_string(),
-        })?;
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| AppError::Runtime {
+                message: "Main window not found".to_string(),
+            })?;
 
         let layout = {
             let current_layout = self.current_layout.lock().await;
@@ -247,16 +257,21 @@ impl WindowManager {
                     let x = monitor_position.x + (monitor_size.width as i32 - width) / 2;
                     let y = monitor_position.y + (monitor_size.height as i32 - height) / 2;
 
-                    window.set_size(Size::Physical(PhysicalSize { width: width as u32, height: height as u32 }))
+                    window
+                        .set_size(Size::Physical(PhysicalSize {
+                            width: width as u32,
+                            height: height as u32,
+                        }))
                         .map_err(|e| AppError::Runtime {
                             message: format!("Failed to set window size: {}", e),
                         })?;
 
-                    window.set_position(Position::Physical(PhysicalPosition { x, y }))
+                    window
+                        .set_position(Position::Physical(PhysicalPosition { x, y }))
                         .map_err(|e| AppError::Runtime {
                             message: format!("Failed to set window position: {}", e),
                         })?;
-                },
+                }
                 LayoutMode::Half => {
                     // Take up half the screen width
                     let width = monitor_size.width / 2;
@@ -264,22 +279,24 @@ impl WindowManager {
                     let x = monitor_position.x + (monitor_size.width as i32 / 2);
                     let y = monitor_position.y;
 
-                    window.set_size(Size::Physical(PhysicalSize { width, height }))
+                    window
+                        .set_size(Size::Physical(PhysicalSize { width, height }))
                         .map_err(|e| AppError::Runtime {
                             message: format!("Failed to set window size: {}", e),
                         })?;
 
-                    window.set_position(Position::Physical(PhysicalPosition { x, y }))
+                    window
+                        .set_position(Position::Physical(PhysicalPosition { x, y }))
                         .map_err(|e| AppError::Runtime {
                             message: format!("Failed to set window position: {}", e),
                         })?;
-                },
+                }
                 LayoutMode::Full => {
                     // Maximize the window
                     window.maximize().map_err(|e| AppError::Runtime {
                         message: format!("Failed to maximize window: {}", e),
                     })?;
-                },
+                }
             }
         }
 
@@ -296,9 +313,11 @@ impl WindowManager {
             message: "AppHandle not available".to_string(),
         })?;
 
-        let window = app_handle.get_webview_window("main").ok_or_else(|| AppError::Runtime {
-            message: "Main window not found".to_string(),
-        })?;
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| AppError::Runtime {
+                message: "Main window not found".to_string(),
+            })?;
 
         window.set_focus().map_err(|e| AppError::Runtime {
             message: format!("Failed to focus window: {}", e),
@@ -317,11 +336,14 @@ impl WindowManager {
             message: "AppHandle not available".to_string(),
         })?;
 
-        let window = app_handle.get_webview_window("main").ok_or_else(|| AppError::Runtime {
-            message: "Main window not found".to_string(),
-        })?;
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| AppError::Runtime {
+                message: "Main window not found".to_string(),
+            })?;
 
-        window.set_position(Position::Physical(PhysicalPosition { x, y }))
+        window
+            .set_position(Position::Physical(PhysicalPosition { x, y }))
             .map_err(|e| AppError::Runtime {
                 message: format!("Failed to set window position: {}", e),
             })?;
@@ -339,9 +361,11 @@ impl WindowManager {
             message: "AppHandle not available".to_string(),
         })?;
 
-        let window = app_handle.get_webview_window("main").ok_or_else(|| AppError::Runtime {
-            message: "Main window not found".to_string(),
-        })?;
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| AppError::Runtime {
+                message: "Main window not found".to_string(),
+            })?;
 
         let position = window.outer_position().map_err(|e| AppError::Runtime {
             message: format!("Failed to get window position: {}", e),
@@ -360,11 +384,14 @@ impl WindowManager {
             message: "AppHandle not available".to_string(),
         })?;
 
-        let window = app_handle.get_webview_window("main").ok_or_else(|| AppError::Runtime {
-            message: "Main window not found".to_string(),
-        })?;
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| AppError::Runtime {
+                message: "Main window not found".to_string(),
+            })?;
 
-        window.set_size(Size::Physical(PhysicalSize { width, height }))
+        window
+            .set_size(Size::Physical(PhysicalSize { width, height }))
             .map_err(|e| AppError::Runtime {
                 message: format!("Failed to set window size: {}", e),
             })?;
@@ -382,9 +409,11 @@ impl WindowManager {
             message: "AppHandle not available".to_string(),
         })?;
 
-        let window = app_handle.get_webview_window("main").ok_or_else(|| AppError::Runtime {
-            message: "Main window not found".to_string(),
-        })?;
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| AppError::Runtime {
+                message: "Main window not found".to_string(),
+            })?;
 
         let size = window.outer_size().map_err(|e| AppError::Runtime {
             message: format!("Failed to get window size: {}", e),

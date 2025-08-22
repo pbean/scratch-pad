@@ -11,6 +11,12 @@ echo "Running Integration Tests for Scratch Pad"
 echo "Platform: $(uname -s)"
 echo "=========================================="
 
+# Change to the src-tauri directory where Cargo.toml is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+echo "Working directory: $(pwd)"
+
 # Set error handling
 export RUST_BACKTRACE=1
 
@@ -48,6 +54,9 @@ run_test_suite "IPC Integration Tests" "cargo test --test ipc_integration_tests 
 # Run window management tests
 run_test_suite "Window Management Tests" "cargo test --test window_management_tests --release"
 
+# Run security test suite
+run_test_suite "Security Test Suite" "cargo test --test security_test_suite --release"
+
 # Run database schema and migration tests
 run_test_suite "Database Schema Tests" "cargo test test_database_schema_and_migrations --release"
 
@@ -59,6 +68,9 @@ run_test_suite "File Path Tests" "cargo test test_cross_platform_file_paths --re
 
 # Run settings integration tests
 run_test_suite "Settings Integration Tests" "cargo test test_layout_mode_settings_integration --release"
+
+# Run validation tests
+run_test_suite "Validation Tests" "cargo test --test validation_unit_tests --release"
 
 echo ""
 echo "=========================================="

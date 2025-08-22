@@ -78,12 +78,12 @@ impl GlobalShortcutService {
 
         // Parse the shortcut string into the plugin format
         let shortcut_obj = self.parse_shortcut(shortcut)?;
-        
+
         // Register the new shortcut - the callback handler is set up at the plugin level
         let app_handle = self.app_handle.as_ref().ok_or_else(|| AppError::Runtime {
             message: "AppHandle not available".to_string(),
         })?;
-        
+
         app_handle
             .global_shortcut()
             .register(shortcut_obj)
@@ -118,7 +118,7 @@ impl GlobalShortcutService {
             let app_handle = self.app_handle.as_ref().ok_or_else(|| AppError::Runtime {
                 message: "AppHandle not available".to_string(),
             })?;
-            
+
             app_handle
                 .global_shortcut()
                 .unregister(shortcut_obj)
@@ -140,7 +140,7 @@ impl GlobalShortcutService {
         if self.is_test_mode {
             return Ok(());
         }
-        
+
         self.unregister_current_shortcut().await
     }
 
@@ -148,8 +148,12 @@ impl GlobalShortcutService {
     fn validate_shortcut(&self, shortcut: &str) -> Result<(), AppError> {
         // Basic validation - ensure it contains modifier keys
         let normalized = shortcut.to_lowercase();
-        
-        if !normalized.contains("ctrl") && !normalized.contains("alt") && !normalized.contains("shift") && !normalized.contains("meta") {
+
+        if !normalized.contains("ctrl")
+            && !normalized.contains("alt")
+            && !normalized.contains("shift")
+            && !normalized.contains("meta")
+        {
             return Err(AppError::Validation {
                 field: "shortcut".to_string(),
                 message: "Global shortcuts must include at least one modifier key (Ctrl, Alt, Shift, or Meta)".to_string(),
@@ -171,7 +175,7 @@ impl GlobalShortcutService {
     /// Parse a shortcut string into a Shortcut object
     fn parse_shortcut(&self, shortcut: &str) -> Result<Shortcut, AppError> {
         let parts: Vec<&str> = shortcut.split('+').map(|s| s.trim()).collect();
-        
+
         let mut modifiers = Modifiers::empty();
         let mut key_code = None;
 
@@ -188,7 +192,7 @@ impl GlobalShortcutService {
                             message: "Multiple key codes specified in shortcut".to_string(),
                         });
                     }
-                    
+
                     key_code = Some(match key.to_uppercase().as_str() {
                         "A" => Code::KeyA,
                         "B" => Code::KeyB,

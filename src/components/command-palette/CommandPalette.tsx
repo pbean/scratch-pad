@@ -19,6 +19,8 @@ export function CommandPalette() {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const [isExporting, setIsExporting] = useState(false)
+  // Component-scoped event handling container
+  const containerRef = useRef<HTMLDivElement>(null)
   const toast = useToast()
 
   const handleExportNote = async () => {
@@ -94,11 +96,20 @@ export function CommandPalette() {
       command.description?.toLowerCase().includes(query.toLowerCase()),
   )
 
+  // FE-FIX-002: Simplified synchronous focus management to prevent race conditions
   useEffect(() => {
     if (isCommandPaletteOpen && inputRef.current) {
-      inputRef.current.focus()
-      setQuery("")
-      setSelectedIndex(0)
+      // Use direct synchronous focus for better CI stability
+      const focusInput = () => {
+        if (inputRef.current) {
+          inputRef.current.focus()
+          setQuery("")
+          setSelectedIndex(0)
+        }
+      }
+
+      // Use simple setTimeout for more reliable CI performance
+      setTimeout(focusInput, 0)
     }
   }, [isCommandPaletteOpen])
 
@@ -106,25 +117,35 @@ export function CommandPalette() {
     setSelectedIndex(0)
   }, [query])
 
+  // FE-FIX-003: Cleaned up event handler management with proper cleanup
   useEffect(() => {
+    if (!isCommandPaletteOpen || !containerRef.current) return
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isCommandPaletteOpen) return
+      // Only handle events from within our container
+      if (!containerRef.current?.contains(e.target as Node)) {
+        return
+      }
 
       switch (e.key) {
         case "Escape":
           e.preventDefault()
+          e.stopPropagation()
           setCommandPaletteOpen(false)
           break
         case "ArrowDown":
           e.preventDefault()
+          e.stopPropagation()
           setSelectedIndex((prev) => (prev + 1) % filteredCommands.length)
           break
         case "ArrowUp":
           e.preventDefault()
+          e.stopPropagation()
           setSelectedIndex((prev) => (prev - 1 + filteredCommands.length) % filteredCommands.length)
           break
         case "Enter":
           e.preventDefault()
+          e.stopPropagation()
           if (filteredCommands[selectedIndex]) {
             filteredCommands[selectedIndex].action()
             setCommandPaletteOpen(false)
@@ -133,14 +154,22 @@ export function CommandPalette() {
       }
     }
 
+    // Single event listener on document with containment check
     document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
+    
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown)
+    }
   }, [isCommandPaletteOpen, selectedIndex, filteredCommands, setCommandPaletteOpen])
 
   if (!isCommandPaletteOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-start justify-center pt-[20vh] z-50 palette-backdrop">
+    <div 
+      ref={containerRef}
+      className="fixed inset-0 bg-black/50 flex items-start justify-center pt-[20vh] z-50 palette-backdrop"
+      tabIndex={-1}
+    >
       <div className="bg-popover border border-border rounded-lg shadow-2xl w-full max-w-lg mx-4 palette-content">
         <div className="p-4 border-b border-border">
           <div className="relative">
@@ -151,6 +180,8 @@ export function CommandPalette() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Type a command or search..."
+              aria-label="Command search input"
+              data-testid="command-search-input"
               className="w-full bg-transparent text-foreground placeholder-muted-foreground outline-none text-sm focus-ring pl-10 pr-4 py-2"
             />
           </div>

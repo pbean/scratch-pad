@@ -1,8 +1,8 @@
-use clap::{Arg, Command, ArgMatches};
-use std::fs;
-use std::path::PathBuf;
 use crate::database::DbService;
 use crate::error::AppError;
+use clap::{Arg, ArgMatches, Command};
+use std::fs;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct CliArgs {
@@ -17,7 +17,7 @@ pub fn parse_cli_args() -> CliArgs {
         // If parsing fails, return default (show GUI)
         ArgMatches::default()
     });
-    
+
     parse_matches(matches)
 }
 
@@ -32,8 +32,8 @@ fn create_cli_app() -> Command {
                     Arg::new("content")
                         .help("The content of the note")
                         .required(true)
-                        .num_args(1..)
-                )
+                        .num_args(1..),
+                ),
         )
 }
 
@@ -44,7 +44,7 @@ fn parse_matches(matches: ArgMatches) -> CliArgs {
             .unwrap_or_default()
             .map(|s| s.as_str())
             .collect();
-        
+
         let content = if content_parts.is_empty() {
             None
         } else {
@@ -71,14 +71,14 @@ pub async fn handle_cli_args(args: &CliArgs, db_service: &DbService) -> Result<(
         println!("Note created successfully!");
         return Ok(());
     }
-    
+
     Ok(())
 }
 
 /// Create a lock file to prevent multiple instances
 pub fn create_lock_file() -> Result<PathBuf, AppError> {
     let lock_path = get_lock_file_path();
-    
+
     // Check if lock file already exists
     if lock_path.exists() {
         // Try to read the PID from the lock file
@@ -88,20 +88,21 @@ pub fn create_lock_file() -> Result<PathBuf, AppError> {
                 #[cfg(unix)]
                 {
                     use std::process::Command;
-                    let output = Command::new("ps")
-                        .args(["-p", &pid.to_string()])
-                        .output();
-                    
+                    let output = Command::new("ps").args(["-p", &pid.to_string()]).output();
+
                     if let Ok(output) = output {
                         if output.status.success() && !output.stdout.is_empty() {
                             // Process is still running
                             return Err(AppError::Runtime {
-                                message: format!("Another instance is already running (PID: {})", pid)
+                                message: format!(
+                                    "Another instance is already running (PID: {})",
+                                    pid
+                                ),
                             });
                         }
                     }
                 }
-                
+
                 // On Windows or if process check fails, assume stale lock file
                 #[cfg(windows)]
                 {
@@ -110,15 +111,15 @@ pub fn create_lock_file() -> Result<PathBuf, AppError> {
                 }
             }
         }
-        
+
         // Remove stale lock file
         let _ = fs::remove_file(&lock_path);
     }
-    
+
     // Create the lock file with current process ID
     let current_pid = std::process::id();
     fs::write(&lock_path, current_pid.to_string())?;
-    
+
     Ok(lock_path)
 }
 
@@ -142,10 +143,11 @@ mod tests {
     #[test]
     fn test_parse_cli_args_no_subcommand() {
         let app = create_cli_app();
-        let matches = app.try_get_matches_from(vec!["test"])
+        let matches = app
+            .try_get_matches_from(vec!["test"])
             .expect("Failed to parse CLI arguments in test");
         let cli_args = parse_matches(matches);
-        
+
         assert!(cli_args.content.is_none());
         assert!(cli_args.should_show_gui);
     }
@@ -153,10 +155,11 @@ mod tests {
     #[test]
     fn test_parse_cli_args_create_single_word() {
         let app = create_cli_app();
-        let matches = app.try_get_matches_from(vec!["test", "create", "Hello"])
+        let matches = app
+            .try_get_matches_from(vec!["test", "create", "Hello"])
             .expect("Failed to parse CLI arguments in test");
         let cli_args = parse_matches(matches);
-        
+
         assert_eq!(cli_args.content, Some("Hello".to_string()));
         assert!(!cli_args.should_show_gui);
     }
@@ -164,10 +167,11 @@ mod tests {
     #[test]
     fn test_parse_cli_args_create_multiple_words() {
         let app = create_cli_app();
-        let matches = app.try_get_matches_from(vec!["test", "create", "Hello", "World", "Test"])
+        let matches = app
+            .try_get_matches_from(vec!["test", "create", "Hello", "World", "Test"])
             .expect("Failed to parse CLI arguments in test");
         let cli_args = parse_matches(matches);
-        
+
         assert_eq!(cli_args.content, Some("Hello World Test".to_string()));
         assert!(!cli_args.should_show_gui);
     }
@@ -175,10 +179,11 @@ mod tests {
     #[test]
     fn test_parse_cli_args_create_with_quotes() {
         let app = create_cli_app();
-        let matches = app.try_get_matches_from(vec!["test", "create", "Test", "Note"])
+        let matches = app
+            .try_get_matches_from(vec!["test", "create", "Test", "Note"])
             .expect("Failed to parse CLI arguments in test");
         let cli_args = parse_matches(matches);
-        
+
         assert_eq!(cli_args.content, Some("Test Note".to_string()));
         assert!(!cli_args.should_show_gui);
     }
@@ -186,15 +191,16 @@ mod tests {
     #[tokio::test]
     async fn test_handle_cli_args() -> Result<(), anyhow::Error> {
         use anyhow::Context;
-        
+
         // Create a temporary database for testing
-        let temp_dir = TempDir::new()
-            .context("Failed to create temporary directory")?;
+        let temp_dir = TempDir::new().context("Failed to create temporary directory")?;
         let db_path = temp_dir.path().join("test.db");
         let db_service = DbService::new(
-            db_path.to_str()
-                .ok_or_else(|| anyhow::anyhow!("Failed to convert path to string"))?
-        ).context("Failed to create database service")?;
+            db_path
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("Failed to convert path to string"))?,
+        )
+        .context("Failed to create database service")?;
 
         let cli_args = CliArgs {
             content: Some("Test note content".to_string()),
@@ -205,11 +211,13 @@ mod tests {
         assert!(result.is_ok());
 
         // Verify the note was created
-        let notes = db_service.get_all_notes().await
+        let notes = db_service
+            .get_all_notes()
+            .await
             .context("Failed to get notes from database")?;
         assert_eq!(notes.len(), 1);
         assert_eq!(notes[0].content, "Test note content");
-        
+
         Ok(())
     }
 
@@ -218,15 +226,15 @@ mod tests {
         // Test creating and cleaning up lock file
         let lock_path = create_lock_file().expect("Failed to create lock file");
         assert!(lock_path.exists());
-        
+
         // Try to create another lock file (should fail)
         let result = create_lock_file();
         assert!(result.is_err());
-        
+
         // Clean up
         cleanup_lock_file();
         assert!(!lock_path.exists());
-        
+
         // Should be able to create again after cleanup
         let lock_path2 = create_lock_file().expect("Failed to create lock file after cleanup");
         assert!(lock_path2.exists());

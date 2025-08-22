@@ -70,8 +70,12 @@ class TypeSafeAsyncErrorTracker {
     const categorizedError: CategorizedError = {
       category: error.type,
       subtype: error.subtype,
+      message: error.message,
+      timestamp: error.timestamp,
+      severity: 'medium',
+      recoverable: true,
       originalError: error.originalError
-    } as CategorizedError
+    }
     
     this.listeners.forEach(listener => {
       try {
@@ -321,6 +325,12 @@ export function useTypeSafeAsyncErrorHandler(options: AsyncErrorHandlerProps = {
   const tracker = TypeSafeAsyncErrorTracker.getInstance()
   
   const errorConfig: ErrorReportingConfig = {
+    enabled: true,
+    includeStackTrace: process.env.NODE_ENV === 'development',
+    includeBrowserInfo: true,
+    includeUserAgent: true,
+    maxRetries: 3,
+    retryDelay: 1000,
     enableToast: true,
     enableBackendReporting: true,
     enableConsoleLogging: process.env.NODE_ENV === 'development',
@@ -328,7 +338,7 @@ export function useTypeSafeAsyncErrorHandler(options: AsyncErrorHandlerProps = {
   }
 
   useEffect(() => {
-    const handleError: TypeSafeErrorHandler = (categorizedError) => {
+    const handleError: TypeSafeErrorHandler = (categorizedError: CategorizedError) => {
       // Apply filter if provided
       if (errorConfig.filterPredicate && !errorConfig.filterPredicate(categorizedError)) {
         return

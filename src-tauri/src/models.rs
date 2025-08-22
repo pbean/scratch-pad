@@ -10,7 +10,7 @@ pub struct Note {
     pub nickname: Option<String>,
     pub path: String,
     #[serde(alias = "is_pinned")] // Allow both names for backward compatibility
-    pub is_favorite: bool,  // Changed back to is_favorite to match integration tests
+    pub is_favorite: bool, // Changed back to is_favorite to match integration tests
     pub created_at: String,
     pub updated_at: String,
 }
@@ -59,28 +59,27 @@ mod tests {
             format: NoteFormat::PlainText,
             nickname: Some("Test Note".to_string()),
             path: "/test".to_string(),
-            is_favorite: true,  // Updated to match integration tests
+            is_favorite: true, // Updated to match integration tests
             created_at: "2024-01-01T00:00:00Z".to_string(),
             updated_at: "2024-01-01T00:00:00Z".to_string(),
         };
 
         // Test serialization
-        let json = serde_json::to_string(&note)
-            .context("Failed to serialize note")?;
+        let json = serde_json::to_string(&note).context("Failed to serialize note")?;
         assert!(json.contains("Test content"));
         assert!(json.contains("plaintext"));
         assert!(json.contains("Test Note"));
 
         // Test deserialization
-        let deserialized: Note = serde_json::from_str(&json)
-            .context("Failed to deserialize note")?;
+        let deserialized: Note =
+            serde_json::from_str(&json).context("Failed to deserialize note")?;
         assert_eq!(deserialized.id, 1);
         assert_eq!(deserialized.content, "Test content");
         assert_eq!(deserialized.format, NoteFormat::PlainText);
         assert_eq!(deserialized.nickname, Some("Test Note".to_string()));
         assert_eq!(deserialized.path, "/test");
-        assert!(deserialized.is_favorite);  // Updated field name
-        
+        assert!(deserialized.is_favorite); // Updated field name
+
         Ok(())
     }
 
@@ -90,22 +89,22 @@ mod tests {
 
         // Test PlainText format
         let plaintext = NoteFormat::PlainText;
-        let json = serde_json::to_string(&plaintext)
-            .context("Failed to serialize plaintext format")?;
+        let json =
+            serde_json::to_string(&plaintext).context("Failed to serialize plaintext format")?;
         assert_eq!(json, "\"plaintext\"");
-        
-        let deserialized: NoteFormat = serde_json::from_str(&json)
-            .context("Failed to deserialize plaintext format")?;
+
+        let deserialized: NoteFormat =
+            serde_json::from_str(&json).context("Failed to deserialize plaintext format")?;
         assert_eq!(deserialized, NoteFormat::PlainText);
 
         // Test Markdown format
         let markdown = NoteFormat::Markdown;
-        let json = serde_json::to_string(&markdown)
-            .context("Failed to serialize markdown format")?;
+        let json =
+            serde_json::to_string(&markdown).context("Failed to serialize markdown format")?;
         assert_eq!(json, "\"markdown\"");
-        
-        let deserialized: NoteFormat = serde_json::from_str(&json)
-            .context("Failed to deserialize markdown format")?;
+
+        let deserialized: NoteFormat =
+            serde_json::from_str(&json).context("Failed to deserialize markdown format")?;
         assert_eq!(deserialized, NoteFormat::Markdown);
 
         Ok(())
@@ -132,14 +131,13 @@ mod tests {
         };
 
         // Test serialization
-        let json = serde_json::to_string(&setting)
-            .context("Failed to serialize setting")?;
+        let json = serde_json::to_string(&setting).context("Failed to serialize setting")?;
         assert!(json.contains("test_key"));
         assert!(json.contains("test_value"));
 
         // Test deserialization
-        let deserialized: Setting = serde_json::from_str(&json)
-            .context("Failed to deserialize setting")?;
+        let deserialized: Setting =
+            serde_json::from_str(&json).context("Failed to deserialize setting")?;
         assert_eq!(deserialized.key, "test_key");
         assert_eq!(deserialized.value, "test_value");
 
@@ -154,7 +152,7 @@ mod tests {
             format: NoteFormat::PlainText,
             nickname: Some("Test Note".to_string()),
             path: "/test".to_string(),
-            is_favorite: true,  // Updated field name
+            is_favorite: true, // Updated field name
             created_at: "2024-01-01T00:00:00Z".to_string(),
             updated_at: "2024-01-01T00:00:00Z".to_string(),
         };
@@ -171,7 +169,7 @@ mod tests {
             format: NoteFormat::PlainText,
             nickname: Some("Test Note".to_string()),
             path: "/test".to_string(),
-            is_favorite: true,  // Updated field name
+            is_favorite: true, // Updated field name
             created_at: "2024-01-01T00:00:00Z".to_string(),
             updated_at: "2024-01-01T00:00:00Z".to_string(),
         };

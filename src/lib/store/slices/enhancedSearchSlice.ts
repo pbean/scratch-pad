@@ -155,7 +155,8 @@ export const createEnhancedSearchSlice: StateCreator<
     if (cached && isSearchCacheValid(query)) {
       // Track cache hit
       if (searchPerformanceEnabled) {
-        const queryId = performanceAnalytics.startQuery(`cache_${Date.now()}`, query, 'simple')
+        const queryId = `cache_${Date.now()}`
+        performanceAnalytics.startQuery(queryId, query, 'simple')
         performanceAnalytics.completeQuery(queryId, query, 'simple', cached.results.length, true)
       }
       return cached.results
@@ -166,7 +167,8 @@ export const createEnhancedSearchSlice: StateCreator<
     try {
       // Start performance tracking
       if (searchPerformanceEnabled) {
-        queryId = performanceAnalytics.startQuery(`search_${Date.now()}`, query, 'simple')
+        queryId = `search_${Date.now()}`
+        performanceAnalytics.startQuery(queryId, query, 'simple')
       }
 
       const results = await invoke<Note[]>("search_notes", { query })
@@ -238,7 +240,8 @@ export const createEnhancedSearchSlice: StateCreator<
     try {
       // Start performance tracking
       if (searchPerformanceEnabled) {
-        queryId = performanceAnalytics.startQuery(`paginated_${Date.now()}`, query, 'paginated') || null
+        queryId = `paginated_${Date.now()}`
+        performanceAnalytics.startQuery(queryId, query, 'paginated')
       }
 
       const result = await invoke<SearchResult>("search_notes_paginated", { 
@@ -304,7 +307,8 @@ export const createEnhancedSearchSlice: StateCreator<
     try {
       // Start performance tracking
       if (searchPerformanceEnabled) {
-        queryId = performanceAnalytics.startQuery(`boolean_${Date.now()}`, query, 'boolean') || null
+        queryId = `boolean_${Date.now()}`
+        performanceAnalytics.startQuery(queryId, query, 'boolean')
       }
 
       const result = await invoke<BooleanSearchResult>("search_notes_boolean_paginated", { 

@@ -1,11 +1,10 @@
 /// Backend Performance Monitoring Implementation
-/// 
+///
 /// Provides backend-specific performance monitoring including database operations,
 /// memory usage tracking, and IPC command performance analysis.
-/// 
+///
 /// Week 3 Day 9 Implementation: Backend Performance Metrics
-
-use super::{CacheMetrics, get_performance_monitor};
+use super::{get_performance_monitor, CacheMetrics};
 use crate::error::AppError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -212,7 +211,7 @@ impl BackendPerformanceMonitor {
             format!("db_{}_{}", operation, uuid::Uuid::new_v4()),
             format!("database_{}", operation),
         );
-        
+
         if success {
             tracker.complete_success();
         } else {
@@ -221,7 +220,13 @@ impl BackendPerformanceMonitor {
     }
 
     /// Record IPC command performance
-    pub fn record_ipc_command(&self, command: &str, duration: Duration, success: bool, security_overhead: Duration) {
+    pub fn record_ipc_command(
+        &self,
+        command: &str,
+        duration: Duration,
+        success: bool,
+        security_overhead: Duration,
+    ) {
         if let Ok(mut collector) = self.ipc_metrics.lock() {
             collector.record_command(command, duration, success, security_overhead);
         }
@@ -231,7 +236,7 @@ impl BackendPerformanceMonitor {
             format!("ipc_{}_{}", command, uuid::Uuid::new_v4()),
             format!("ipc_{}", command),
         );
-        
+
         if success {
             tracker.complete_success();
         } else {
@@ -240,7 +245,14 @@ impl BackendPerformanceMonitor {
     }
 
     /// Record search operation
-    pub fn record_search_operation(&self, query_type: &str, query: &str, duration: Duration, result_count: u32, cache_hit: bool) {
+    pub fn record_search_operation(
+        &self,
+        query_type: &str,
+        query: &str,
+        duration: Duration,
+        result_count: u32,
+        cache_hit: bool,
+    ) {
         if let Ok(mut collector) = self.search_metrics.lock() {
             collector.record_search(query_type, query, duration, result_count, cache_hit);
         }
@@ -257,23 +269,41 @@ impl BackendPerformanceMonitor {
     pub fn get_metrics(&self) -> Result<BackendMetrics, AppError> {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map_err(|e| AppError::Runtime { message: format!("Time error: {}", e) })?
+            .map_err(|e| AppError::Runtime {
+                message: format!("Time error: {}", e),
+            })?
             .as_millis() as u64;
 
-        let database = self.db_metrics.lock()
-            .map_err(|e| AppError::Runtime { message: format!("Lock error: {}", e) })?
+        let database = self
+            .db_metrics
+            .lock()
+            .map_err(|e| AppError::Runtime {
+                message: format!("Lock error: {}", e),
+            })?
             .get_metrics();
 
-        let ipc = self.ipc_metrics.lock()
-            .map_err(|e| AppError::Runtime { message: format!("Lock error: {}", e) })?
+        let ipc = self
+            .ipc_metrics
+            .lock()
+            .map_err(|e| AppError::Runtime {
+                message: format!("Lock error: {}", e),
+            })?
             .get_metrics();
 
-        let memory = self.memory_metrics.lock()
-            .map_err(|e| AppError::Runtime { message: format!("Lock error: {}", e) })?
+        let memory = self
+            .memory_metrics
+            .lock()
+            .map_err(|e| AppError::Runtime {
+                message: format!("Lock error: {}", e),
+            })?
             .get_metrics();
 
-        let search = self.search_metrics.lock()
-            .map_err(|e| AppError::Runtime { message: format!("Lock error: {}", e) })?
+        let search = self
+            .search_metrics
+            .lock()
+            .map_err(|e| AppError::Runtime {
+                message: format!("Lock error: {}", e),
+            })?
             .get_metrics();
 
         Ok(BackendMetrics {
@@ -294,24 +324,24 @@ impl BackendPerformanceMonitor {
 
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(60));
-            
+
             loop {
                 interval.tick().await;
-                
+
                 // Update memory metrics
                 if let Ok(mut collector) = memory_metrics.lock() {
                     collector.update_metrics();
                 }
-                
+
                 // Clean up old metrics
                 if let Ok(mut collector) = db_metrics.lock() {
                     collector.cleanup_old_metrics();
                 }
-                
+
                 if let Ok(mut collector) = ipc_metrics.lock() {
                     collector.cleanup_old_metrics();
                 }
-                
+
                 if let Ok(mut collector) = search_metrics.lock() {
                     collector.cleanup_old_metrics();
                 }
@@ -323,14 +353,16 @@ impl BackendPerformanceMonitor {
 /// Database metrics collector
 struct DatabaseMetricsCollector {
     operations: Vec<DatabaseOperation>,
-    #[allow(dead_code)] start_time: Instant,
+    #[allow(dead_code)]
+    start_time: Instant,
 }
 
 #[derive(Debug, Clone)]
 struct DatabaseOperation {
     operation: String,
     duration: Duration,
-    #[allow(dead_code)] success: bool,
+    #[allow(dead_code)]
+    success: bool,
     timestamp: Instant,
 }
 
@@ -352,14 +384,20 @@ impl DatabaseMetricsCollector {
     }
 
     fn get_metrics(&self) -> DatabaseMetrics {
-        let recent_ops: Vec<&DatabaseOperation> = self.operations.iter()
+        let recent_ops: Vec<&DatabaseOperation> = self
+            .operations
+            .iter()
             .filter(|op| op.timestamp.elapsed() < Duration::from_secs(300)) // Last 5 minutes
             .collect();
 
         let avg_query_time_ms = if recent_ops.is_empty() {
             0.0
         } else {
-            recent_ops.iter().map(|op| op.duration.as_millis() as f64).sum::<f64>() / recent_ops.len() as f64
+            recent_ops
+                .iter()
+                .map(|op| op.duration.as_millis() as f64)
+                .sum::<f64>()
+                / recent_ops.len() as f64
         };
 
         DatabaseMetrics {
@@ -374,10 +412,12 @@ impl DatabaseMetricsCollector {
                 lock_contentions: 0,
             },
             fts_metrics: FtsMetrics {
-                avg_search_time_ms: recent_ops.iter()
+                avg_search_time_ms: recent_ops
+                    .iter()
                     .filter(|op| op.operation.starts_with("search"))
                     .map(|op| op.duration.as_millis() as f64)
-                    .sum::<f64>() / recent_ops.len().max(1) as f64,
+                    .sum::<f64>()
+                    / recent_ops.len().max(1) as f64,
                 result_distribution: HashMap::new(),
                 complexity_scores: Vec::new(),
                 optimization_suggestions: Vec::new(),
@@ -394,7 +434,8 @@ impl DatabaseMetricsCollector {
 /// IPC metrics collector
 struct IpcMetricsCollector {
     commands: Vec<IpcCommand>,
-    #[allow(dead_code)] start_time: Instant,
+    #[allow(dead_code)]
+    start_time: Instant,
 }
 
 #[derive(Debug, Clone)]
@@ -414,7 +455,13 @@ impl IpcMetricsCollector {
         }
     }
 
-    fn record_command(&mut self, command: &str, duration: Duration, success: bool, security_overhead: Duration) {
+    fn record_command(
+        &mut self,
+        command: &str,
+        duration: Duration,
+        success: bool,
+        security_overhead: Duration,
+    ) {
         self.commands.push(IpcCommand {
             command: command.to_string(),
             duration,
@@ -425,20 +472,30 @@ impl IpcMetricsCollector {
     }
 
     fn get_metrics(&self) -> IpcMetrics {
-        let recent_commands: Vec<&IpcCommand> = self.commands.iter()
+        let recent_commands: Vec<&IpcCommand> = self
+            .commands
+            .iter()
             .filter(|cmd| cmd.timestamp.elapsed() < Duration::from_secs(300)) // Last 5 minutes
             .collect();
 
         let avg_processing_time_ms = if recent_commands.is_empty() {
             0.0
         } else {
-            recent_commands.iter().map(|cmd| cmd.duration.as_millis() as f64).sum::<f64>() / recent_commands.len() as f64
+            recent_commands
+                .iter()
+                .map(|cmd| cmd.duration.as_millis() as f64)
+                .sum::<f64>()
+                / recent_commands.len() as f64
         };
 
         let avg_security_overhead_ms = if recent_commands.is_empty() {
             0.0
         } else {
-            recent_commands.iter().map(|cmd| cmd.security_overhead.as_millis() as f64).sum::<f64>() / recent_commands.len() as f64
+            recent_commands
+                .iter()
+                .map(|cmd| cmd.security_overhead.as_millis() as f64)
+                .sum::<f64>()
+                / recent_commands.len() as f64
         };
 
         // Calculate command distribution
@@ -450,7 +507,8 @@ impl IpcMetricsCollector {
         // Calculate error rates
         let mut error_rates = HashMap::new();
         for (command, count) in &command_distribution {
-            let errors = recent_commands.iter()
+            let errors = recent_commands
+                .iter()
                 .filter(|cmd| cmd.command == *command && !cmd.success)
                 .count();
             error_rates.insert(command.clone(), errors as f64 / *count as f64);
@@ -499,11 +557,14 @@ impl MemoryMetricsCollector {
 
         // Keep only recent samples
         let cutoff = Instant::now() - Duration::from_secs(3600);
-        self.memory_samples.retain(|sample| sample.timestamp > cutoff);
+        self.memory_samples
+            .retain(|sample| sample.timestamp > cutoff);
     }
 
     fn get_metrics(&self) -> MemoryMetrics {
-        let current_usage = self.memory_samples.last()
+        let current_usage = self
+            .memory_samples
+            .last()
             .map(|sample| sample.heap_usage)
             .unwrap_or(0);
 
@@ -511,7 +572,8 @@ impl MemoryMetricsCollector {
         let growth_rate = if self.memory_samples.len() >= 2 {
             let oldest = &self.memory_samples[0];
             let newest = &self.memory_samples[self.memory_samples.len() - 1];
-            let time_diff = newest.timestamp.duration_since(oldest.timestamp).as_secs() as f64 / 60.0;
+            let time_diff =
+                newest.timestamp.duration_since(oldest.timestamp).as_secs() as f64 / 60.0;
             if time_diff > 0.0 {
                 (newest.heap_usage as f64 - oldest.heap_usage as f64) / time_diff
             } else {
@@ -544,9 +606,11 @@ struct SearchMetricsCollector {
 #[derive(Debug, Clone)]
 struct SearchOperation {
     query_type: String,
-    #[allow(dead_code)] query: String,
+    #[allow(dead_code)]
+    query: String,
     duration: Duration,
-    #[allow(dead_code)] result_count: u32,
+    #[allow(dead_code)]
+    result_count: u32,
     cache_hit: bool,
     timestamp: Instant,
 }
@@ -558,7 +622,14 @@ impl SearchMetricsCollector {
         }
     }
 
-    fn record_search(&mut self, query_type: &str, query: &str, duration: Duration, result_count: u32, cache_hit: bool) {
+    fn record_search(
+        &mut self,
+        query_type: &str,
+        query: &str,
+        duration: Duration,
+        result_count: u32,
+        cache_hit: bool,
+    ) {
         self.searches.push(SearchOperation {
             query_type: query_type.to_string(),
             query: query.to_string(),
@@ -570,33 +641,46 @@ impl SearchMetricsCollector {
     }
 
     fn get_metrics(&self) -> SearchMetrics {
-        let recent_searches: Vec<&SearchOperation> = self.searches.iter()
+        let recent_searches: Vec<&SearchOperation> = self
+            .searches
+            .iter()
             .filter(|search| search.timestamp.elapsed() < Duration::from_secs(300))
             .collect();
 
         // Calculate query performance by type
         let mut query_performance = HashMap::new();
         let mut query_types = HashMap::new();
-        
+
         for search in &recent_searches {
-            let entry = query_types.entry(search.query_type.clone()).or_insert(Vec::new());
+            let entry = query_types
+                .entry(search.query_type.clone())
+                .or_insert(Vec::new());
             entry.push(search);
         }
 
         for (query_type, searches) in query_types {
-            let times: Vec<f64> = searches.iter().map(|s| s.duration.as_millis() as f64).collect();
+            let times: Vec<f64> = searches
+                .iter()
+                .map(|s| s.duration.as_millis() as f64)
+                .collect();
             let avg_time = times.iter().sum::<f64>() / times.len() as f64;
-            
+
             let mut sorted_times = times.clone();
             sorted_times.sort_by(|a, b| a.partial_cmp(b).unwrap());
-            let p95_time = sorted_times.get((sorted_times.len() as f64 * 0.95) as usize).copied().unwrap_or(0.0);
+            let p95_time = sorted_times
+                .get((sorted_times.len() as f64 * 0.95) as usize)
+                .copied()
+                .unwrap_or(0.0);
 
-            query_performance.insert(query_type, QueryPerformance {
-                avg_time_ms: avg_time,
-                p95_time_ms: p95_time,
-                query_count: searches.len() as u32,
-                error_rate: 0.0, // Would track actual errors
-            });
+            query_performance.insert(
+                query_type,
+                QueryPerformance {
+                    avg_time_ms: avg_time,
+                    p95_time_ms: p95_time,
+                    query_count: searches.len() as u32,
+                    error_rate: 0.0, // Would track actual errors
+                },
+            );
         }
 
         // Calculate cache performance
@@ -665,12 +749,12 @@ mod tests {
     #[test]
     fn test_database_metrics_collection() {
         let monitor = BackendPerformanceMonitor::new();
-        
+
         // Record some database operations
         monitor.record_database_operation("select", Duration::from_millis(50), true);
         monitor.record_database_operation("insert", Duration::from_millis(30), true);
         monitor.record_database_operation("update", Duration::from_millis(40), false);
-        
+
         let metrics = monitor.get_metrics().unwrap();
         assert!(metrics.database.avg_query_time_ms > 0.0);
     }
@@ -678,11 +762,21 @@ mod tests {
     #[test]
     fn test_ipc_metrics_collection() {
         let monitor = BackendPerformanceMonitor::new();
-        
+
         // Record some IPC commands
-        monitor.record_ipc_command("search_notes", Duration::from_millis(80), true, Duration::from_millis(5));
-        monitor.record_ipc_command("create_note", Duration::from_millis(60), true, Duration::from_millis(3));
-        
+        monitor.record_ipc_command(
+            "search_notes",
+            Duration::from_millis(80),
+            true,
+            Duration::from_millis(5),
+        );
+        monitor.record_ipc_command(
+            "create_note",
+            Duration::from_millis(60),
+            true,
+            Duration::from_millis(3),
+        );
+
         let metrics = monitor.get_metrics().unwrap();
         assert!(metrics.ipc.avg_processing_time_ms > 0.0);
         assert!(metrics.ipc.security_overhead_ms > 0.0);
@@ -691,11 +785,23 @@ mod tests {
     #[test]
     fn test_search_metrics_collection() {
         let monitor = BackendPerformanceMonitor::new();
-        
+
         // Record some search operations
-        monitor.record_search_operation("boolean", "rust AND programming", Duration::from_millis(90), 25, false);
-        monitor.record_search_operation("simple", "test query", Duration::from_millis(45), 10, true);
-        
+        monitor.record_search_operation(
+            "boolean",
+            "rust AND programming",
+            Duration::from_millis(90),
+            25,
+            false,
+        );
+        monitor.record_search_operation(
+            "simple",
+            "test query",
+            Duration::from_millis(45),
+            10,
+            true,
+        );
+
         let metrics = monitor.get_metrics().unwrap();
         assert!(!metrics.search.query_performance.is_empty());
     }

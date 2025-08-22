@@ -3,6 +3,7 @@ name = "scratch-pad"
 version = "0.2.0"
 description = "A Tauri App"
 authors = ["you"]
+license = "MIT"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -14,11 +15,18 @@ edition = "2021"
 name = "scratch_pad_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+default = []
+# Performance tracking feature for test monitoring
+performance-tracking = []
+
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+# Keep tauri-build compatible with tauri version
+tauri-build = { version = "2.0.0", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["test"] }
+# Use Tauri 2.0.0 to avoid referenced_by field requirement
+tauri = { version = "2.0.0", features = ["test"] }
 tauri-plugin-opener = "2"
 tauri-plugin-global-shortcut = "2"
 serde = { version = "1", features = ["derive"] }

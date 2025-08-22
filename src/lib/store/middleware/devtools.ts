@@ -5,12 +5,6 @@ import type {
   TypeSafeReplacer, 
   TypeSafeReviver,
   DevtoolsAction,
-  NoteActionPayload,
-  SearchActionPayload,
-  UIActionPayload,
-  SettingsActionPayload,
-  SystemActionPayload,
-  PerformanceActionPayload,
   SerializationContext,
   JSONSerializable,
   TypeSafePredicate
@@ -23,14 +17,14 @@ import type { Note, Settings } from '../../../types'
 
 /**
  * Enhanced devtools middleware with complete type safety
+ * Fixed generic constraints to match Zustand's StateCreator pattern
  */
 type TypeSafeDevtoolsMiddleware = <
   T,
   Mps extends [StoreMutatorIdentifier, unknown][] = [],
   Mcs extends [StoreMutatorIdentifier, unknown][] = []
 >(
-  config: StateCreator<T, Mps, Mcs>,
-  options?: TypeSafeDevtoolsConfig
+  stateCreator: StateCreator<T, Mps, Mcs>
 ) => StateCreator<T, Mps, [...Mcs, ['zustand/devtools', never]]>
 
 /**
@@ -230,7 +224,7 @@ export const createTypeSafeDevtoolsConfig = (sliceName: string): TypeSafeDevtool
  * Type-safe predicate for filtering devtools actions
  */
 const createActionPredicate = (): TypeSafePredicate => {
-  return <T>(state: T, action: DevtoolsAction): boolean => {
+  return <T>(_state: T, action: DevtoolsAction): boolean => {
     if (process.env.NODE_ENV === 'production') {
       // Filter out performance actions in production
       return action.type !== 'performance_action'
@@ -241,6 +235,7 @@ const createActionPredicate = (): TypeSafePredicate => {
 
 /**
  * Enhanced devtools middleware with complete type safety
+ * Fixed StateCreator return type constraints
  */
 export const createEnhancedDevtools = <T>(
   sliceName: string,
@@ -251,14 +246,18 @@ export const createEnhancedDevtools = <T>(
     ...options
   }
   
-  return (stateCreator) => {
+  // Fixed: Properly typed middleware function that matches Zustand's expectations
+  return (<
+    TMps extends [StoreMutatorIdentifier, unknown][] = [],
+    TMcs extends [StoreMutatorIdentifier, unknown][] = []
+  >(stateCreator: StateCreator<T, TMps, TMcs>) => {
     if (!config.enabled) {
       // Return original state creator if devtools disabled
-      return stateCreator
+      return stateCreator as StateCreator<T, TMps, [...TMcs, ['zustand/devtools', never]]>
     }
     
-    // Type-safe devtools integration
-    return devtools(stateCreator, {
+    // Type-safe devtools integration with proper casting
+    return devtools(stateCreator as any, {
       name: config.name,
       enabled: config.enabled,
       serialize: config.serialize as any, // Zustand types are not fully compatible
@@ -267,8 +266,8 @@ export const createEnhancedDevtools = <T>(
       predicate: config.predicate as any,
       trace: config.trace,
       traceLimit: config.traceLimit
-    })
-  }
+    }) as StateCreator<T, TMps, [...TMcs, ['zustand/devtools', never]]>
+  }) as any
 }
 
 /**
@@ -279,7 +278,7 @@ export const createTypeSafeActionCreators = (sliceName: string) => {
     // Notes actions
     [`${sliceName}_setActiveNote`]: (noteId: number | null): DevtoolsAction => ({
       type: 'note_action',
-      payload: { action: 'set_active', noteId }
+      payload: { action: 'set_active', noteId: noteId ?? undefined }
     }),
     
     [`${sliceName}_createNote`]: (content?: string): DevtoolsAction => ({
@@ -455,7 +454,7 @@ export const createTypeSafeTimeTravel = <T>(
 /**
  * Type-safe performance monitoring integration
  */
-export const integrateTypeSafePerformanceMonitoring = <T>(
+export const integrateTypeSafePerformanceMonitoring = <_T>(
   store: { setState: (...args: unknown[]) => unknown; _getPerformanceStats?: () => Record<string, number> }
 ): void => {
   if (process.env.NODE_ENV !== 'development') return

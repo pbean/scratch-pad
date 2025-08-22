@@ -1,10 +1,9 @@
 /// Frontend Performance Monitoring Integration
-/// 
+///
 /// Provides backend endpoints for frontend performance monitoring,
 /// enabling comprehensive full-stack performance analysis.
-/// 
+///
 /// Week 3 Day 9 Implementation: Frontend Performance Integration
-
 use super::get_performance_monitor;
 use crate::error::AppError;
 use serde::{Deserialize, Serialize};
@@ -265,7 +264,7 @@ impl FrontendPerformanceMonitor {
         // Store metrics
         if let Ok(mut history) = self.metrics_history.lock() {
             history.push(metrics.clone());
-            
+
             // Maintain circular buffer
             while history.len() > self.max_history_size {
                 history.remove(0);
@@ -275,7 +274,11 @@ impl FrontendPerformanceMonitor {
         // Record render metrics in global monitor
         for render_metric in &metrics.render_metrics {
             let tracker = get_performance_monitor().start_operation(
-                format!("render_{}_{}", render_metric.component_name, uuid::Uuid::new_v4()),
+                format!(
+                    "render_{}_{}",
+                    render_metric.component_name,
+                    uuid::Uuid::new_v4()
+                ),
                 format!("frontend_render_{}", render_metric.component_name),
             );
             tracker.complete_success();
@@ -284,7 +287,11 @@ impl FrontendPerformanceMonitor {
         // Record store operations in global monitor
         for store_metric in &metrics.store_metrics {
             let tracker = get_performance_monitor().start_operation(
-                format!("store_{}_{}", store_metric.action_name, uuid::Uuid::new_v4()),
+                format!(
+                    "store_{}_{}",
+                    store_metric.action_name,
+                    uuid::Uuid::new_v4()
+                ),
                 format!("frontend_store_{}", store_metric.action_name),
             );
             tracker.complete_success();
@@ -301,11 +308,7 @@ impl FrontendPerformanceMonitor {
     /// Get recent frontend metrics
     pub fn get_recent_metrics(&self, limit: usize) -> Vec<FrontendMetrics> {
         if let Ok(history) = self.metrics_history.lock() {
-            history.iter()
-                .rev()
-                .take(limit)
-                .cloned()
-                .collect()
+            history.iter().rev().take(limit).cloned().collect()
         } else {
             Vec::new()
         }
@@ -321,8 +324,9 @@ impl FrontendPerformanceMonitor {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_millis() as u64;
-                
-                if now - cached_analysis.timestamp < 300_000 { // 5 minutes
+
+                if now - cached_analysis.timestamp < 300_000 {
+                    // 5 minutes
                     return Ok(cached_analysis.clone());
                 }
             }
@@ -330,9 +334,12 @@ impl FrontendPerformanceMonitor {
 
         // Perform fresh analysis
         let recent_metrics = self.get_recent_metrics(50); // Analyze last 50 snapshots
-        
+
         if recent_metrics.is_empty() {
-            return Err(AppError::Validation { field: "frontend_metrics".to_string(), message: "No frontend metrics available for analysis".to_string() });
+            return Err(AppError::Validation {
+                field: "frontend_metrics".to_string(),
+                message: "No frontend metrics available for analysis".to_string(),
+            });
         }
 
         let analysis = self.perform_analysis(&recent_metrics)?;
@@ -354,18 +361,20 @@ impl FrontendPerformanceMonitor {
 
         // Analyze component performance
         let component_analysis = self.analyze_components(metrics);
-        
+
         // Analyze memory usage
         let memory_analysis = self.analyze_memory(metrics);
-        
+
         // Generate recommendations
-        let recommendations = self.generate_recommendations(metrics, &component_analysis, &memory_analysis);
-        
+        let recommendations =
+            self.generate_recommendations(metrics, &component_analysis, &memory_analysis);
+
         // Analyze trends
         let trends = self.analyze_trends(metrics);
-        
+
         // Calculate overall performance score
-        let performance_score = self.calculate_performance_score(&component_analysis, &memory_analysis, &trends);
+        let performance_score =
+            self.calculate_performance_score(&component_analysis, &memory_analysis, &trends);
 
         Ok(FrontendAnalysis {
             performance_score,
@@ -380,69 +389,79 @@ impl FrontendPerformanceMonitor {
     /// Analyze component render performance
     fn analyze_components(&self, metrics: &[FrontendMetrics]) -> Vec<ComponentAnalysis> {
         let mut component_stats: HashMap<String, Vec<&RenderMetric>> = HashMap::new();
-        
+
         // Group render metrics by component
         for metric in metrics {
             for render_metric in &metric.render_metrics {
-                component_stats.entry(render_metric.component_name.clone())
+                component_stats
+                    .entry(render_metric.component_name.clone())
                     .or_insert_with(Vec::new)
                     .push(render_metric);
             }
         }
 
         // Analyze each component
-        component_stats.into_iter().map(|(component_name, renders)| {
-            let avg_render_time = renders.iter()
-                .map(|r| r.render_time_ms)
-                .sum::<f64>() / renders.len() as f64;
+        component_stats
+            .into_iter()
+            .map(|(component_name, renders)| {
+                let avg_render_time =
+                    renders.iter().map(|r| r.render_time_ms).sum::<f64>() / renders.len() as f64;
 
-            let total_renders = renders.iter().map(|r| r.render_count).sum::<u32>();
-            let time_span_minutes = if renders.len() > 1 {
-                let first = renders[0].timestamp;
-                let last = renders[renders.len() - 1].timestamp;
-                (last - first) as f64 / 60000.0 // Convert to minutes
-            } else {
-                1.0
-            };
-            let render_frequency = total_renders as f64 / time_span_minutes;
+                let total_renders = renders.iter().map(|r| r.render_count).sum::<u32>();
+                let time_span_minutes = if renders.len() > 1 {
+                    let first = renders[0].timestamp;
+                    let last = renders[renders.len() - 1].timestamp;
+                    (last - first) as f64 / 60000.0 // Convert to minutes
+                } else {
+                    1.0
+                };
+                let render_frequency = total_renders as f64 / time_span_minutes;
 
-            // Performance rating based on render time and frequency
-            let performance_rating = if avg_render_time < 16.0 && render_frequency < 30.0 {
-                90 + (10.0 - avg_render_time.min(10.0)) as u8
-            } else if avg_render_time < 50.0 {
-                60 + ((50.0 - avg_render_time) / 50.0 * 30.0) as u8
-            } else {
-                30
-            };
+                // Performance rating based on render time and frequency
+                let performance_rating = if avg_render_time < 16.0 && render_frequency < 30.0 {
+                    90 + (10.0 - avg_render_time.min(10.0)) as u8
+                } else if avg_render_time < 50.0 {
+                    60 + ((50.0 - avg_render_time) / 50.0 * 30.0) as u8
+                } else {
+                    30
+                };
 
-            // Generate optimization suggestions
-            let mut optimizations = Vec::new();
-            if avg_render_time > 16.0 {
-                optimizations.push("Consider memoization with React.memo or useMemo".to_string());
-            }
-            if render_frequency > 60.0 {
-                optimizations.push("High render frequency detected - check for unnecessary re-renders".to_string());
-            }
-            if renders.iter().any(|r| r.props_changes > r.render_count) {
-                optimizations.push("Props changing more than renders - optimize prop passing".to_string());
-            }
+                // Generate optimization suggestions
+                let mut optimizations = Vec::new();
+                if avg_render_time > 16.0 {
+                    optimizations
+                        .push("Consider memoization with React.memo or useMemo".to_string());
+                }
+                if render_frequency > 60.0 {
+                    optimizations.push(
+                        "High render frequency detected - check for unnecessary re-renders"
+                            .to_string(),
+                    );
+                }
+                if renders.iter().any(|r| r.props_changes > r.render_count) {
+                    optimizations.push(
+                        "Props changing more than renders - optimize prop passing".to_string(),
+                    );
+                }
 
-            let is_optimized = renders.iter().any(|r| r.is_memoized) && performance_rating > 80;
+                let is_optimized = renders.iter().any(|r| r.is_memoized) && performance_rating > 80;
 
-            ComponentAnalysis {
-                component_name,
-                performance_rating,
-                avg_render_time_ms: avg_render_time,
-                render_frequency,
-                optimizations,
-                is_optimized,
-            }
-        }).collect()
+                ComponentAnalysis {
+                    component_name,
+                    performance_rating,
+                    avg_render_time_ms: avg_render_time,
+                    render_frequency,
+                    optimizations,
+                    is_optimized,
+                }
+            })
+            .collect()
     }
 
     /// Analyze memory usage patterns
     fn analyze_memory(&self, metrics: &[FrontendMetrics]) -> MemoryAnalysis {
-        let memory_samples: Vec<&BrowserMemoryInfo> = metrics.iter()
+        let memory_samples: Vec<&BrowserMemoryInfo> = metrics
+            .iter()
             .filter_map(|m| m.browser_memory.as_ref())
             .collect();
 
@@ -461,7 +480,9 @@ impl FrontendPerformanceMonitor {
             let last = memory_samples[memory_samples.len() - 1];
             let time_diff_minutes = (last.timestamp - first.timestamp) as f64 / 60000.0;
             if time_diff_minutes > 0.0 {
-                let memory_diff_mb = (last.used_js_heap_size as f64 - first.used_js_heap_size as f64) / (1024.0 * 1024.0);
+                let memory_diff_mb = (last.used_js_heap_size as f64
+                    - first.used_js_heap_size as f64)
+                    / (1024.0 * 1024.0);
                 memory_diff_mb / time_diff_minutes
             } else {
                 0.0
@@ -483,7 +504,8 @@ impl FrontendPerformanceMonitor {
         // Detect potential leaks
         let mut potential_leaks = Vec::new();
         if growth_rate_mb_per_min > 2.0 {
-            potential_leaks.push("Steady memory growth detected - possible memory leak".to_string());
+            potential_leaks
+                .push("Steady memory growth detected - possible memory leak".to_string());
         }
         if memory_samples.iter().any(|m| m.usage_percent > 85.0) {
             potential_leaks.push("High memory usage spikes detected".to_string());
@@ -492,7 +514,8 @@ impl FrontendPerformanceMonitor {
         // Generate optimizations
         let mut optimizations = Vec::new();
         if latest_memory.usage_percent > 60.0 {
-            optimizations.push("Consider implementing virtual scrolling for large lists".to_string());
+            optimizations
+                .push("Consider implementing virtual scrolling for large lists".to_string());
         }
         if growth_rate_mb_per_min > 1.0 {
             optimizations.push("Review component cleanup and event listener removal".to_string());
@@ -508,7 +531,12 @@ impl FrontendPerformanceMonitor {
     }
 
     /// Generate optimization recommendations
-    fn generate_recommendations(&self, _metrics: &[FrontendMetrics], components: &[ComponentAnalysis], memory: &MemoryAnalysis) -> Vec<FrontendOptimization> {
+    fn generate_recommendations(
+        &self,
+        _metrics: &[FrontendMetrics],
+        components: &[ComponentAnalysis],
+        memory: &MemoryAnalysis,
+    ) -> Vec<FrontendOptimization> {
         let mut recommendations = Vec::new();
 
         // Component optimizations
@@ -517,11 +545,21 @@ impl FrontendPerformanceMonitor {
                 recommendations.push(FrontendOptimization {
                     optimization_type: "component_optimization".to_string(),
                     target: component.component_name.clone(),
-                    priority: if component.performance_rating < 50 { "high" } else { "medium" }.to_string(),
-                    description: format!("Optimize {} component performance", component.component_name),
+                    priority: if component.performance_rating < 50 {
+                        "high"
+                    } else {
+                        "medium"
+                    }
+                    .to_string(),
+                    description: format!(
+                        "Optimize {} component performance",
+                        component.component_name
+                    ),
                     expected_improvement: "15-30% render time reduction".to_string(),
                     effort: "medium".to_string(),
-                    implementation_hint: Some("Consider React.memo() or useMemo() for expensive computations".to_string()),
+                    implementation_hint: Some(
+                        "Consider React.memo() or useMemo() for expensive computations".to_string(),
+                    ),
                 });
             }
         }
@@ -531,11 +569,18 @@ impl FrontendPerformanceMonitor {
             recommendations.push(FrontendOptimization {
                 optimization_type: "memory_optimization".to_string(),
                 target: "application".to_string(),
-                priority: if memory.status == "critical" { "critical" } else { "high" }.to_string(),
+                priority: if memory.status == "critical" {
+                    "critical"
+                } else {
+                    "high"
+                }
+                .to_string(),
                 description: "Reduce overall memory usage".to_string(),
                 expected_improvement: "20-40% memory reduction".to_string(),
                 effort: "medium".to_string(),
-                implementation_hint: Some("Implement virtual scrolling and optimize data structures".to_string()),
+                implementation_hint: Some(
+                    "Implement virtual scrolling and optimize data structures".to_string(),
+                ),
             });
         }
 
@@ -547,7 +592,9 @@ impl FrontendPerformanceMonitor {
             description: "Optimize search UI responsiveness".to_string(),
             expected_improvement: "Faster search result rendering".to_string(),
             effort: "low".to_string(),
-            implementation_hint: Some("Debounce search input and implement result caching".to_string()),
+            implementation_hint: Some(
+                "Debounce search input and implement result caching".to_string(),
+            ),
         });
 
         recommendations
@@ -566,20 +613,27 @@ impl FrontendPerformanceMonitor {
         }
 
         // Analyze render performance trend
-        let render_times: Vec<f64> = metrics.iter()
+        let render_times: Vec<f64> = metrics
+            .iter()
             .flat_map(|m| m.render_metrics.iter().map(|r| r.render_time_ms))
             .collect();
         let render_trend = self.calculate_trend(&render_times);
 
         // Analyze memory trend
-        let memory_usage: Vec<f64> = metrics.iter()
+        let memory_usage: Vec<f64> = metrics
+            .iter()
             .filter_map(|m| m.browser_memory.as_ref().map(|mem| mem.usage_percent))
             .collect();
         let memory_trend = self.calculate_trend(&memory_usage);
 
         // Analyze error trend
-        let error_counts: Vec<f64> = metrics.iter()
-            .map(|m| (m.error_metrics.js_errors + m.error_metrics.react_errors + m.error_metrics.network_errors) as f64)
+        let error_counts: Vec<f64> = metrics
+            .iter()
+            .map(|m| {
+                (m.error_metrics.js_errors
+                    + m.error_metrics.react_errors
+                    + m.error_metrics.network_errors) as f64
+            })
             .collect();
         let error_trend = self.calculate_trend(&error_counts);
 
@@ -607,7 +661,8 @@ impl FrontendPerformanceMonitor {
 
         let mid_point = values.len() / 2;
         let first_half_avg = values[..mid_point].iter().sum::<f64>() / mid_point as f64;
-        let second_half_avg = values[mid_point..].iter().sum::<f64>() / (values.len() - mid_point) as f64;
+        let second_half_avg =
+            values[mid_point..].iter().sum::<f64>() / (values.len() - mid_point) as f64;
 
         let change_percent = (second_half_avg - first_half_avg) / first_half_avg * 100.0;
 
@@ -621,14 +676,21 @@ impl FrontendPerformanceMonitor {
     }
 
     /// Calculate overall performance score
-    fn calculate_performance_score(&self, components: &[ComponentAnalysis], memory: &MemoryAnalysis, trends: &PerformanceTrends) -> u8 {
+    fn calculate_performance_score(
+        &self,
+        components: &[ComponentAnalysis],
+        memory: &MemoryAnalysis,
+        trends: &PerformanceTrends,
+    ) -> u8 {
         let mut score = 100.0;
 
         // Component performance impact (50%)
         if !components.is_empty() {
-            let avg_component_rating = components.iter()
+            let avg_component_rating = components
+                .iter()
                 .map(|c| c.performance_rating as f64)
-                .sum::<f64>() / components.len() as f64;
+                .sum::<f64>()
+                / components.len() as f64;
             score *= 0.5 + (avg_component_rating / 100.0 * 0.5);
         }
 
@@ -655,7 +717,8 @@ impl FrontendPerformanceMonitor {
 }
 
 /// Global frontend performance monitor instance
-static FRONTEND_MONITOR: std::sync::OnceLock<FrontendPerformanceMonitor> = std::sync::OnceLock::new();
+static FRONTEND_MONITOR: std::sync::OnceLock<FrontendPerformanceMonitor> =
+    std::sync::OnceLock::new();
 
 /// Get the global frontend performance monitor
 pub fn get_frontend_monitor() -> &'static FrontendPerformanceMonitor {
@@ -675,19 +738,17 @@ mod tests {
     #[test]
     fn test_frontend_metrics_recording() {
         let monitor = FrontendPerformanceMonitor::new();
-        
+
         let metrics = FrontendMetrics {
-            render_metrics: vec![
-                RenderMetric {
-                    component_name: "TestComponent".to_string(),
-                    render_time_ms: 15.5,
-                    render_count: 1,
-                    props_changes: 0,
-                    state_changes: 1,
-                    is_memoized: false,
-                    timestamp: 1000,
-                }
-            ],
+            render_metrics: vec![RenderMetric {
+                component_name: "TestComponent".to_string(),
+                render_time_ms: 15.5,
+                render_count: 1,
+                props_changes: 0,
+                state_changes: 1,
+                is_memoized: false,
+                timestamp: 1000,
+            }],
             browser_memory: Some(BrowserMemoryInfo {
                 used_js_heap_size: 50 * 1024 * 1024,
                 total_js_heap_size: 100 * 1024 * 1024,
@@ -719,7 +780,7 @@ mod tests {
             },
             timestamp: 1000,
         };
-        
+
         assert!(monitor.record_frontend_metrics(metrics).is_ok());
         assert_eq!(monitor.get_recent_metrics(1).len(), 1);
     }
@@ -727,48 +788,44 @@ mod tests {
     #[test]
     fn test_component_analysis() {
         let monitor = FrontendPerformanceMonitor::new();
-        
+
         // Create metrics with some render data
-        let metrics = vec![
-            FrontendMetrics {
-                render_metrics: vec![
-                    RenderMetric {
-                        component_name: "SlowComponent".to_string(),
-                        render_time_ms: 45.0, // Slow render
-                        render_count: 5,
-                        props_changes: 3,
-                        state_changes: 2,
-                        is_memoized: false,
-                        timestamp: 1000,
-                    }
-                ],
-                browser_memory: None,
-                navigation_timing: None,
-                store_metrics: Vec::new(),
-                search_ui_metrics: SearchUiMetrics {
-                    input_lag_ms: 0.0,
-                    results_render_ms: 0.0,
-                    virtual_scroll_metrics: VirtualScrollMetrics {
-                        items_per_frame: 0,
-                        scroll_fps: 0.0,
-                        visible_items_memory_kb: 0,
-                        item_render_time_ms: 0.0,
-                    },
-                    highlighting_ms: 0.0,
-                    autocomplete_ms: 0.0,
-                    filter_application_ms: 0.0,
-                },
-                error_metrics: ErrorMetrics {
-                    js_errors: 0,
-                    react_errors: 0,
-                    network_errors: 0,
-                    budget_violations: 0,
-                    error_samples: Vec::new(),
-                },
+        let metrics = vec![FrontendMetrics {
+            render_metrics: vec![RenderMetric {
+                component_name: "SlowComponent".to_string(),
+                render_time_ms: 45.0, // Slow render
+                render_count: 5,
+                props_changes: 3,
+                state_changes: 2,
+                is_memoized: false,
                 timestamp: 1000,
-            }
-        ];
-        
+            }],
+            browser_memory: None,
+            navigation_timing: None,
+            store_metrics: Vec::new(),
+            search_ui_metrics: SearchUiMetrics {
+                input_lag_ms: 0.0,
+                results_render_ms: 0.0,
+                virtual_scroll_metrics: VirtualScrollMetrics {
+                    items_per_frame: 0,
+                    scroll_fps: 0.0,
+                    visible_items_memory_kb: 0,
+                    item_render_time_ms: 0.0,
+                },
+                highlighting_ms: 0.0,
+                autocomplete_ms: 0.0,
+                filter_application_ms: 0.0,
+            },
+            error_metrics: ErrorMetrics {
+                js_errors: 0,
+                react_errors: 0,
+                network_errors: 0,
+                budget_violations: 0,
+                error_samples: Vec::new(),
+            },
+            timestamp: 1000,
+        }];
+
         let component_analysis = monitor.analyze_components(&metrics);
         assert_eq!(component_analysis.len(), 1);
         assert_eq!(component_analysis[0].component_name, "SlowComponent");
@@ -778,43 +835,41 @@ mod tests {
     #[test]
     fn test_memory_analysis() {
         let monitor = FrontendPerformanceMonitor::new();
-        
-        let metrics = vec![
-            FrontendMetrics {
-                render_metrics: Vec::new(),
-                browser_memory: Some(BrowserMemoryInfo {
-                    used_js_heap_size: 80 * 1024 * 1024, // 80MB
-                    total_js_heap_size: 100 * 1024 * 1024,
-                    js_heap_size_limit: 200 * 1024 * 1024,
-                    usage_percent: 80.0, // High usage
-                    timestamp: 1000,
-                }),
-                navigation_timing: None,
-                store_metrics: Vec::new(),
-                search_ui_metrics: SearchUiMetrics {
-                    input_lag_ms: 0.0,
-                    results_render_ms: 0.0,
-                    virtual_scroll_metrics: VirtualScrollMetrics {
-                        items_per_frame: 0,
-                        scroll_fps: 0.0,
-                        visible_items_memory_kb: 0,
-                        item_render_time_ms: 0.0,
-                    },
-                    highlighting_ms: 0.0,
-                    autocomplete_ms: 0.0,
-                    filter_application_ms: 0.0,
-                },
-                error_metrics: ErrorMetrics {
-                    js_errors: 0,
-                    react_errors: 0,
-                    network_errors: 0,
-                    budget_violations: 0,
-                    error_samples: Vec::new(),
-                },
+
+        let metrics = vec![FrontendMetrics {
+            render_metrics: Vec::new(),
+            browser_memory: Some(BrowserMemoryInfo {
+                used_js_heap_size: 80 * 1024 * 1024, // 80MB
+                total_js_heap_size: 100 * 1024 * 1024,
+                js_heap_size_limit: 200 * 1024 * 1024,
+                usage_percent: 80.0, // High usage
                 timestamp: 1000,
-            }
-        ];
-        
+            }),
+            navigation_timing: None,
+            store_metrics: Vec::new(),
+            search_ui_metrics: SearchUiMetrics {
+                input_lag_ms: 0.0,
+                results_render_ms: 0.0,
+                virtual_scroll_metrics: VirtualScrollMetrics {
+                    items_per_frame: 0,
+                    scroll_fps: 0.0,
+                    visible_items_memory_kb: 0,
+                    item_render_time_ms: 0.0,
+                },
+                highlighting_ms: 0.0,
+                autocomplete_ms: 0.0,
+                filter_application_ms: 0.0,
+            },
+            error_metrics: ErrorMetrics {
+                js_errors: 0,
+                react_errors: 0,
+                network_errors: 0,
+                budget_violations: 0,
+                error_samples: Vec::new(),
+            },
+            timestamp: 1000,
+        }];
+
         let memory_analysis = monitor.analyze_memory(&metrics);
         assert_eq!(memory_analysis.status, "warning"); // Should flag high usage
     }

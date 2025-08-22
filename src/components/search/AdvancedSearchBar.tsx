@@ -4,8 +4,7 @@ import {
   Settings, 
   Calendar, 
   Star, 
-  ChevronDown, 
-  ChevronUp,
+ 
   Clock,
   X,
   Filter,
@@ -19,8 +18,7 @@ import type {
   SearchCriteria, 
   SearchFilters, 
   AdvancedSearchParams,
-  SearchPerformanceMetrics,
-  NoteFormat 
+  SearchPerformanceMetrics 
 } from '../../types'
 
 interface AdvancedSearchBarProps {
@@ -73,7 +71,7 @@ export const AdvancedSearchBar: React.FC<AdvancedSearchBarProps> = ({
     getRecentSearchSuggestions,
     addToSearchHistory,
     recentSearches,
-    validateBooleanQuery
+    validateBooleanQuery: _validateBooleanQuery
   } = useScratchPadStore()
 
   const [searchState, setSearchState] = useState<SearchState>({
@@ -160,7 +158,7 @@ export const AdvancedSearchBar: React.FC<AdvancedSearchBarProps> = ({
     
     try {
       const processedQuery = processQueryWithOperators(query)
-      const searchParams = buildSearchParams()
+      const _searchParams = buildSearchParams(); void _searchParams
       
       // Use Boolean search if Boolean operators are enabled, otherwise use basic search
       let results: Note[]
@@ -217,7 +215,13 @@ export const AdvancedSearchBar: React.FC<AdvancedSearchBarProps> = ({
         queryTime,
         resultCount: filteredResults.length,
         cacheHit: queryTime < 50, // Assume cache hit if very fast
-        suggestions: suggestions.slice(0, 3)
+        timestamp: Date.now(),
+        suggestions: suggestions.slice(0, 3).map((text, index) => ({
+          id: `suggestion-${index}`,
+          text,
+          type: 'completion' as const,
+          priority: index
+        }))
       }
 
       setSearchState(prev => ({

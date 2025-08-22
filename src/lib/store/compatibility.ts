@@ -254,7 +254,7 @@ export const auditLegacyUsage = () => {
       // Ignore stack trace errors
     }
     
-    return originalHook.apply(this, args)
+    return originalHook.apply(this, args as [])
   }
 
   // Report usage after a delay

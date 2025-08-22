@@ -15,7 +15,10 @@ const mockInvoke = vi.mocked(invoke)
 const mockNote: Note = {
   id: 1,
   content: 'Test note content',
+  search_content: 'Test note content',
+  word_count: 3,
   format: 'plaintext',
+  language: null,
   nickname: 'Test Note',
   path: '/test/path',
   is_favorite: false,

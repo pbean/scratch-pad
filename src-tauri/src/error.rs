@@ -1,69 +1,69 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("Database error: {0}")]
     Database(#[from] rusqlite::Error),
-    
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
-    
+
     #[error("Connection pool error: {0}")]
     Pool(#[from] r2d2::Error),
-    
+
     #[error("Migration error: {0}")]
     MigrationError(#[from] rusqlite_migration::Error),
-    
+
     #[error("General error: {0}")]
     General(String),
-    
+
     #[error("Global shortcut error: {message}")]
     GlobalShortcut { message: String },
-    
+
     #[error("Plugin error: {message}")]
     Plugin { message: String },
-    
+
     #[error("Search error: {message}")]
     Search { message: String },
-    
+
     #[error("Migration error: {message}")]
     Migration { message: String },
-    
+
     #[error("Validation error in field '{field}': {message}")]
     Validation { field: String, message: String },
-    
+
     #[error("Security error: {message}")]
     Security { message: String },
-    
+
     #[error("Rate limit exceeded: {message}")]
     RateLimit { message: String },
-    
+
     #[error("Runtime initialization error: {message}")]
     Runtime { message: String },
-    
+
     #[error("Thread operation failed: {message}")]
     Thread { message: String },
-    
+
     #[error("Parse error: {message}")]
     Parse { message: String },
-    
+
     #[error("Path operation failed: {message}")]
     Path { message: String },
-    
+
     #[error("Directory operation failed: {message}")]
     Directory { message: String },
-    
+
     #[error("Temporary file operation failed: {message}")]
     TempFile { message: String },
-    
+
     #[error("Shutdown error: {message}")]
     Shutdown { message: String },
-    
+
     #[error("Not found: record with id {id}")]
-    NotFound { id: i64 },  // Added NotFound variant for database operations
+    NotFound { id: i64 }, // Added NotFound variant for database operations
 }
 
 // Implement From<anyhow::Error> for AppError
@@ -80,73 +80,71 @@ impl AppError {
         match self {
             Self::Database(e) => Self::Database(rusqlite::Error::SqliteFailure(
                 rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_MISUSE),
-                Some(format!("Mock database error: {}", e))
+                Some(format!("Mock database error: {}", e)),
             )),
             Self::Io(e) => Self::Io(std::io::Error::new(
                 e.kind(),
-                format!("Mock IO error: {}", e)
+                format!("Mock IO error: {}", e),
             )),
-            Self::Serialization(_) => Self::Serialization(
-                serde_json::from_str::<()>("invalid").unwrap_err()
-            ),
+            Self::Serialization(_) => {
+                Self::Serialization(serde_json::from_str::<()>("invalid").unwrap_err())
+            }
             Self::Pool(e) => {
                 // Convert pool error to IO error for mock purposes
                 let io_error = std::io::Error::new(
                     std::io::ErrorKind::ConnectionRefused,
-                    format!("Mock pool error: {}", e)
+                    format!("Mock pool error: {}", e),
                 );
                 Self::Io(io_error)
-            },
+            }
             Self::MigrationError(_) => Self::Migration {
-                message: "Mock migration error".to_string()
+                message: "Mock migration error".to_string(),
             },
             Self::General(message) => Self::General(message.clone()),
-            Self::GlobalShortcut { message } => Self::GlobalShortcut { 
-                message: message.clone() 
+            Self::GlobalShortcut { message } => Self::GlobalShortcut {
+                message: message.clone(),
             },
-            Self::Plugin { message } => Self::Plugin { 
-                message: message.clone() 
+            Self::Plugin { message } => Self::Plugin {
+                message: message.clone(),
             },
-            Self::Search { message } => Self::Search { 
-                message: message.clone() 
+            Self::Search { message } => Self::Search {
+                message: message.clone(),
             },
-            Self::Migration { message } => Self::Migration { 
-                message: message.clone() 
+            Self::Migration { message } => Self::Migration {
+                message: message.clone(),
             },
-            Self::Validation { field, message } => Self::Validation { 
-                field: field.clone(), 
-                message: message.clone() 
+            Self::Validation { field, message } => Self::Validation {
+                field: field.clone(),
+                message: message.clone(),
             },
-            Self::Security { message } => Self::Security { 
-                message: message.clone() 
+            Self::Security { message } => Self::Security {
+                message: message.clone(),
             },
-            Self::RateLimit { message } => Self::RateLimit { 
-                message: message.clone() 
+            Self::RateLimit { message } => Self::RateLimit {
+                message: message.clone(),
             },
-            Self::Runtime { message } => Self::Runtime { 
-                message: message.clone() 
+            Self::Runtime { message } => Self::Runtime {
+                message: message.clone(),
             },
-            Self::Thread { message } => Self::Thread { 
-                message: message.clone() 
+            Self::Thread { message } => Self::Thread {
+                message: message.clone(),
             },
-            Self::Parse { message } => Self::Parse { 
-                message: message.clone() 
+            Self::Parse { message } => Self::Parse {
+                message: message.clone(),
             },
-            Self::Path { message } => Self::Path { 
-                message: message.clone() 
+            Self::Path { message } => Self::Path {
+                message: message.clone(),
             },
-            Self::Directory { message } => Self::Directory { 
-                message: message.clone() 
+            Self::Directory { message } => Self::Directory {
+                message: message.clone(),
             },
-            Self::TempFile { message } => Self::TempFile { 
-                message: message.clone() 
+            Self::TempFile { message } => Self::TempFile {
+                message: message.clone(),
             },
-            Self::Shutdown { message } => Self::Shutdown { 
-                message: message.clone() 
+            Self::Shutdown { message } => Self::Shutdown {
+                message: message.clone(),
             },
-            Self::NotFound { id } => Self::NotFound { 
-                id: *id 
-            },
+            Self::NotFound { id } => Self::NotFound { id: *id },
         }
     }
 }
@@ -154,7 +152,10 @@ impl AppError {
 // Enable seamless conversion from API layer to internal layer
 impl From<ApiError> for AppError {
     fn from(api_error: ApiError) -> Self {
-        AppError::General(format!("API Error {}: {}", api_error.code, api_error.message))
+        AppError::General(format!(
+            "API Error {}: {}",
+            api_error.code, api_error.message
+        ))
     }
 }
 
@@ -264,7 +265,7 @@ mod tests {
     fn test_app_error_display() {
         let db_error = AppError::Database(rusqlite::Error::SqliteFailure(
             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
-            Some("database is locked".to_string())
+            Some("database is locked".to_string()),
         ));
         assert!(db_error.to_string().contains("database is locked"));
 
@@ -274,73 +275,115 @@ mod tests {
         let global_shortcut_error = AppError::GlobalShortcut {
             message: "shortcut conflict".to_string(),
         };
-        assert_eq!(global_shortcut_error.to_string(), "Global shortcut error: shortcut conflict");
+        assert_eq!(
+            global_shortcut_error.to_string(),
+            "Global shortcut error: shortcut conflict"
+        );
 
         let plugin_error = AppError::Plugin {
             message: "plugin failed to load".to_string(),
         };
-        assert_eq!(plugin_error.to_string(), "Plugin error: plugin failed to load");
+        assert_eq!(
+            plugin_error.to_string(),
+            "Plugin error: plugin failed to load"
+        );
 
         let search_error = AppError::Search {
             message: "search index corrupted".to_string(),
         };
-        assert_eq!(search_error.to_string(), "Search error: search index corrupted");
+        assert_eq!(
+            search_error.to_string(),
+            "Search error: search index corrupted"
+        );
 
         let migration_error = AppError::Migration {
             message: "migration failed".to_string(),
         };
-        assert_eq!(migration_error.to_string(), "Migration error: migration failed");
-        
+        assert_eq!(
+            migration_error.to_string(),
+            "Migration error: migration failed"
+        );
+
         let validation_error = AppError::Validation {
             field: "email".to_string(),
             message: "invalid format".to_string(),
         };
-        assert_eq!(validation_error.to_string(), "Validation error in field 'email': invalid format");
-        
+        assert_eq!(
+            validation_error.to_string(),
+            "Validation error in field 'email': invalid format"
+        );
+
         let security_error = AppError::Security {
             message: "unauthorized access".to_string(),
         };
-        assert_eq!(security_error.to_string(), "Security error: unauthorized access");
-        
+        assert_eq!(
+            security_error.to_string(),
+            "Security error: unauthorized access"
+        );
+
         let rate_limit_error = AppError::RateLimit {
             message: "too many requests".to_string(),
         };
-        assert_eq!(rate_limit_error.to_string(), "Rate limit exceeded: too many requests");
+        assert_eq!(
+            rate_limit_error.to_string(),
+            "Rate limit exceeded: too many requests"
+        );
 
         let runtime_error = AppError::Runtime {
             message: "failed to initialize tokio runtime".to_string(),
         };
-        assert_eq!(runtime_error.to_string(), "Runtime initialization error: failed to initialize tokio runtime");
-        
+        assert_eq!(
+            runtime_error.to_string(),
+            "Runtime initialization error: failed to initialize tokio runtime"
+        );
+
         let thread_error = AppError::Thread {
             message: "thread join failed".to_string(),
         };
-        assert_eq!(thread_error.to_string(), "Thread operation failed: thread join failed");
-        
+        assert_eq!(
+            thread_error.to_string(),
+            "Thread operation failed: thread join failed"
+        );
+
         let parse_error = AppError::Parse {
             message: "invalid configuration format".to_string(),
         };
-        assert_eq!(parse_error.to_string(), "Parse error: invalid configuration format");
-        
+        assert_eq!(
+            parse_error.to_string(),
+            "Parse error: invalid configuration format"
+        );
+
         let path_error = AppError::Path {
             message: "invalid path format".to_string(),
         };
-        assert_eq!(path_error.to_string(), "Path operation failed: invalid path format");
-        
+        assert_eq!(
+            path_error.to_string(),
+            "Path operation failed: invalid path format"
+        );
+
         let directory_error = AppError::Directory {
             message: "failed to create directory".to_string(),
         };
-        assert_eq!(directory_error.to_string(), "Directory operation failed: failed to create directory");
-        
+        assert_eq!(
+            directory_error.to_string(),
+            "Directory operation failed: failed to create directory"
+        );
+
         let temp_file_error = AppError::TempFile {
             message: "failed to create temporary directory".to_string(),
         };
-        assert_eq!(temp_file_error.to_string(), "Temporary file operation failed: failed to create temporary directory");
-        
+        assert_eq!(
+            temp_file_error.to_string(),
+            "Temporary file operation failed: failed to create temporary directory"
+        );
+
         let shutdown_error = AppError::Shutdown {
             message: "graceful shutdown failed".to_string(),
         };
-        assert_eq!(shutdown_error.to_string(), "Shutdown error: graceful shutdown failed");
+        assert_eq!(
+            shutdown_error.to_string(),
+            "Shutdown error: graceful shutdown failed"
+        );
 
         let not_found_error = AppError::NotFound { id: 42 };
         assert_eq!(not_found_error.to_string(), "Not found: record with id 42");
@@ -353,11 +396,14 @@ mod tests {
             message: "shortcut conflict".to_string(),
         };
         let cloned_error = original_error.mock_clone();
-        
+
         match (original_error, cloned_error) {
-            (AppError::GlobalShortcut { message: orig }, AppError::GlobalShortcut { message: cloned }) => {
+            (
+                AppError::GlobalShortcut { message: orig },
+                AppError::GlobalShortcut { message: cloned },
+            ) => {
                 assert_eq!(orig, cloned);
-            },
+            }
             _ => panic!("mock_clone should preserve error variant"),
         }
 
@@ -367,7 +413,7 @@ mod tests {
         match (not_found, cloned_not_found) {
             (AppError::NotFound { id: orig }, AppError::NotFound { id: cloned }) => {
                 assert_eq!(orig, cloned);
-            },
+            }
             _ => panic!("mock_clone should preserve NotFound variant"),
         }
     }
@@ -377,7 +423,7 @@ mod tests {
         // Test Database error conversion
         let db_error = AppError::Database(rusqlite::Error::SqliteFailure(
             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
-            Some("database is locked".to_string())
+            Some("database is locked".to_string()),
         ));
         let api_error: ApiError = db_error.into();
         assert_eq!(api_error.code, "DATABASE_ERROR");
@@ -390,7 +436,8 @@ mod tests {
         assert!(api_error.message.contains("file not found"));
 
         // Test Serialization error conversion
-        let json_error = serde_json::from_str::<serde_json::Value>("invalid json").expect_err("Should be an error");
+        let json_error = serde_json::from_str::<serde_json::Value>("invalid json")
+            .expect_err("Should be an error");
         let serialization_error = AppError::Serialization(json_error);
         let api_error: ApiError = serialization_error.into();
         assert_eq!(api_error.code, "SERIALIZATION_ERROR");
@@ -426,7 +473,7 @@ mod tests {
         let api_error: ApiError = migration_error.into();
         assert_eq!(api_error.code, "MIGRATION_ERROR");
         assert_eq!(api_error.message, "migration failed");
-        
+
         // Test Validation error conversion
         let validation_error = AppError::Validation {
             field: "password".to_string(),
@@ -436,7 +483,7 @@ mod tests {
         assert_eq!(api_error.code, "VALIDATION_ERROR");
         assert!(api_error.message.contains("password"));
         assert!(api_error.message.contains("too short"));
-        
+
         // Test Security error conversion
         let security_error = AppError::Security {
             message: "access denied".to_string(),
@@ -444,7 +491,7 @@ mod tests {
         let api_error: ApiError = security_error.into();
         assert_eq!(api_error.code, "SECURITY_ERROR");
         assert_eq!(api_error.message, "access denied");
-        
+
         // Test RateLimit error conversion
         let rate_limit_error = AppError::RateLimit {
             message: "quota exceeded".to_string(),
@@ -559,7 +606,7 @@ mod tests {
     fn test_not_found_error() {
         let error = AppError::NotFound { id: 42 };
         assert_eq!(error.to_string(), "Not found: record with id 42");
-        
+
         let api_error: ApiError = error.into();
         assert_eq!(api_error.code, "NOT_FOUND_ERROR");
         assert_eq!(api_error.message, "Record with id 42 not found");

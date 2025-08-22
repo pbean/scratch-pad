@@ -4,6 +4,7 @@ import { CommandPalette } from "./command-palette/CommandPalette"
 import { SearchHistoryView } from "./search-history/SearchHistoryView"
 import { FullPageLoading, Skeleton } from "./ui/loading"
 import { useToast } from "./ui/toast"
+import type { CategorizedError } from "../types/middleware"
 import { useScratchPadStore } from "../lib/store"
 import { useMemoryCleanup, useDataCleanup } from "../hooks/useMemoryCleanup"
 import { useRenderPerformance, useMemoryMonitor, useStartupPerformance } from "../hooks/usePerformanceMonitor"
@@ -70,14 +71,33 @@ export function ScratchPadApp() {
         await initializeSettings()
 
         // Load notes with a small delay to improve perceived startup performance
-        setTimeout(async () => {
-          await loadNotes()
-          setIsInitializing(false)
-
-          // Add a brief delay for smooth window appearance
-          setTimeout(() => {
-            setIsAppReady(true)
-          }, 100)
+        setTimeout(() => {
+          const loadNotesPromise = loadNotes()
+          if (loadNotesPromise && typeof loadNotesPromise.then === 'function') {
+            loadNotesPromise
+              .then(() => {
+                setIsInitializing(false)
+                // Add a brief delay for smooth window appearance
+                setTimeout(() => {
+                  setIsAppReady(true)
+                }, 100)
+              })
+              .catch((error) => {
+                console.error("Failed to load notes:", error)
+                toast.error("Failed to load notes", "Your notes may not be available")
+                setIsInitializing(false)
+                // Still set app as ready even if notes fail to load
+                setTimeout(() => {
+                  setIsAppReady(true)
+                }, 100)
+              })
+          } else {
+            // If loadNotes doesn't return a promise, just continue
+            setIsInitializing(false)
+            setTimeout(() => {
+              setIsAppReady(true)
+            }, 100)
+          }
         }, 150)
       } catch (error) {
         console.error("Failed to initialize app:", error)
@@ -86,6 +106,7 @@ export function ScratchPadApp() {
       }
     }
     initializeApp()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadNotes, initializeSettings])
 
   // Global Esc key handler for window dismissal
@@ -147,7 +168,7 @@ export function ScratchPadApp() {
       <AsyncErrorHandler 
         enableToast={true}
         enableReporting={true}
-        onError={(error) => {
+        onError={(error: CategorizedError) => {
           // Handle critical async errors that might affect connection state
           if (error.category === "tauri") {
             setTauriConnectionState({ isConnected: false })

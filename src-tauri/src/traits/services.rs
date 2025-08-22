@@ -1,12 +1,11 @@
+use crate::commands::search::QueryComplexity;
 /// Service Traits for Business Logic Operations
-/// 
+///
 /// These traits define the contract for service layer operations, enabling
 /// better testing through dependency injection and cleaner separation of concerns.
 /// All methods maintain exact compatibility with existing service operations.
-
 use crate::error::AppError;
 use crate::models::Note;
-use crate::commands::search::QueryComplexity;
 use async_trait::async_trait;
 use std::collections::HashMap;
 
@@ -17,14 +16,19 @@ pub trait SearchService: Send + Sync {
     async fn search_notes(&self, query: &str) -> Result<Vec<Note>, AppError>;
 
     /// Search notes with pagination
-    async fn search_notes_paginated(&self, query: &str, page: usize, page_size: usize) -> Result<(Vec<Note>, usize), AppError>;
+    async fn search_notes_paginated(
+        &self,
+        query: &str,
+        page: usize,
+        page_size: usize,
+    ) -> Result<(Vec<Note>, usize), AppError>;
 
     /// Advanced Boolean search with pagination and query complexity analytics
     async fn search_notes_boolean_paginated(
-        &self, 
-        query: &str, 
-        page: usize, 
-        page_size: usize
+        &self,
+        query: &str,
+        page: usize,
+        page_size: usize,
     ) -> Result<(Vec<Note>, usize, QueryComplexity), AppError>;
 
     /// Validate query syntax and complexity for security and performance limits
@@ -60,7 +64,7 @@ pub trait SettingsService: Send + Sync {
 
     /// Reset all settings to defaults
     async fn reset_settings(&self) -> Result<(), AppError>;
-    
+
     /// Backup current settings
     async fn backup_settings(&self, path: &str) -> Result<(), AppError>;
 
@@ -72,15 +76,15 @@ pub trait SettingsService: Send + Sync {
 
     /// Validate setting key and value format
     fn validate_setting(&self, key: &str, value: &str) -> Result<(), AppError>;
-    
+
     /// Get setting with type conversion support  
     async fn get_setting_as<T>(&self, key: &str) -> Result<Option<T>, AppError>
-    where 
+    where
         T: serde::de::DeserializeOwned + Send;
-    
+
     /// Set setting with type conversion support
     async fn set_setting_from<T>(&self, key: &str, value: &T) -> Result<(), AppError>
-    where 
+    where
         T: serde::Serialize + Send + Sync;
 }
 
