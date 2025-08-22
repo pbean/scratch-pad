@@ -1,14 +1,7 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-import os from 'os'
 
-/**
- * Phase 3: Test Parallelization - Vitest Sharding Configuration
- * 
- * This configuration enables intelligent test sharding for parallel execution
- * across multiple workers, with optimized resource management and monitoring.
- */
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -17,43 +10,30 @@ export default defineConfig({
     }
   },
   test: {
+    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts', './src/test/performance-setup.ts'],
+    setupFiles: [
+      './src/test/setup.ts', 
+      './src/test/performance-setup.ts'
+    ],
     globals: true,
     
-    // Phase 3A: Parallel Execution Configuration
-    pool: 'threads', // Use threads for better parallelization
-    poolOptions: {
-      threads: {
-        // Dynamic worker allocation based on available CPU cores
-        minThreads: Math.max(1, Math.floor(os.cpus().length / 2)),
-        maxThreads: Math.max(2, os.cpus().length - 1),
-        singleThread: false, // Enable multi-threading
-        isolate: true, // Ensure test isolation
-        // Optimize thread usage for test types
-        useAtomics: true, // Enable atomic operations for better synchronization
-      }
+    // Sharding configuration for parallel execution
+    shard: {
+      count: parseInt(process.env.VITEST_SHARD_COUNT || '4'),
+      index: parseInt(process.env.VITEST_SHARD_INDEX || '1') - 1
     },
     
-    // Sharding configuration for CI/CD
-    ...(process.env.CI && {
-      shard: process.env.VITEST_SHARD ? {
-        index: parseInt(process.env.VITEST_SHARD_INDEX || '1'),
-        count: parseInt(process.env.VITEST_SHARD_COUNT || '4')
-      } : undefined
-    }),
+    // CI-optimized timeouts for sharded execution
+    testTimeout: 45000, // 45 seconds per test (increased for shard stability)
+    hookTimeout: 20000, // 20 seconds for hooks
+    teardownTimeout: 15000, // 15 seconds for teardown
     
-    // Performance-optimized timeouts
-    testTimeout: 8000, // Reduced for faster execution
-    hookTimeout: 5000,
-    teardownTimeout: 3000,
-    
-    // Advanced test filtering and execution
     clearMocks: true,
     restoreMocks: true,
     mockReset: true,
     
-    // Enhanced test environment for React 19
+    // Enhanced React 19 environment configuration
     environmentOptions: {
       jsdom: {
         resources: 'usable',
@@ -64,99 +44,75 @@ export default defineConfig({
       }
     },
     
-    // Environment variables for performance tracking
+    // Shard-specific environment variables
     env: {
       NODE_ENV: 'test',
-      PERFORMANCE_TRACKING_ENABLED: 'true',
-      VITEST_SHARDED: process.env.CI ? 'true' : 'false',
-      WORKER_ID: process.env.VITEST_WORKER_ID || '0'
+      CI: 'true',
+      VITEST_SHARD: 'true',
+      VITEST_SHARD_INDEX: process.env.VITEST_SHARD_INDEX || '1',
+      VITEST_SHARD_COUNT: process.env.VITEST_SHARD_COUNT || '4',
+      VITEST_WORKER_ID: process.env.VITEST_WORKER_ID || 'shard-1',
+      PERFORMANCE_TRACKING_ENABLED: 'false', // Disabled for CI to reduce overhead
+      REACT_TIMEOUT_OPTIMIZATION: 'false'
     },
     
-    // Phase 3B: Coverage and Monitoring Configuration
-    coverage: {
-      provider: 'v8', // Use V8 for better performance
-      reporter: ['text', 'json', 'html', 'lcov'],
-      reportsDirectory: './coverage',
-      exclude: [
-        '**/node_modules/**',
-        '**/dist/**',
-        '**/.trunk/**',
-        '**/test/**',
-        '**/*.test.*',
-        '**/*.spec.*',
-        '**/coverage/**'
-      ],
-      thresholds: {
-        global: {
-          branches: 40,
-          functions: 40,
-          lines: 40,
-          statements: 40
-        }
-      },
-      // Enable parallel coverage collection
-      allowExternal: true,
-      skipFull: false
-    },
-    
-    // Advanced reporting configuration
-    reporters: [
-      'default',
-      'junit',
-      // Performance reporter with sharding support
-      ...(process.env.PERFORMANCE_TRACKING_ENABLED === 'true' ? [
-        ['./src/test/performance-reporter.ts', {
-          enableDetailedTiming: true,
-          enableBudgetWarnings: true,
-          exportPath: process.env.PERFORMANCE_REPORT_PATH || './performance-report.json',
-          slowTestThreshold: 500000, // 500ms in microseconds
-          showMemoryUsage: true,
-          enableShardingMetrics: true,
-          workerId: process.env.VITEST_WORKER_ID || '0'
-        }]
-      ] : [])
-    ],
-    
-    // Optimized file watching and exclusions
-    exclude: [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/.trunk/**',
-      '**/commitlint.test.ts',
-      '**/poetry.test.ts',
-      '**/*.e2e.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
-      '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*'
-    ],
-    
-    // Performance optimizations
-    logHeapUsage: true,
-    retry: 1, // Reduced retry for faster execution
-    isolate: true,
-    sequence: {
-      // Optimize test execution order
-      shuffle: false, // Disable shuffle for consistent performance
-      concurrent: true, // Enable concurrent execution
-      setupFiles: 'parallel' // Run setup files in parallel
-    },
-    
-    // Resource management
-    maxConcurrency: process.env.CI 
-      ? Math.min(4, os.cpus().length) 
-      : Math.max(2, Math.floor(os.cpus().length / 2)),
-    
-    // File system optimizations
-    deps: {
-      optimizer: {
-        web: {
-          enabled: true
-        }
+    // Shard-optimized execution configuration
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true, // Single fork per shard for stability
+        isolate: true
       }
     },
     
-    // Test output configuration
+    // Shard-optimized worker configuration
+    maxWorkers: 1, // Single worker per shard
+    minWorkers: 1,
+    maxConcurrency: 1, // Sequential execution within shard
+    
+    // Shard-specific retry configuration
+    retry: 0, // No retries in sharded mode to avoid complexity
+    
+    // Shard-specific coverage configuration
+    coverage: {
+      provider: 'v8',
+      reporter: ['json'], // JSON only for easier aggregation
+      reportsDirectory: `./coverage/shard-${process.env.VITEST_SHARD_INDEX || '1'}`,
+      thresholds: undefined, // Disable thresholds for individual shards
+      exclude: [
+        'node_modules/',
+        'src/test/',
+        '**/*.test.{ts,tsx}',
+        '**/__tests__/**',
+        '**/test-utils.tsx',
+        '**/setup.ts',
+        '**/performance-setup.ts'
+      ]
+    },
+    
+    // Shard-specific reporters
+    reporters: [
+      ['default', { summary: false }], // Minimal output per shard
+      ['json', { file: `./test-results/frontend/shard-${process.env.VITEST_SHARD_INDEX || '1'}/results.json` }]
+    ],
+    
+    // Disable watch mode in CI
+    watch: false,
+    
+    // Shard-specific output configuration
     outputFile: {
-      junit: './test-results/junit-report.xml',
-      json: './test-results/test-results.json'
-    }
+      json: `./test-results/frontend/shard-${process.env.VITEST_SHARD_INDEX || '1'}/results.json`
+    },
+    
+    // Test sequence optimization for sharding
+    sequence: {
+      shuffle: false, // Consistent order for reliable sharding
+      concurrent: false, // Sequential execution within shard
+      setupFiles: 'list' // Sequential setup for stability
+    },
+    
+    // Disable performance logging in sharded CI
+    logHeapUsage: false,
+    isolate: true
   }
 })

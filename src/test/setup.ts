@@ -2,7 +2,6 @@ import '@testing-library/jest-dom'
 import { vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { 
-  setupReact19Timeouts, 
   cleanupReact19Timeouts,
   DEFAULT_REACT19_CONFIG 
 } from './async-timeout-utils'
@@ -25,8 +24,7 @@ configure({
   }
 })
 
-// Setup React 19-optimized timeouts
-setupReact19Timeouts()
+// Removed setupReact19Timeouts() to prevent circular timeout dependencies
 
 // FE-007: Update cleanup strategy for React 19 concurrent mode
 afterEach(() => {
@@ -450,6 +448,5 @@ beforeEach(() => {
     return originalCreateElement(tagName)
   })
 
-  // Reset React 19-specific timeout configurations
-  setupReact19Timeouts()
+  // Removed setupReact19Timeouts() to prevent circular timeout dependencies
 })

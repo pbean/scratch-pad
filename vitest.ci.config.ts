@@ -18,10 +18,10 @@ export default defineConfig({
     ],
     globals: true,
     
-    // CI-optimized timeouts
-    testTimeout: 30000, // 30 seconds for CI (reduced from 60s)
-    hookTimeout: 15000, // 15 seconds for CI (reduced from 30s)
-    teardownTimeout: 10000, // 10 seconds for CI (reduced from 15s)
+    // CI-optimized timeouts (reduced for faster failures)
+    testTimeout: 10000, // 10 seconds for CI (faster failure detection)
+    hookTimeout: 5000, // 5 seconds for CI
+    teardownTimeout: 5000, // 5 seconds for CI
     
     clearMocks: true,
     restoreMocks: true,
@@ -57,9 +57,9 @@ export default defineConfig({
     },
     
     // Limited concurrent test execution in CI
-    maxConcurrency: 2, // Increase from 1 to 2 for better performance
+    maxConcurrency: 1, // Single worker for stability
     minWorkers: 1,
-    maxWorkers: 2, // Increase from 1 to 2
+    maxWorkers: 1, // Single worker to avoid race conditions
     
     // CI-specific retry configuration
     retry: 1, // Reduce from 2 to 1 for faster execution
