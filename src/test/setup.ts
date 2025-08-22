@@ -24,8 +24,6 @@ configure({
   }
 })
 
-// Removed setupReact19Timeouts() to prevent circular timeout dependencies
-
 // FE-007: Update cleanup strategy for React 19 concurrent mode
 afterEach(() => {
   // React 19 handles cleanup more efficiently with concurrent features
@@ -43,9 +41,6 @@ afterEach(() => {
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn()
 }))
-
-// FE-005: Remove useLayoutEffect mock (React 19 handles this properly)
-// FE-003: Remove manual act() environment configuration (React 19 handles automatically)
 
 // PERFORMANCE FIX: Enhanced performance start time tracking with validation
 let performanceStartTime = Date.now()
@@ -95,19 +90,17 @@ beforeAll(() => {
   })
   global.cancelAnimationFrame = vi.fn().mockImplementation((id) => clearTimeout(id))
   
-  // FE-FIX-001: Enhanced requestIdleCallback polyfill with microtask scheduling
+  // FE-FIX-002: Simplified requestIdleCallback for CI stability
   global.requestIdleCallback = vi.fn().mockImplementation((cb: IdleRequestCallback, options?: IdleRequestOptions) => {
-    const timeout = options?.timeout || 50
+    const timeout = options?.timeout || 100
+    // Use simple setTimeout instead of complex microtask scheduling for CI reliability
     return setTimeout(() => {
-      // Use microtask for more reliable scheduling in React 19
-      Promise.resolve().then(() => {
-        const deadline = {
-          didTimeout: false,
-          timeRemaining: () => Math.max(0, timeout - 16)
-        }
-        cb(deadline)
-      })
-    }, 16) as any
+      const deadline = {
+        didTimeout: false,
+        timeRemaining: () => Math.max(0, 16) // Always return consistent timing
+      }
+      cb(deadline)
+    }, 0) as any
   })
   
   global.cancelIdleCallback = vi.fn().mockImplementation((id) => clearTimeout(id as any))
@@ -158,33 +151,8 @@ beforeAll(() => {
     Element.prototype.scrollIntoView = vi.fn()
   }
   
-  // FE-FIX-002: Enhanced focus and blur methods with improved microtask queue
+  // FE-FIX-002: Simplified focus and blur methods for CI stability
   let currentFocusedElement: Element | null = null
-  let focusChangeQueue: (() => void)[] = []
-  let focusProcessingScheduled = false
-  
-  // Process focus change queue asynchronously to simulate browser behavior
-  const processFocusQueue = () => {
-    if (focusChangeQueue.length > 0) {
-      const tasks = focusChangeQueue.splice(0)
-      tasks.forEach(task => {
-        try {
-          task()
-        } catch (error) {
-          console.warn('Focus queue task failed:', error)
-        }
-      })
-    }
-    focusProcessingScheduled = false
-  }
-  
-  // Schedule focus queue processing with microtasks for React 19 compatibility
-  const scheduleFocusProcessing = () => {
-    if (!focusProcessingScheduled) {
-      focusProcessingScheduled = true
-      Promise.resolve().then(processFocusQueue)
-    }
-  }
   
   // Extend Element prototype with focus/blur methods (for test environment)
   // Only set up if not already mocked
@@ -192,37 +160,24 @@ beforeAll(() => {
     (Element.prototype as any).focus = vi.fn().mockImplementation(function(this: Element) {
       const element = this
       
-      // Queue focus change for microtask processing
-      focusChangeQueue.push(() => {
-        currentFocusedElement = element
-        
-        // Set up focus state immediately for synchronous access
-        Object.defineProperty(element, 'matches', {
-          value: vi.fn((selector: string) => selector === ':focus'),
-          configurable: true
-        })
-        
-        // Dispatch focus events with proper timing for CI
-        const focusEvent = new Event('focus', { bubbles: true })
-        element.dispatchEvent(focusEvent)
-        
-        // For CI environments, also trigger focusin event with delay
-        if (process.env.CI === 'true') {
-          setTimeout(() => {
-            const focusinEvent = new Event('focusin', { bubbles: true })
-            element.dispatchEvent(focusinEvent)
-          }, 0)
-        }
-      })
-      
-      // Also set immediate state for synchronous tests
+      // Set focus state immediately for synchronous tests
       currentFocusedElement = element
       Object.defineProperty(element, 'matches', {
         value: vi.fn((selector: string) => selector === ':focus'),
         configurable: true
       })
       
-      scheduleFocusProcessing()
+      // Dispatch focus events synchronously for CI reliability
+      const focusEvent = new Event('focus', { bubbles: true })
+      element.dispatchEvent(focusEvent)
+      
+      // For CI environments, also trigger focusin event with minimal delay
+      if (process.env.CI === 'true') {
+        setTimeout(() => {
+          const focusinEvent = new Event('focusin', { bubbles: true })
+          element.dispatchEvent(focusinEvent)
+        }, 0)
+      }
     });
   }
   
@@ -230,31 +185,18 @@ beforeAll(() => {
     (Element.prototype as any).blur = vi.fn().mockImplementation(function(this: Element) {
       const element = this
       
-      focusChangeQueue.push(() => {
-        if (currentFocusedElement === element) {
-          currentFocusedElement = null
-        }
-        
-        // Remove focus selector matching
-        Object.defineProperty(element, 'matches', {
-          value: vi.fn((selector: string) => selector !== ':focus'),
-          configurable: true
-        })
-        
-        const blurEvent = new Event('blur', { bubbles: true })
-        element.dispatchEvent(blurEvent)
-      })
-      
-      // Also set immediate state
+      // Set blur state immediately
       if (currentFocusedElement === element) {
         currentFocusedElement = null
       }
+      
       Object.defineProperty(element, 'matches', {
         value: vi.fn((selector: string) => selector !== ':focus'),
         configurable: true
       })
       
-      scheduleFocusProcessing()
+      const blurEvent = new Event('blur', { bubbles: true })
+      element.dispatchEvent(blurEvent)
     })
   }
   
@@ -617,7 +559,7 @@ beforeEach(() => {
   // Clear all mocks between tests
   vi.clearAllMocks()
   
-  // CRITICAL: Complete DOM reset to prevent multiple elements
+  // FE-FIX-004: Simplified DOM reset to prevent element conflicts
   if (document?.body) {
     // Remove all child elements completely
     while (document.body.firstChild) {
@@ -673,12 +615,12 @@ beforeEach(() => {
     global.performance.clearMeasures = vi.fn()
   }
   
-  // FE-FIX-004: Enhanced document.createElement mock with better focus handling
+  // FE-FIX-004: Simplified element creation with basic focus support
   const originalCreateElement = document.createElement.bind(document)
   document.createElement = vi.fn((tagName: string) => {
     const element = originalCreateElement(tagName)
     
-    // Add enhanced focus support for input elements with React 19 compatibility
+    // Add basic focus support for input elements
     if (tagName === 'input' || tagName === 'textarea') {
       // Use Object.defineProperty to safely override focus method
       Object.defineProperty(element, 'focus', {
@@ -691,19 +633,17 @@ beforeEach(() => {
             configurable: true
           })
           
-          // Use microtask for more realistic browser behavior in React 19
-          Promise.resolve().then(() => {
-            const focusEvent = new Event('focus', { bubbles: true })
-            inputElement.dispatchEvent(focusEvent)
-            
-            // For CI environments, add additional events with proper timing
-            if (process.env.CI === 'true') {
-              setTimeout(() => {
-                const focusinEvent = new Event('focusin', { bubbles: true })
-                inputElement.dispatchEvent(focusinEvent)
-              }, 0)
-            }
-          })
+          // Dispatch focus events synchronously for CI reliability
+          const focusEvent = new Event('focus', { bubbles: true })
+          inputElement.dispatchEvent(focusEvent)
+          
+          // For CI environments, add focusin event with minimal delay
+          if (process.env.CI === 'true') {
+            setTimeout(() => {
+              const focusinEvent = new Event('focusin', { bubbles: true })
+              inputElement.dispatchEvent(focusinEvent)
+            }, 0)
+          }
         }),
         configurable: true,
         writable: true
@@ -719,17 +659,15 @@ beforeEach(() => {
             configurable: true
           })
           
-          Promise.resolve().then(() => {
-            const blurEvent = new Event('blur', { bubbles: true })
-            inputElement.dispatchEvent(blurEvent)
-          })
+          const blurEvent = new Event('blur', { bubbles: true })
+          inputElement.dispatchEvent(blurEvent)
         }),
         configurable: true,
         writable: true
       })
     }
     
-    // Add click mock for all elements that support it
+    // Add click mock for interactive elements
     if (tagName === 'a' || tagName === 'button' || tagName === 'input') {
       Object.defineProperty(element, 'click', {
         value: vi.fn(),
@@ -754,6 +692,4 @@ beforeEach(() => {
     
     return element
   })
-
-  // Skip setupReact19Timeouts() to prevent circular timeout dependencies
 })

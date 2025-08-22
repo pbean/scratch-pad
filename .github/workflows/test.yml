@@ -36,6 +36,17 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         uses: ./.github/actions/install-linux-deps
 
+      # PLATFORM OPTIMIZATION: Linux-specific setup for headless testing
+      - name: Configure Linux Display Server
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
+      # PLATFORM OPTIMIZATION: macOS-specific resource configuration
       - name: Configure macOS resources
         if: matrix.os == 'macos-latest'
         shell: bash
@@ -46,14 +57,47 @@ jobs:
           sysctl hw.ncpu hw.memsize
           # Set conservative test environment for macOS
           echo "RUST_TEST_THREADS=1" >> $GITHUB_ENV
+          echo "NODE_OPTIONS=--max-old-space-size=6144" >> $GITHUB_ENV
+          echo "FORCE_COLOR=0" >> $GITHUB_ENV
 
-      - name: Run frontend tests only
+      # PLATFORM OPTIMIZATION: Windows-specific environment setup  
+      - name: Configure Windows Environment
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Set Node.js memory allocation for Windows
+          $env:NODE_OPTIONS = "--max-old-space-size=4096"
+          $env:CI = "true"
+          # Add to GitHub environment
+          echo "NODE_OPTIONS=--max-old-space-size=4096" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "CI=true" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      # PLATFORM-CONDITIONAL: Run frontend tests with OS-specific optimizations
+      - name: Run frontend tests (Linux)
+        if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
-          # Use CI-specific config for frontend tests
-          echo "Running frontend tests with CI configuration"
+          echo "Running frontend tests with Linux optimizations"
           export NODE_OPTIONS="--max-old-space-size=4096"
-          pnpm test --run --config vitest.ci.config.ts
+          export DISPLAY=:99
+          pnpm test --run --config vitest.ci.config.ts --reporter=verbose
+
+      - name: Run frontend tests (macOS)
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          echo "Running frontend tests with macOS optimizations"
+          export NODE_OPTIONS="--max-old-space-size=6144"
+          export FORCE_COLOR=0
+          pnpm test --run --config vitest.ci.config.ts --reporter=verbose --no-coverage
+
+      - name: Run frontend tests (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          Write-Host "Running frontend tests with Windows optimizations"
+          $env:NODE_OPTIONS = "--max-old-space-size=4096"
+          pnpm test --run --config vitest.ci.config.ts --reporter=verbose
         
       - name: Run TypeScript type check
         shell: bash
@@ -77,15 +121,23 @@ jobs:
             pnpm build:strict
           fi
 
-      - name: Run backend tests
+      # PLATFORM-CONDITIONAL: Run backend tests with OS-specific settings
+      - name: Run backend tests (Linux/Windows)
+        if: matrix.os != 'macos-latest'
         working-directory: src-tauri
         shell: bash
         run: |
           echo "Running backend tests for ${{ matrix.os }}"
-          if [ "${{ matrix.os }}" = "macos-latest" ]; then
-            # Use single thread for macOS to avoid resource issues
-            export RUST_TEST_THREADS=1
-          fi
+          cargo test --lib --release
+
+      - name: Run backend tests (macOS)
+        if: matrix.os == 'macos-latest'
+        working-directory: src-tauri
+        shell: bash
+        run: |
+          echo "Running backend tests for macOS with single thread"
+          # Use single thread for macOS to avoid resource issues
+          export RUST_TEST_THREADS=1
           cargo test --lib --release
 
       - name: Build backend
@@ -114,11 +166,21 @@ jobs:
       - name: Install Linux dependencies
         uses: ./.github/actions/install-linux-deps
 
+      # Setup display server for coverage tests too
+      - name: Configure Linux Display Server
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
       - name: Run frontend tests with coverage
         shell: bash
         run: |
           echo "Running frontend tests with coverage"
           export NODE_OPTIONS="--max-old-space-size=4096"
+          export DISPLAY=:99
           pnpm test --run --coverage --config vitest.ci.config.ts
 
       - name: Run backend tests with coverage

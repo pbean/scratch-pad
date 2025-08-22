@@ -27,10 +27,18 @@ describe('React 19 Async Timeout Utilities', () => {
   beforeEach(() => {
     // Reset DOM
     document.body.innerHTML = ''
+    // CRITICAL FIX: Setup fake timers for all tests that use timeout functionality
+    vi.useFakeTimers({ shouldAdvanceTime: true })
   })
 
   afterEach(() => {
-    vi.useRealTimers() // Ensure real timers are restored
+    // CRITICAL FIX: Proper timer cleanup sequence
+    // First, run any pending timers to completion
+    if (vi.isFakeTimers()) {
+      vi.runAllTimers()
+    }
+    // Then restore real timers
+    vi.useRealTimers()
     vi.clearAllMocks()
   })
 
@@ -50,7 +58,11 @@ describe('React 19 Async Timeout Utilities', () => {
         return 'async success'
       }
 
-      const result = await waitForReact19(asyncOperation, { timeout: 1000 })
+      const resultPromise = waitForReact19(asyncOperation, { timeout: 1000 })
+      
+      // Advance timers to complete the async operation
+      await vi.advanceTimersByTimeAsync(100)
+      const result = await resultPromise
       
       expect(result.success).toBe(true)
       expect(result.result).toBe('async success')
@@ -66,10 +78,14 @@ describe('React 19 Async Timeout Utilities', () => {
         return 'success after retries'
       }
 
-      const result = await waitForReact19(flakyOperation, {
+      const resultPromise = waitForReact19(flakyOperation, {
         maxRetries: 3,
         initialRetryDelay: 10
       })
+
+      // Advance timers to allow retries to complete
+      await vi.advanceTimersByTimeAsync(100)
+      const result = await resultPromise
 
       expect(result.success).toBe(true)
       expect(result.result).toBe('success after retries')
@@ -81,10 +97,14 @@ describe('React 19 Async Timeout Utilities', () => {
         throw new Error('Persistent failure')
       }
 
-      const result = await waitForReact19(alwaysFailingOperation, {
+      const resultPromise = waitForReact19(alwaysFailingOperation, {
         maxRetries: 2,
         initialRetryDelay: 10
       })
+
+      // Advance timers to allow all retries to exhaust
+      await vi.advanceTimersByTimeAsync(100)
+      const result = await resultPromise
 
       expect(result.success).toBe(false)
       expect(result.error).toBeInstanceOf(Error)
@@ -110,8 +130,6 @@ describe('React 19 Async Timeout Utilities', () => {
     })
 
     it('should handle concurrent mode optimizations', async () => {
-      vi.useFakeTimers()
-      
       const concurrentOperation = () => {
         // Simulate React 19 concurrent rendering
         return new Promise(resolve => {
@@ -124,13 +142,12 @@ describe('React 19 Async Timeout Utilities', () => {
         timeout: 1000
       })
       
-      await vi.advanceTimersByTimeAsync(20) // Advance past one animation frame
+      // Advance past one animation frame (16ms)
+      await vi.advanceTimersByTimeAsync(20)
       const result = await resultPromise
 
       expect(result.success).toBe(true)
       expect(result.result).toBe('concurrent success')
-      
-      vi.useRealTimers()
     })
   })
 
@@ -145,10 +162,14 @@ describe('React 19 Async Timeout Utilities', () => {
         return { data: 'query result' }
       }
 
-      const result = await waitForDatabase(lockedOperation, {
+      const resultPromise = waitForDatabase(lockedOperation, {
         queryTimeout: 1000,
         maxRetries: 3
       })
+
+      // Advance timers to allow retries
+      await vi.advanceTimersByTimeAsync(150)
+      const result = await resultPromise
 
       expect(result.success).toBe(true)
       expect(result.result).toEqual({ data: 'query result' })
@@ -177,7 +198,8 @@ describe('React 19 Async Timeout Utilities', () => {
         queryTimeout: 500 // Short timeout
       })
 
-      vi.advanceTimersByTime(600)
+      // Advance past the timeout
+      await vi.advanceTimersByTimeAsync(600)
       const result = await resultPromise
 
       expect(result.success).toBe(false)
@@ -198,7 +220,9 @@ describe('React 19 Async Timeout Utilities', () => {
       }, 100)
 
       const resultPromise = waitForComponent(elementSelector)
-      vi.advanceTimersByTime(150)
+      
+      // Advance past the scheduled time
+      await vi.advanceTimersByTimeAsync(150)
       const result = await resultPromise
 
       expect(result.success).toBe(true)
@@ -209,7 +233,11 @@ describe('React 19 Async Timeout Utilities', () => {
     it('should timeout if component never appears', async () => {
       const missingSelector = () => document.querySelector('[data-testid="missing-component"]')
 
-      const result = await waitForComponent(missingSelector, { timeout: 500 })
+      const resultPromise = waitForComponent(missingSelector, { timeout: 500 })
+      
+      // Advance past the timeout
+      await vi.advanceTimersByTimeAsync(600)
+      const result = await resultPromise
 
       expect(result.success).toBe(false)
       expect(result.error?.message).toContain('Component not found')
@@ -231,7 +259,9 @@ describe('React 19 Async Timeout Utilities', () => {
       }, 50)
 
       const resultPromise = waitForFocus(elementSelector)
-      vi.advanceTimersByTime(100)
+      
+      // Advance past the focus time
+      await vi.advanceTimersByTimeAsync(100)
       const result = await resultPromise
 
       expect(result.success).toBe(true)
@@ -250,7 +280,9 @@ describe('React 19 Async Timeout Utilities', () => {
       }, 100)
 
       const resultPromise = waitForStateUpdate(stateAccessor, 'updated')
-      vi.advanceTimersByTime(150)
+      
+      // Advance past the state update time
+      await vi.advanceTimersByTimeAsync(150)
       const result = await resultPromise
 
       expect(result.success).toBe(true)
@@ -260,11 +292,15 @@ describe('React 19 Async Timeout Utilities', () => {
     it('should fail if state never reaches expected value', async () => {
       const stateAccessor = () => 'unchanging'
 
-      const result = await waitForStateUpdate(
+      const resultPromise = waitForStateUpdate(
         stateAccessor, 
         'expected', 
         { timeout: 300 }
       )
+      
+      // Advance past the timeout
+      await vi.advanceTimersByTimeAsync(400)
+      const result = await resultPromise
 
       expect(result.success).toBe(false)
       expect(result.error?.message).toContain('State not updated')
@@ -314,7 +350,9 @@ describe('React 19 Async Timeout Utilities', () => {
       }, 200)
 
       const resultPromise = waitForAnimation(elementSelector)
-      vi.advanceTimersByTime(250)
+      
+      // Advance past animation completion
+      await vi.advanceTimersByTimeAsync(250)
       const result = await resultPromise
 
       expect(result.success).toBe(true)
@@ -329,9 +367,11 @@ describe('React 19 Async Timeout Utilities', () => {
       )
 
       const resultPromise = createTimeoutPromise(fastPromise, 200, 'Should not timeout')
-      vi.advanceTimersByTime(150)
       
+      // Advance past promise resolution but before timeout
+      await vi.advanceTimersByTimeAsync(150)
       const result = await resultPromise
+      
       expect(result).toBe('fast result')
     })
 
@@ -341,7 +381,9 @@ describe('React 19 Async Timeout Utilities', () => {
       )
 
       const resultPromise = createTimeoutPromise(slowPromise, 200, 'Custom timeout message')
-      vi.advanceTimersByTime(250)
+      
+      // Advance past timeout but before promise resolution
+      await vi.advanceTimersByTimeAsync(250)
 
       await expect(resultPromise).rejects.toThrow('Custom timeout message')
     })
@@ -359,7 +401,8 @@ describe('React 19 Async Timeout Utilities', () => {
         enableConcurrentMode: true
       })
       
-      vi.advanceTimersByTime(200)
+      // Advance timers to complete all batch processing
+      await vi.advanceTimersByTimeAsync(200)
       const result = await resultPromise
 
       expect(result.success).toBe(true)
@@ -375,7 +418,11 @@ describe('React 19 Async Timeout Utilities', () => {
         return item * 2
       }
 
-      const result = await batchWithTimeout(items, processor)
+      const resultPromise = batchWithTimeout(items, processor)
+      
+      // Advance timers to complete batch processing
+      await vi.advanceTimersByTimeAsync(100)
+      const result = await resultPromise
 
       expect(result.success).toBe(false)
       expect(result.result).toEqual([2, 4, 8, 10]) // Missing item 3
@@ -446,9 +493,13 @@ describe('React 19 Async Timeout Utilities', () => {
         })
       }
 
-      const result = await waitForReact19(operation, {
+      const resultPromise = waitForReact19(operation, {
         enableConcurrentMode: true
       })
+      
+      // Advance past animation frame
+      await vi.advanceTimersByTimeAsync(20)
+      const result = await resultPromise
 
       expect(result.success).toBe(true)
       expect(result.result).toBe('concurrent result')
@@ -470,7 +521,9 @@ describe('React 19 Async Timeout Utilities', () => {
       }
 
       const resultPromise = waitForReact19(batchedOperation)
-      vi.advanceTimersByTime(100)
+      
+      // Advance timers to complete batched operations
+      await vi.advanceTimersByTimeAsync(100)
       const result = await resultPromise
 
       expect(result.success).toBe(true)
