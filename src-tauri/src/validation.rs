@@ -612,6 +612,164 @@ impl SecurityValidator {
         
         (cleaned, cleaned_count)
     }
+
+    /// Check if a path contains path traversal patterns
+    pub fn contains_path_traversal(path: &str) -> bool {
+        // Check for common path traversal patterns
+        let patterns = [
+            "..",
+            "../",
+            "..\\",
+            "%2e%2e",
+            "%2e%2e/",
+            "%2e%2e\\",
+            "..%2f",
+            "..%5c",
+            "%252e%252e",
+            "..;",
+            "..%00",
+            "..%0d",
+            "..%0a",
+        ];
+        
+        let path_lower = path.to_lowercase();
+        for pattern in &patterns {
+            if path_lower.contains(pattern) {
+                return true;
+            }
+        }
+        
+        // Check for encoded variations by manually decoding common patterns
+        if path.contains("%") {
+            // Simple URL decode for common patterns
+            let decoded = path
+                .replace("%2e", ".")
+                .replace("%2E", ".")
+                .replace("%2f", "/")
+                .replace("%2F", "/")
+                .replace("%5c", "\\")
+                .replace("%5C", "\\")
+                .replace("%00", "\0");
+                
+            if decoded != path {
+                return Self::contains_path_traversal(&decoded);
+            }
+        }
+        
+        false
+    }
+    
+    /// Sanitize content for safe database storage
+    pub fn sanitize_for_database(content: &str) -> String {
+        let mut sanitized = content.to_string();
+        
+        // Remove null bytes
+        sanitized = sanitized.replace('\0', "");
+        
+        // Escape single quotes for SQL (basic protection)
+        sanitized = sanitized.replace("'", "''");
+        
+        // Remove control characters except newlines and tabs
+        sanitized = sanitized.chars()
+            .filter(|c| !c.is_control() || *c == '\n' || *c == '\t' || *c == '\r')
+            .collect();
+        
+        sanitized
+    }
+    
+    /// Validate file extension for allowed types
+    pub fn validate_file_extension(path: &str) -> Result<(), String> {
+        let allowed_extensions = [
+            "txt", "md", "json", "yaml", "yml", "toml", "csv", "log"
+        ];
+        
+        let path_lower = path.to_lowercase();
+        let extension = path_lower.rsplit('.').next().unwrap_or("");
+        
+        if extension.is_empty() {
+            return Err("No file extension found".to_string());
+        }
+        
+        if !allowed_extensions.contains(&extension) {
+            return Err(format!("File extension '{}' not allowed", extension));
+        }
+        
+        Ok(())
+    }
+    
+    /// Validate IPC request structure and content
+    pub fn validate_ipc_request(request: &str) -> Result<(), String> {
+        // Check request size
+        if request.len() > 1024 * 1024 {  // 1MB limit
+            return Err("IPC request too large".to_string());
+        }
+        
+        // Check for null bytes
+        if request.contains('\0') {
+            return Err("IPC request contains null bytes".to_string());
+        }
+        
+        // Basic structure validation (could be expanded based on actual IPC format)
+        if request.trim().is_empty() {
+            return Err("IPC request is empty".to_string());
+        }
+        
+        Ok(())
+    }
+    
+    /// Validate IPC file operation requests
+    pub fn validate_ipc_file_operation(operation: &str, path: &str) -> Result<(), String> {
+        // Validate operation type
+        let valid_operations = ["read", "write", "create", "delete", "list"];
+        if !valid_operations.contains(&operation) {
+            return Err(format!("Invalid file operation: {}", operation));
+        }
+        
+        // Check for path traversal
+        if Self::contains_path_traversal(path) {
+            return Err("Path traversal detected in file operation".to_string());
+        }
+        
+        // Validate path format - use None for base_path as we don't have context here
+        Self::validate_export_path(path, None).map_err(|e| e.to_string())?;
+        
+        Ok(())
+    }
+    
+    /// Validate content for malicious patterns
+    pub fn validate_no_malicious_content(content: &str) -> Result<(), String> {
+        // Check for script tags
+        if content.to_lowercase().contains("<script") {
+            return Err("Content contains script tags".to_string());
+        }
+        
+        // Check for javascript: URLs
+        if content.to_lowercase().contains("javascript:") {
+            return Err("Content contains javascript: URLs".to_string());
+        }
+        
+        // Check for event handlers
+        let event_handlers = ["onerror=", "onload=", "onclick=", "onmouseover=", "onfocus="];
+        for handler in &event_handlers {
+            if content.to_lowercase().contains(handler) {
+                return Err(format!("Content contains event handler: {}", handler));
+            }
+        }
+        
+        // Check for iframe tags
+        if content.to_lowercase().contains("<iframe") {
+            return Err("Content contains iframe tags".to_string());
+        }
+        
+        Ok(())
+    }
+    
+    /// Clean up all temporary files (placeholder for actual implementation)
+    pub fn cleanup_all_temp_files() -> Result<(), String> {
+        // This would typically clean up temp files created during operations
+        // For now, it's a placeholder that always succeeds
+        Ok(())
+    }
 }
 
 #[cfg(test)]

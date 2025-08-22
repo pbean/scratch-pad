@@ -29,6 +29,7 @@ export default defineConfig({
     mockReset: true, // Added for better test isolation
     
     // Phase 3: Enhanced React 19 environment configuration
+    // Phase 5: Apply minimal config improvements for better stability
     environmentOptions: {
       jsdom: {
         resources: 'usable',
