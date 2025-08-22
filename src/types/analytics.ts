@@ -173,6 +173,13 @@ export interface PerformanceReport {
   cacheAnalytics: CacheAnalytics
   /** System performance snapshot */
   systemPerformance: SystemPerformance
+  /** Database performance metrics */
+  database_performance?: {
+    avg_query_time: number
+    slow_query_count: number
+    connection_count: number
+    cache_hit_rate: number
+  }
   /** Active performance alerts */
   alerts: PerformanceAlert[]
   /** Optimization recommendations */

@@ -161,7 +161,6 @@ export function parseSettingValue<K extends SettingKey>(
     
     default: {
       // Exhaustive check - TypeScript will error if we miss a setting
-      // const _exhaustiveCheck: never = key // Removed unused variable
       return undefined
     }
   }
@@ -219,7 +218,6 @@ export function validateSettingValue<K extends SettingKey>(
       return (value as any)
       
       default:
-        // const _exhaustiveCheck: never = key // Removed unused variable
         return undefined
     }
   } catch {

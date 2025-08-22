@@ -10,6 +10,7 @@
 import { useEffect, useRef, useCallback, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { getMemoryUsage, getNavigationTiming } from "./usePerformanceMonitor"
+import type { PerformanceReport } from "../types/analytics"
 
 // ============================================================================
 // ADVANCED PERFORMANCE MONITORING TYPES
@@ -521,7 +522,7 @@ export function useRealTimePerformanceMonitoring(options?: {
  * Performance analytics dashboard hook
  */
 export function usePerformanceAnalytics() {
-  const fetchReport = useCallback(async (periodHours?: number) => {
+  const fetchReport = useCallback(async (periodHours?: number): Promise<PerformanceReport> => {
     try {
       return await invoke('get_performance_analytics', { periodHours })
     } catch (error) {
