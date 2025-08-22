@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useEffect } from 'react'
-import { shallow } from 'zustand/shallow'
 import {
   useScratchPadStore,
   useNotesSlice,
@@ -9,6 +8,7 @@ import {
   useSystemSlice
 } from './index'
 import type { Note, View, Settings } from '../../types'
+import { getDefaultSettingValue } from './slices/settingsSlice'
 
 // Store type imports for proper typing
 type ScratchPadStore = ReturnType<typeof useScratchPadStore.getState>
@@ -37,8 +37,7 @@ export const useActiveNote = () => {
       setActiveNote: state.setActiveNote,
       saveNoteDebounced: state.saveNoteDebounced,
       updateNoteOptimistic: state.updateNoteOptimistic
-    }),
-    shallow
+    })
   )
 }
 
@@ -57,8 +56,7 @@ export const useNotesList = () => {
       loadNotes: state.loadNotes,
       loadMoreNotes: state.loadMoreNotes,
       activeNoteId: state.activeNoteId
-    }),
-    shallow
+    })
   )
 }
 
@@ -97,8 +95,7 @@ export const useCurrentView = () => {
     (state) => ({
       currentView: state.currentView,
       setCurrentView: state.setCurrentView
-    }),
-    shallow
+    })
   )
 }
 
@@ -116,8 +113,7 @@ export const useLoadingState = () => {
       isSearching: state.isSearching,
       loadingOperations: state.loadingOperations,
       connectionStatus: state.connectionStatus
-    }),
-    shallow
+    })
   )
 }
 
@@ -135,8 +131,7 @@ export const useErrorState = () => {
       setError: state.setError,
       clearError: state.clearError,
       clearSystemErrors: state.clearSystemErrors
-    }),
-    shallow
+    })
   )
 }
 
@@ -201,8 +196,7 @@ export const useCommandPalette = () => {
       hideWindow: state.hideWindow,
       toggleWindow: state.toggleWindow,
       centerWindow: state.centerWindow
-    }),
-    shallow
+    })
   )
 }
 
@@ -217,8 +211,7 @@ export const useFolders = () => {
       toggleFolder: state.toggleFolder,
       sidebarWidth: state.sidebarWidth,
       setSidebarWidth: state.setSidebarWidth
-    }),
-    shallow
+    })
   )
 }
 
@@ -238,8 +231,7 @@ export const useGlobalShortcuts = () => {
       testShortcut: state.testGlobalShortcut,
       getSuggestions: state.getSuggestedGlobalShortcuts,
       checkRegistration: state.checkGlobalShortcutRegistration
-    }),
-    shallow
+    })
   )
 }
 
@@ -262,8 +254,7 @@ export const useWindow = () => {
       setAlwaysOnTop: state.setAlwaysOnTop,
       checkVisibility: state.checkWindowVisibility,
       checkFocus: state.checkWindowFocus
-    }),
-    shallow
+    })
   )
 }
 
@@ -281,8 +272,7 @@ export const usePlugins = () => {
       getPluginCount: state.getPluginCount,
       getAvailableFormats: state.getAvailableNoteFormats,
       reloadPlugins: state.reloadPlugins
-    }),
-    shallow
+    })
   )
 }
 
@@ -380,7 +370,7 @@ export function createSettingSelector<K extends keyof Settings>(
     return {
       value,
       hasValue: value !== undefined,
-      isDefault: value === state.getDefaultSettings()[key]
+      isDefault: value === getDefaultSettingValue(key)
     }
   }
 }
@@ -390,18 +380,16 @@ export function createSettingSelector<K extends keyof Settings>(
  * Provides focused access to performance data
  */
 export function createPerformanceSelector(): ScratchPadStoreSelector<{
-  averageQueryTime: number
-  cacheHitRate: number
-  totalQueries: number
+  averageRenderTime: number
+  renderCount: number
   isHealthy: boolean
   lastUpdate: number
 }> {
   return (state: ScratchPadStore) => {
     const metrics = state.getAveragePerformance()
     return {
-      averageQueryTime: metrics.avgQueryTime || 0,
-      cacheHitRate: metrics.cacheHitRate || 0,
-      totalQueries: metrics.totalQueries || 0,
+      averageRenderTime: metrics.avgRenderTime || 0,
+      renderCount: metrics.renderCount || 0,
       isHealthy: state.isSystemHealthy(),
       lastUpdate: Date.now()
     }

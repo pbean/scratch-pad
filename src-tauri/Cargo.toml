@@ -21,11 +21,11 @@ performance-tracking = []
 
 [build-dependencies]
 # Fix: Use specific compatible version to prevent 'referenced_by' field issues
-tauri-build = { version = "2.4", features = [] }
+tauri-build = { version = "2.4.0", features = [] }
 
 [dependencies]
-# Fix: Use specific compatible version
-tauri = { version = "2.7", features = ["test"] }
+# Fix: Use specific compatible version - match CI environment
+tauri = { version = "2.8.2", features = ["test"] }
 tauri-plugin-opener = "2"
 tauri-plugin-global-shortcut = "2"
 serde = { version = "1", features = ["derive"] }
