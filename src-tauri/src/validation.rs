@@ -229,6 +229,10 @@ impl SecurityValidator {
         let dangerous_patterns = [
             "<script", "javascript:", "vbscript:", 
             "eval(", "exec(", "system(",
+            "onerror=", "onload=", "onclick=", "onmouseover=",
+            "<img ", "<iframe", "<object", "<embed",
+            "<?php", "<%", "`rm ", "$(", 
+            "<!-- ", "-->",
         ];
 
         let content_lower = content.to_lowercase();
@@ -300,32 +304,56 @@ impl SecurityValidator {
         // Check for SQL injection patterns in FTS queries
         let dangerous_sql_patterns = [
             "drop", "delete", "insert", "update", "create", "alter",
-            "exec", "execute", "union", "select", "exists"
+            "exec", "execute", "union", "select", "exists", "from", "table"
         ];
         
         // Check for SQL keywords with common injection patterns
         for pattern in &dangerous_sql_patterns {
-            // Check various SQL injection combinations using simple string operations
-            if query_lower.contains(&format!("' {}", pattern)) ||
-               query_lower.contains(&format!("'{}", pattern)) ||
-               query_lower.contains(&format!("; {}", pattern)) ||
-               query_lower.contains(&format!("-- {}", pattern)) ||
-               query_lower.contains(&format!(") {}", pattern)) ||
-               query_lower.contains(&format!(" {} ", pattern)) ||
-               query_lower.contains(&format!(" {}(", pattern)) {
+            // Check if the pattern appears as a word (not as part of another word)
+            // This prevents false positives like "selected" or "inserted"
+            let word_patterns = [
+                format!(" {} ", pattern),   // word surrounded by spaces
+                format!("'{}", pattern),     // after quote
+                format!("' {}", pattern),    // after quote with space
+                format!(";{}", pattern),     // after semicolon
+                format!("; {}", pattern),    // after semicolon with space
+                format!("--{}", pattern),    // after comment
+                format!("-- {}", pattern),   // after comment with space
+                format!("/*{}", pattern),    // in comment
+                format!("({})", pattern),    // in parentheses
+                format!(" {}(", pattern),    // function call
+                format!("^{} ", pattern),    // at start of string
+                format!("^{}", pattern),     // at very start
+            ];
+            
+            // Also check if it's at the beginning or end of the string
+            if query_lower.starts_with(&format!("{} ", pattern)) ||
+               query_lower.starts_with(pattern) && (query_lower.len() == pattern.len() || 
+                   query_lower.chars().nth(pattern.len()).map_or(false, |c| !c.is_alphabetic())) ||
+               query_lower.ends_with(&format!(" {}", pattern)) ||
+               query_lower == *pattern {
                 return Err(AppError::Validation {
                     field: "search_query".to_string(),
                     message: "Search query contains potentially dangerous content".to_string(),
                 });
             }
+            
+            for wp in &word_patterns {
+                if query_lower.contains(wp) {
+                    return Err(AppError::Validation {
+                        field: "search_query".to_string(),
+                        message: "Search query contains potentially dangerous content".to_string(),
+                    });
+                }
+            }
         }
         
         // Check for specific SQL injection patterns
         let injection_patterns = [
-            "'--", "';", "';--", "/*", "*/", "xp_", "sp_", "union ", "drop ", "delete ",
-            "insert ", "update ", "alter ", "create ", "exec ", "1=1", "'='", 
+            "'--", "';", "';--", "/*", "*/", "xp_", "sp_", "1=1", "'='", 
             "' or '1'='1", "admin'--", " or exists", " or 1=", "' or 1=", "' or exists",
-            "${jndi:", "ldap://", "rmi://", "dns://", "iiop://", "file://", "http://"
+            "${jndi:", "ldap://", "rmi://", "dns://", "iiop://", "file://", "http://",
+            "sqlite_master", "sqlite_sequence", "pragma", "attach database"
         ];
         
         for pattern in &injection_patterns {
@@ -362,7 +390,7 @@ impl SecurityValidator {
         // Check for path traversal attempts
         if path.contains("..") {
             return Err(AppError::Validation {
-                field: "export_path".to_string(),
+                field: "file_path".to_string(),
                 message: "Path traversal attempts are not allowed".to_string(),
             });
         }
@@ -370,7 +398,7 @@ impl SecurityValidator {
         // Check for absolute paths (Windows and Unix)
         if path.starts_with('/') || path.contains(':') {
             return Err(AppError::Validation {
-                field: "export_path".to_string(),
+                field: "file_path".to_string(),
                 message: "Absolute paths are not allowed".to_string(),
             });
         }
@@ -380,13 +408,13 @@ impl SecurityValidator {
         let filename = Path::new(path).file_name()
             .and_then(OsStr::to_str)
             .ok_or_else(|| AppError::Validation {
-                field: "export_path".to_string(),
+                field: "file_path".to_string(),
                 message: "Invalid filename format".to_string(),
             })?;
 
         if !safe_filename_regex.is_match(filename) {
             return Err(AppError::Validation {
-                field: "export_path".to_string(),
+                field: "file_path".to_string(),
                 message: "Filename contains invalid characters".to_string(),
             });
         }
@@ -409,7 +437,7 @@ impl SecurityValidator {
             let parent_dir = full_path.parent().unwrap_or(&full_path);
             if !parent_dir.starts_with(&canonical_base) {
                 return Err(AppError::Validation {
-                    field: "export_path".to_string(),
+                    field: "file_path".to_string(),
                     message: "Path escapes base directory".to_string(),
                 });
             }
@@ -538,8 +566,8 @@ impl SecurityValidator {
             });
         }
         
-        // Key should be alphanumeric with dots and underscores
-        let key_regex = Regex::new(r"^[a-zA-Z0-9_.]+$").unwrap();
+        // Key should be alphanumeric with dots, underscores, and hyphens
+        let key_regex = Regex::new(r"^[a-zA-Z0-9_.-]+$").unwrap();
         if !key_regex.is_match(key) {
             return Err(AppError::Validation {
                 field: "setting_key".to_string(),
@@ -556,7 +584,10 @@ impl SecurityValidator {
         }
         
         // Check for dangerous patterns in value
-        let dangerous_patterns = ["<script", "javascript:", "eval("];
+        let dangerous_patterns = [
+            "<script", "javascript:", "eval(", "exec(",
+            "`", "$(", ";", "|", "&",
+        ];
         let value_lower = value.to_lowercase();
         for pattern in &dangerous_patterns {
             if value_lower.contains(pattern) {

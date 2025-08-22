@@ -275,8 +275,12 @@ impl DbService {
         // Delete from FTS table first
         conn.execute("DELETE FROM notes_fts WHERE rowid = ?1", params![id])?;
         
-        // Delete from main table - no error if note doesn't exist (integration test expectation)
-        conn.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
+        // Delete from main table and check if any rows were affected
+        let rows_affected = conn.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
+        
+        if rows_affected == 0 {
+            return Err(AppError::NotFound { id });
+        }
         
         Ok(())
     }
