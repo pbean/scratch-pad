@@ -18,10 +18,10 @@ export default defineConfig({
     ],
     globals: true,
     
-    // CI-specific: Much longer timeouts for slower CI environment
-    testTimeout: 60000, // 60 seconds for CI (vs 8s locally)
-    hookTimeout: 30000, // 30 seconds for CI (vs 5s locally)
-    teardownTimeout: 15000, // 15 seconds for CI (vs 3s locally)
+    // CI-optimized timeouts
+    testTimeout: 30000, // 30 seconds for CI (reduced from 60s)
+    hookTimeout: 15000, // 15 seconds for CI (reduced from 30s)
+    teardownTimeout: 10000, // 10 seconds for CI (reduced from 15s)
     
     clearMocks: true,
     restoreMocks: true,
@@ -42,27 +42,27 @@ export default defineConfig({
     env: {
       NODE_ENV: 'test',
       CI: 'true',
-      PERFORMANCE_TRACKING_ENABLED: 'false', // Disable for CI to reduce overhead
+      PERFORMANCE_TRACKING_ENABLED: 'false', // Disabled for CI to reduce overhead
       REACT_TIMEOUT_OPTIMIZATION: 'false', // Disable optimization in CI
       VITEST_PARALLEL: 'false' // Disable parallel execution in CI for stability
     },
     
-    // CI-specific: Single-threaded execution for stability
+    // CI-optimized execution (enable limited parallelism for better performance)
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: true, // Single fork for CI stability
+        singleFork: false, // Allow 2 forks for better performance
         isolate: true
       }
     },
     
-    // Disable concurrent test execution in CI
-    maxConcurrency: 1,
+    // Limited concurrent test execution in CI
+    maxConcurrency: 2, // Increase from 1 to 2 for better performance
     minWorkers: 1,
-    maxWorkers: 1,
+    maxWorkers: 2, // Increase from 1 to 2
     
     // CI-specific retry configuration
-    retry: 2, // Retry failed tests twice in CI
+    retry: 1, // Reduce from 2 to 1 for faster execution
     
     // Coverage configuration for CI
     coverage: {
@@ -88,10 +88,10 @@ export default defineConfig({
       ]
     },
     
-    // CI-specific reporter configuration
+    // CI-specific reporter configuration (remove deprecated basic reporter)
     reporters: process.env.GITHUB_ACTIONS 
-      ? ['default', 'github-actions']
-      : ['default'],
+      ? [['default', { summary: false }], 'github-actions']
+      : [['default', { summary: false }]],
     
     // Disable watch mode in CI
     watch: false,
@@ -99,6 +99,17 @@ export default defineConfig({
     // CI-specific output configuration
     outputFile: {
       junit: './test-results/junit.xml'
-    }
+    },
+    
+    // Optimize test sequence for CI
+    sequence: {
+      shuffle: false, // Consistent execution order
+      concurrent: true, // Enable concurrent execution with limited workers
+      setupFiles: 'parallel'
+    },
+    
+    // Disable performance logging in CI to reduce noise
+    logHeapUsage: false, // Disable to reduce CI log output
+    isolate: true
   }
 })

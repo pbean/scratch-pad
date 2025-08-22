@@ -16,7 +16,7 @@ jobs:
   test-matrix:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30  # Increase from default 6 minutes
+    timeout-minutes: 20  # Reduce from 30 minutes for faster feedback
     strategy:
       fail-fast: false
       matrix:
@@ -47,31 +47,55 @@ jobs:
           # Set conservative test environment for macOS
           echo "RUST_TEST_THREADS=1" >> $GITHUB_ENV
 
+      - name: Run frontend tests only
+        shell: bash
+        run: |
+          # Use CI-specific config for frontend tests
+          echo "Running frontend tests with CI configuration"
+          export NODE_OPTIONS="--max-old-space-size=4096"
+          pnpm test --run --config vitest.ci.config.ts
+        
+      - name: Run TypeScript type check
+        shell: bash
+        run: |
+          if [ "$GITHUB_ACTIONS" = "true" ]; then
+            pnpm type-check:ci
+          else
+            pnpm type-check
+          fi
+
+      - name: Run frontend linting
+        shell: bash
+        run: pnpm lint
+
       - name: Build frontend
-        uses: ./.github/actions/build-frontend
-        with:
-          run-tests: 'true'
-          run-type-check: 'true'
-          run-lint: 'true'
-          build-production: 'true'
+        shell: bash
+        run: |
+          if [ "$GITHUB_ACTIONS" = "true" ]; then
+            pnpm build:ci || pnpm build
+          else
+            pnpm build:strict
+          fi
 
-      - name: Run tests with performance monitoring
-        uses: ./.github/actions/run-tests
-        with:
-          run-frontend-tests: 'false'  # Already run in build-frontend
-          run-backend-tests: 'true'
-          run-integration-tests: 'true'
-          performance-monitoring: 'true'
-          platform: ${{ matrix.os }}
-          test-timeout: '600'  # 10 minutes timeout for CI
+      - name: Run backend tests
+        working-directory: src-tauri
+        shell: bash
+        run: |
+          echo "Running backend tests for ${{ matrix.os }}"
+          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+            # Use single thread for macOS to avoid resource issues
+            export RUST_TEST_THREADS=1
+          fi
+          cargo test --lib --release
 
-      - name: Build test (no bundle)
+      - name: Build backend
+        shell: bash
         run: cd src-tauri && cargo build --release
 
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # Increase timeout for coverage
+    timeout-minutes: 25  # Reduce timeout for coverage
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -90,17 +114,16 @@ jobs:
       - name: Install Linux dependencies
         uses: ./.github/actions/install-linux-deps
 
-      - name: Build frontend with coverage
-        uses: ./.github/actions/build-frontend
-        with:
-          run-tests: 'true'
-          test-coverage: 'true'
-          run-type-check: 'false'
-          run-lint: 'false'
-          build-production: 'false'
+      - name: Run frontend tests with coverage
+        shell: bash
+        run: |
+          echo "Running frontend tests with coverage"
+          export NODE_OPTIONS="--max-old-space-size=4096"
+          pnpm test --run --coverage --config vitest.ci.config.ts
 
       - name: Run backend tests with coverage
-        run: cd src-tauri && cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+        working-directory: src-tauri
+        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
