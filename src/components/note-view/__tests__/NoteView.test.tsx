@@ -4,6 +4,7 @@ import { render, screen, act, fireEvent } from '../../../test/test-utils'
 import { NoteView } from '../NoteView'
 import { useScratchPadStore } from '../../../lib/store'
 import type { Note } from '../../../types'
+import { setupTestIsolation, teardownTestIsolation } from '../../../test/test-isolation'
 
 // Mock Tauri API
 vi.mock('@tauri-apps/api/core', () => ({
@@ -60,7 +61,10 @@ const mockNote: Note = {
 describe('NoteView', () => {
   // const _user = userEvent.setup()
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Use test isolation utility for complete reset
+    await setupTestIsolation()
+    
     vi.useFakeTimers()
     
     // Reset store state
@@ -84,7 +88,7 @@ describe('NoteView', () => {
 
   afterEach(() => {
     vi.useRealTimers()
-    vi.clearAllMocks()
+    teardownTestIsolation()
   })
 
   it('should render textarea with note content', async () => {

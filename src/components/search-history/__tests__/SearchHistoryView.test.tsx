@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { SearchHistoryView } from '../SearchHistoryView'
 import { useScratchPadStore } from '../../../lib/store'
 import type { Note } from '../../../types'
+import { setupTestIsolation, teardownTestIsolation } from '../../../test/test-isolation'
 
 // Mock VirtualList component - improved mock with proper key generation
 vi.mock('../../ui/virtual-list', () => ({
@@ -85,11 +86,14 @@ describe('SearchHistoryView', () => {
   // CRITICAL FIX: Setup userEvent with delay null to avoid act() issues
   const user = userEvent.setup({ delay: null })
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Use test isolation utility for complete reset
+    await setupTestIsolation()
+    
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2024-01-04T12:00:00Z'))
     
-    // Reset store state with all required properties
+    // Set up test-specific state
     await act(async () => {
       useScratchPadStore.setState({
         notes: [mockNote1, mockNote2, mockNote3],
@@ -107,7 +111,7 @@ describe('SearchHistoryView', () => {
 
   afterEach(() => {
     vi.useRealTimers()
-    vi.clearAllMocks()
+    teardownTestIsolation()
   })
 
   it('should render header with back button', async () => {

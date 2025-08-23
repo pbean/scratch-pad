@@ -3,6 +3,7 @@ import { render, screen, waitFor, act } from '../../../test/test-utils'
 import userEvent from '@testing-library/user-event'
 import { SettingsView } from '../SettingsView'
 import { useScratchPadStore } from '../../../lib/store'
+import { setupTestIsolation, teardownTestIsolation } from '../../../test/test-isolation'
 
 const mockSettings = {
   global_shortcut: 'Ctrl+Shift+N',
@@ -20,8 +21,11 @@ const mockSettings = {
 describe('SettingsView', () => {
   const user = userEvent.setup()
 
-  beforeEach(() => {
-    // Reset store state
+  beforeEach(async () => {
+    // Use test isolation utility for complete reset
+    await setupTestIsolation()
+    
+    // Set up test-specific state
     useScratchPadStore.setState({
       setCurrentView: vi.fn(),
       getAllSettings: vi.fn().mockResolvedValue(mockSettings),
@@ -38,7 +42,7 @@ describe('SettingsView', () => {
   })
 
   afterEach(() => {
-    vi.clearAllMocks()
+    teardownTestIsolation()
   })
 
   it('should render loading state initially', async () => {

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { TabBar } from '../TabBar'
 import { useScratchPadStore } from '../../../lib/store'
 import type { Note } from '../../../types'
+import { setupTestIsolation, teardownTestIsolation } from '../../../test/test-isolation'
 
 const mockNote1: Note = {
   id: 1,
@@ -48,7 +49,10 @@ const mockNote3: Note = {
 }
 
 describe('TabBar', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Use test isolation utility for complete reset
+    await setupTestIsolation()
+    
     // Reset store state
     useScratchPadStore.setState({
       notes: [mockNote1, mockNote2, mockNote3],
@@ -60,7 +64,7 @@ describe('TabBar', () => {
 
   afterEach(() => {
     cleanup()
-    vi.clearAllMocks()
+    teardownTestIsolation()
   })
 
   it('should render all note tabs', () => {

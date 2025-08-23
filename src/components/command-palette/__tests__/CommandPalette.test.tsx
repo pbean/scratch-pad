@@ -5,6 +5,7 @@ import { CommandPalette } from '../CommandPalette'
 import { useScratchPadStore } from '../../../lib/store'
 import type { Note } from '../../../types'
 import { invoke } from '@tauri-apps/api/core'
+import { setupTestIsolation, teardownTestIsolation } from '../../../test/test-isolation'
 
 // Mock Tauri API
 vi.mock('@tauri-apps/api/core', () => ({
@@ -117,11 +118,8 @@ describe('CommandPalette', () => {
   let renderResult: ReturnType<typeof render>
 
   beforeEach(async () => {
-    // Enhanced cleanup to ensure complete isolation
-    cleanup()
-    
-    // Wait for cleanup to complete
-    await new Promise(resolve => setTimeout(resolve, 0))
+    // Use the test isolation utility for complete store reset
+    await setupTestIsolation()
     
     // Setup userEvent with CI-optimized configuration
     user = userEvent.setup({
@@ -129,10 +127,9 @@ describe('CommandPalette', () => {
       advanceTimers: vi.advanceTimersByTime,
     })
     
-    // Reset store state with fresh mock functions
+    // Set up necessary mock functions after reset
     await act(async () => {
       useScratchPadStore.setState({
-        isCommandPaletteOpen: false,
         setCommandPaletteOpen: vi.fn(),
         setCurrentView: vi.fn(),
         createNote: vi.fn(),
@@ -145,34 +142,18 @@ describe('CommandPalette', () => {
     Object.values(mockToast).forEach(mock => mock.mockClear())
   })
 
-  afterEach(async () => {
-    // Enhanced cleanup to prevent component leakage
-    try {
-      // Cleanup the current render result if it exists
-      if (renderResult && renderResult.unmount) {
+  afterEach(() => {
+    // Cleanup the current render result if it exists
+    if (renderResult) {
+      try {
         renderResult.unmount()
+      } catch (error) {
+        // Ignore unmount errors
       }
-    } catch (error) {
-      // Ignore unmount errors
     }
     
-    // Force cleanup of all React Testing Library containers
-    cleanup()
-    
-    // Clear all mocks
-    vi.clearAllMocks()
-    
-    // Reset focus state cleanly
-    try {
-      if (document.activeElement && document.activeElement !== document.body) {
-        (document.activeElement as HTMLElement).blur?.()
-      }
-    } catch (error) {
-      // Ignore focus cleanup errors
-    }
-    
-    // Wait for cleanup to complete
-    await new Promise(resolve => setTimeout(resolve, 0))
+    // Use the test isolation cleanup utility
+    teardownTestIsolation()
   })
 
   it('should not render when closed', async () => {
