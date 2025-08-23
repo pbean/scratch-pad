@@ -43,12 +43,17 @@ const CI_FOCUS_TIMEOUT = process.env.CI === 'true' ? 8000 : 3000
 const CI_NAVIGATION_DELAY = process.env.CI === 'true' ? 100 : 16
 
 // Enhanced input element selection utility with proper isolation
-const getCommandSearchInput = () => {
-  // Use getAllByTestId and filter to get the last rendered one
+const getCommandSearchInput = async () => {
+  // Wait for the component to render first
+  await waitFor(() => {
+    const inputs = screen.queryAllByTestId('command-search-input')
+    if (inputs.length === 0) {
+      throw new Error('No command search input found')
+    }
+  })
+  
+  // Now get the input
   const inputs = screen.queryAllByTestId('command-search-input')
-  if (inputs.length === 0) {
-    throw new Error('No command search input found')
-  }
   if (inputs.length > 1) {
     // This should not happen with proper cleanup, but handle gracefully
     console.warn(`Found ${inputs.length} command search inputs, using the last one`)
@@ -177,33 +182,30 @@ describe('CommandPalette', () => {
   })
 
   it('should render when open', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
-    expect(screen.getByPlaceholderText('Type a command or search...')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Type a command or search...')).toBeInTheDocument()
+    })
   })
 
   it('should auto-focus input when opened', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
     // Enhanced input selection with better error handling
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     
     // Wait for the CommandPalette component to complete its focus effect
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
   })
 
   it('should display all default commands', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    // Set the store state before rendering
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
@@ -219,9 +221,7 @@ describe('CommandPalette', () => {
   })
 
   it('should display command descriptions', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
@@ -235,9 +235,7 @@ describe('CommandPalette', () => {
   })
 
   it('should display keyboard shortcuts', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
@@ -249,13 +247,11 @@ describe('CommandPalette', () => {
   })
 
   it('should filter commands based on search query', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
@@ -271,13 +267,11 @@ describe('CommandPalette', () => {
   })
 
   it('should filter commands by description', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
@@ -292,13 +286,11 @@ describe('CommandPalette', () => {
   })
 
   it('should show "No commands found" when no matches', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
@@ -323,7 +315,7 @@ describe('CommandPalette', () => {
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
     await act(async () => {
@@ -336,13 +328,11 @@ describe('CommandPalette', () => {
   })
 
   it('should navigate with arrow keys', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
     // Wait for initial selection
@@ -367,13 +357,11 @@ describe('CommandPalette', () => {
   })
 
   it('should wrap navigation at boundaries', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
     // Wait for initial selection
@@ -410,7 +398,7 @@ describe('CommandPalette', () => {
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
     // Wait for initial selection
@@ -446,7 +434,7 @@ describe('CommandPalette', () => {
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
     const newNoteButton = await waitFor(() => screen.getByText('New Note'), { timeout: CI_TIMEOUT })
@@ -464,13 +452,11 @@ describe('CommandPalette', () => {
   it('should handle export note command', async () => {
     vi.mocked(invoke).mockResolvedValue(undefined)
     
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
     const exportButton = await waitFor(() => screen.getByText('Export Note'), { timeout: CI_TIMEOUT })
@@ -500,13 +486,11 @@ describe('CommandPalette', () => {
     vi.mocked(invoke).mockRejectedValue(new Error('Export failed'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
     const exportButton = await waitFor(() => screen.getByText('Export Note'), { timeout: CI_TIMEOUT })
@@ -532,7 +516,7 @@ describe('CommandPalette', () => {
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
     const exportButton = await waitFor(() => screen.getByText('Export Note'), { timeout: CI_TIMEOUT })
@@ -561,7 +545,7 @@ describe('CommandPalette', () => {
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
     const settingsButton = await waitFor(() => screen.getByText('Open Settings'), { timeout: CI_TIMEOUT })
@@ -580,12 +564,10 @@ describe('CommandPalette', () => {
     renderResult = render(<CommandPalette />)
     
     // Open palette
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     renderResult.rerender(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     
     await waitFor(() => {
       expect(input).toHaveFocus()
@@ -599,13 +581,11 @@ describe('CommandPalette', () => {
   })
 
   it('should reset selection when query changes', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
     // Wait for initial selection
@@ -637,9 +617,7 @@ describe('CommandPalette', () => {
   })
 
   it('should render command icons', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
@@ -654,13 +632,11 @@ describe('CommandPalette', () => {
   })
 
   it('should apply correct styling', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     
     // Wait for component to be fully rendered
     await waitFor(() => {
@@ -675,13 +651,11 @@ describe('CommandPalette', () => {
   })
 
   it('should handle keyboard navigation with filtered results', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
@@ -701,13 +675,11 @@ describe('CommandPalette', () => {
   })
 
   it('should handle case-insensitive filtering', async () => {
-    act(() => {
-      useScratchPadStore.setState({ isCommandPaletteOpen: true })
-    })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     renderResult = render(<CommandPalette />)
     
-    const input = getCommandSearchInput()
+    const input = await getCommandSearchInput()
     
     await waitForInputFocus(input, CI_FOCUS_TIMEOUT)
     
