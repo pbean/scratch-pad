@@ -79,6 +79,7 @@ describe('TabBar', () => {
   })
 
   it('should switch active note when tab is clicked', async () => {
+    const user = userEvent.setup()
     const mockSetActiveNote = vi.fn()
     useScratchPadStore.setState({ setActiveNote: mockSetActiveNote })
     
@@ -90,7 +91,7 @@ describe('TabBar', () => {
     // Click on the parent div that has the onClick handler
     const secondTab = secondTabText.closest('div')
     expect(secondTab).toBeTruthy()
-    fireEvent.click(secondTab!)
+    await user.click(secondTab!)
     
     expect(mockSetActiveNote).toHaveBeenCalledWith(2)
   })
@@ -111,18 +112,20 @@ describe('TabBar', () => {
   })
 
   it('should close tab when close button is clicked', async () => {
+    const user = userEvent.setup()
     const mockDeleteNote = vi.fn()
     useScratchPadStore.setState({ deleteNote: mockDeleteNote })
     
     render(<TabBar />)
     
     const closeButtons = screen.getAllByRole('button')
-    fireEvent.click(closeButtons[1]) // Close second tab
+    await user.click(closeButtons[1]) // Close second tab
     
     expect(mockDeleteNote).toHaveBeenCalledWith(2)
   })
 
   it('should not switch tab when close button is clicked', async () => {
+    const user = userEvent.setup()
     const mockSetActiveNote = vi.fn()
     const mockDeleteNote = vi.fn()
     
@@ -134,7 +137,7 @@ describe('TabBar', () => {
     render(<TabBar />)
     
     const closeButtons = screen.getAllByRole('button')
-    fireEvent.click(closeButtons[0]) // Close first tab (active tab)
+    await user.click(closeButtons[0]) // Close first tab (active tab)
     
     expect(mockDeleteNote).toHaveBeenCalledWith(1)
     expect(mockSetActiveNote).not.toHaveBeenCalled()
@@ -207,11 +210,12 @@ describe('TabBar', () => {
   })
 
   it('should handle hover states', async () => {
+    const user = userEvent.setup()
     render(<TabBar />)
     
     const inactiveTab = screen.getByText('Second note content').closest('div')
     
-    fireEvent.mouseEnter(inactiveTab!)
+    await user.hover(inactiveTab!)
     
     expect(inactiveTab).toHaveClass('hover:bg-muted')
   })

@@ -317,11 +317,17 @@ beforeAll(() => {
     'cursor-pointer': 'pointer'
   }
   
-  global.getComputedStyle = vi.fn().mockImplementation((element: any) => {
-    // Handle null/undefined element gracefully - CRITICAL FIX
-    if (!element || typeof element.classList === 'undefined') {
-      const fallbackStyle: any = {
-        getPropertyValue: vi.fn().mockReturnValue(''),
+  // Override getComputedStyle with a robust mock
+  const mockGetComputedStyle = (element: any): any => {
+    // Create a default style object that will work for any element type
+    const createDefaultStyle = () => {
+      const style: any = {
+        getPropertyValue: vi.fn().mockImplementation((prop: string) => {
+          // Always return sensible defaults for critical properties
+          if (prop === 'pointer-events' || prop === 'pointerEvents') return 'auto'
+          if (prop === 'display') return 'block'
+          return ''
+        }),
         getPropertyPriority: vi.fn().mockReturnValue(''),
         setProperty: vi.fn(),
         removeProperty: vi.fn(),
@@ -341,17 +347,45 @@ beforeAll(() => {
         cursor: 'auto',
         overflow: 'visible'
       }
-      return fallbackStyle
+      return style
     }
     
-    const classList = Array.from(element.classList || [])
-    
-    // Create base style object with all properties
-    const styleObject: any = {
-      getPropertyValue: vi.fn().mockImplementation((property: string) => {
-        // Map CSS properties to common values based on Tailwind classes
-        switch (property) {
-          case 'display':
+    // Wrap everything in try-catch to ensure we always return something
+    try {
+      // Handle special cases first
+      if (!element) {
+        return createDefaultStyle()
+      }
+      
+      // Handle window object
+      if (typeof window !== 'undefined' && element === window) {
+        return createDefaultStyle()
+      }
+      
+      // Handle document object
+      if (typeof document !== 'undefined' && (element === document || element === document.documentElement || element === document.body)) {
+        return createDefaultStyle()
+      }
+      
+      // Handle text nodes, comment nodes, and other non-element nodes
+      if (element.nodeType && element.nodeType !== 1) {
+        return createDefaultStyle()
+      }
+      
+      // Handle elements without classList (could be SVG elements, etc.)
+      if (!element.classList) {
+        return createDefaultStyle()
+      }
+      
+      // Now we know we have an element with classList
+      const classList = Array.from(element.classList || [])
+      
+      // Create base style object with all properties
+      const styleObject: any = {
+        getPropertyValue: vi.fn().mockImplementation((property: string) => {
+          // Map CSS properties to common values based on Tailwind classes
+          switch (property) {
+            case 'display':
             if (classList.includes('flex')) return 'flex'
             if (classList.includes('hidden')) return 'none'
             if (classList.includes('block')) return 'block'
@@ -456,15 +490,25 @@ beforeAll(() => {
       overflow: 'visible'
     }
     
-    // Update direct properties based on classes
-    if (classList.includes('pointer-events-none')) styleObject.pointerEvents = 'none'
-    if (classList.includes('pointer-events-auto')) styleObject.pointerEvents = 'auto'
-    if (classList.includes('flex')) styleObject.display = 'flex'
-    if (classList.includes('hidden')) styleObject.display = 'none'
-    if (classList.includes('cursor-pointer')) styleObject.cursor = 'pointer'
-    
-    return styleObject
-  })
+      // Update direct properties based on classes
+      if (classList.includes('pointer-events-none')) styleObject.pointerEvents = 'none'
+      if (classList.includes('pointer-events-auto')) styleObject.pointerEvents = 'auto'
+      if (classList.includes('flex')) styleObject.display = 'flex'
+      if (classList.includes('hidden')) styleObject.display = 'none'
+      if (classList.includes('cursor-pointer')) styleObject.cursor = 'pointer'
+      
+      return styleObject
+    } catch (error) {
+      // If anything goes wrong, return a safe default
+      return createDefaultStyle()
+    }
+  }
+  
+  // Apply the mock to both global and window
+  global.getComputedStyle = vi.fn(mockGetComputedStyle)
+  if (typeof window !== 'undefined') {
+    window.getComputedStyle = vi.fn(mockGetComputedStyle)
+  }
   
   // Enhanced keyboard event support
   global.KeyboardEvent = class MockKeyboardEvent extends Event {
