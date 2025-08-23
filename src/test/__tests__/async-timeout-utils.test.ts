@@ -33,9 +33,9 @@ describe('React 19 Async Timeout Utilities', () => {
 
   afterEach(() => {
     // CRITICAL FIX: Proper timer cleanup sequence
-    // First, run any pending timers to completion
+    // Clear pending timers without running them to avoid unhandled rejections
     if (vi.isFakeTimers()) {
-      vi.runAllTimers()
+      vi.clearAllTimers()
     }
     // Then restore real timers
     vi.useRealTimers()
@@ -382,10 +382,16 @@ describe('React 19 Async Timeout Utilities', () => {
 
       const resultPromise = createTimeoutPromise(slowPromise, 200, 'Custom timeout message')
       
+      // Catch the promise immediately to mark it as handled
+      const catchPromise = resultPromise.catch(() => {})
+      
       // Advance past timeout but before promise resolution
       await vi.advanceTimersByTimeAsync(250)
 
       await expect(resultPromise).rejects.toThrow('Custom timeout message')
+      
+      // Wait for the catch to complete
+      await catchPromise
     })
   })
 

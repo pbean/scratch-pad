@@ -90,7 +90,7 @@ describe('SearchHistoryView', () => {
     vi.setSystemTime(new Date('2024-01-04T12:00:00Z'))
     
     // Reset store state with all required properties
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({
         notes: [mockNote1, mockNote2, mockNote3],
         setActiveNote: vi.fn(),
@@ -172,7 +172,7 @@ describe('SearchHistoryView', () => {
     const mockSearchNotes = vi.fn().mockResolvedValue([mockNote1])
     
     // CRITICAL FIX: Only use act() for store state changes, not render
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ searchNotes: mockSearchNotes })
     })
     
@@ -192,7 +192,7 @@ describe('SearchHistoryView', () => {
   it('should clear search results when input is cleared', async () => {
     const mockSearchNotes = vi.fn().mockResolvedValue([mockNote1])
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ searchNotes: mockSearchNotes })
     })
     
@@ -213,7 +213,7 @@ describe('SearchHistoryView', () => {
     const mockSetActiveNote = vi.fn()
     const mockSetCurrentView = vi.fn()
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({
         setActiveNote: mockSetActiveNote,
         setCurrentView: mockSetCurrentView
@@ -235,7 +235,7 @@ describe('SearchHistoryView', () => {
   it('should handle folder expansion/collapse', async () => {
     const mockToggleFolder = vi.fn()
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({
         toggleFolder: mockToggleFolder,
         expandedFolders: new Set(['recent'])  // Only recent expanded initially
@@ -268,7 +268,7 @@ describe('SearchHistoryView', () => {
     const mockSearchResults = [mockNote1]
     const mockSearchNotes = vi.fn().mockResolvedValue(mockSearchResults)
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ searchNotes: mockSearchNotes })
     })
     
@@ -290,7 +290,7 @@ describe('SearchHistoryView', () => {
   it('should handle empty search results', async () => {
     const mockSearchNotes = vi.fn().mockResolvedValue([])
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ searchNotes: mockSearchNotes })
     })
     
@@ -307,7 +307,7 @@ describe('SearchHistoryView', () => {
   it('should load more notes when available', async () => {
     const mockLoadMoreNotes = vi.fn().mockResolvedValue(undefined)
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({
         loadMoreNotes: mockLoadMoreNotes,
         hasMoreNotes: true,
@@ -326,7 +326,7 @@ describe('SearchHistoryView', () => {
   })
 
   it('should show loading state when loading more notes', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({
         hasMoreNotes: true,
         isLoadingMore: true
@@ -358,7 +358,7 @@ describe('SearchHistoryView', () => {
   it('should handle back button click', async () => {
     const mockSetCurrentView = vi.fn()
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({
         setCurrentView: mockSetCurrentView
       })
@@ -377,7 +377,7 @@ describe('SearchHistoryView', () => {
   it('should handle error states gracefully', async () => {
     const mockSearchNotes = vi.fn().mockRejectedValue(new Error('Search failed'))
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ searchNotes: mockSearchNotes })
     })
     
@@ -432,7 +432,7 @@ describe('SearchHistoryView', () => {
       format: 'markdown'
     }
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({
         notes: [mockNote1, mockNote2, mockNote3, newNote]
       })

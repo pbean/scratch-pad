@@ -66,7 +66,7 @@ const waitForInputFocus = async (inputElement: HTMLElement, timeout: number = CI
   // In CI mode, be more patient with focus events
   if (process.env.CI === 'true' || process.env.VITEST_CI_MODE === 'true') {
     // Try to focus the element first
-    act(() => {
+    await act(async () => {
       inputElement.focus()
     })
     
@@ -130,7 +130,7 @@ describe('CommandPalette', () => {
     })
     
     // Reset store state with fresh mock functions
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({
         isCommandPaletteOpen: false,
         setCommandPaletteOpen: vi.fn(),
@@ -183,7 +183,7 @@ describe('CommandPalette', () => {
 
   it('should render when open', async () => {
     // Set state BEFORE rendering
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -195,7 +195,7 @@ describe('CommandPalette', () => {
   })
 
   it('should auto-focus input when opened', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -210,7 +210,7 @@ describe('CommandPalette', () => {
 
   it('should display all default commands', async () => {
     // Open the command palette BEFORE rendering
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -228,7 +228,7 @@ describe('CommandPalette', () => {
   })
 
   it('should display command descriptions', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -244,7 +244,7 @@ describe('CommandPalette', () => {
   })
 
   it('should display keyboard shortcuts', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -258,7 +258,7 @@ describe('CommandPalette', () => {
   })
 
   it('should filter commands based on search query', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -280,7 +280,7 @@ describe('CommandPalette', () => {
   })
 
   it('should filter commands by description', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -301,7 +301,7 @@ describe('CommandPalette', () => {
   })
 
   it('should show "No commands found" when no matches', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -323,7 +323,7 @@ describe('CommandPalette', () => {
   it('should close on Escape key', async () => {
     const mockSetCommandPaletteOpen = vi.fn()
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({
         isCommandPaletteOpen: true,
         setCommandPaletteOpen: mockSetCommandPaletteOpen
@@ -345,7 +345,7 @@ describe('CommandPalette', () => {
   })
 
   it('should navigate with arrow keys', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -376,7 +376,7 @@ describe('CommandPalette', () => {
   })
 
   it('should wrap navigation at boundaries', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -409,7 +409,7 @@ describe('CommandPalette', () => {
     const mockSetCurrentView = vi.fn()
     const mockSetCommandPaletteOpen = vi.fn()
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({
         isCommandPaletteOpen: true,
         setCurrentView: mockSetCurrentView,
@@ -445,7 +445,7 @@ describe('CommandPalette', () => {
     const mockCreateNote = vi.fn()
     const mockSetCommandPaletteOpen = vi.fn()
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({
         isCommandPaletteOpen: true,
         createNote: mockCreateNote,
@@ -473,7 +473,7 @@ describe('CommandPalette', () => {
   it('should handle export note command', async () => {
     vi.mocked(invoke).mockResolvedValue(undefined)
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -509,7 +509,7 @@ describe('CommandPalette', () => {
     vi.mocked(invoke).mockRejectedValue(new Error('Export failed'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -560,7 +560,7 @@ describe('CommandPalette', () => {
     const mockSetCurrentView = vi.fn()
     const mockSetCommandPaletteOpen = vi.fn()
     
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({
         isCommandPaletteOpen: true,
         setCurrentView: mockSetCurrentView,
@@ -606,7 +606,7 @@ describe('CommandPalette', () => {
   })
 
   it('should reset selection when query changes', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -644,7 +644,7 @@ describe('CommandPalette', () => {
   })
 
   it('should render command icons', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -661,7 +661,7 @@ describe('CommandPalette', () => {
   })
 
   it('should apply correct styling', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -682,7 +682,7 @@ describe('CommandPalette', () => {
   })
 
   it('should handle keyboard navigation with filtered results', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
@@ -708,7 +708,7 @@ describe('CommandPalette', () => {
   })
 
   it('should handle case-insensitive filtering', async () => {
-    act(() => {
+    await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
     
