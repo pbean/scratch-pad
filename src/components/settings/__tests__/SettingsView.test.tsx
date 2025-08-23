@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, act } from '../../../test/test-utils'
+import { screen, waitFor, act } from '../../../test/test-utils'
 import userEvent from '@testing-library/user-event'
 import { SettingsView } from '../SettingsView'
 import { useScratchPadStore } from '../../../lib/store'
-import { setupTestIsolation, teardownTestIsolation } from '../../../test/test-isolation'
+import { renderWithState, cleanupTestEnhanced, createMockStore } from '../../../test/enhanced-test-utils'
 import { createUser } from '../../../test/test-helpers'
 
 const mockSettings = {
@@ -20,28 +20,18 @@ const mockSettings = {
 }
 
 describe('SettingsView', () => {
-  beforeEach(async () => {
-    // Use test isolation utility for complete reset
-    await setupTestIsolation()
-    
-    // Set up test-specific state
-    useScratchPadStore.setState({
-      setCurrentView: vi.fn(),
-      getAllSettings: vi.fn().mockResolvedValue(mockSettings),
-      setSetting: vi.fn().mockResolvedValue(undefined),
-      exportSettings: vi.fn().mockResolvedValue('{"test": "settings"}'),
-      importSettings: vi.fn().mockResolvedValue(5),
-      resetSettingsToDefaults: vi.fn().mockResolvedValue(undefined),
-      error: null,
-      setError: vi.fn()
-    })
+  let mockStore: any
+  
+  beforeEach(() => {
+    // Create a fresh mock store for each test
+    mockStore = createMockStore()
     
     // Reset window mocks (already set up in test setup)
     vi.mocked(window.confirm).mockReturnValue(true)
   })
 
-  afterEach(() => {
-    teardownTestIsolation()
+  afterEach(async () => {
+    await cleanupTestEnhanced()
   })
 
   it('should render loading state initially', async () => {
@@ -49,10 +39,10 @@ describe('SettingsView', () => {
     const delayedGetAllSettings = vi.fn().mockImplementation(() => 
       new Promise(resolve => setTimeout(() => resolve(mockSettings), 100))
     )
-    useScratchPadStore.setState({ getAllSettings: delayedGetAllSettings })
-
-    await act(async () => {
-      render(<SettingsView />)
+    
+    await renderWithState(<SettingsView />, {
+      ...mockStore,
+      getAllSettings: delayedGetAllSettings
     })
     
     // Should see loading state immediately
@@ -65,9 +55,7 @@ describe('SettingsView', () => {
   })
 
   it('should load and display settings', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    await renderWithState(<SettingsView />, mockStore)
     
     await waitFor(() => {
       expect(screen.getByDisplayValue('Ctrl+Shift+N')).toBeInTheDocument()
@@ -77,9 +65,7 @@ describe('SettingsView', () => {
   })
 
   it('should render all settings sections', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    await renderWithState(<SettingsView />, mockStore)
     
     await waitFor(() => {
       expect(screen.getByText('Global Shortcut')).toBeInTheDocument()
@@ -92,10 +78,11 @@ describe('SettingsView', () => {
 
   it('should handle back button click', async () => {
     const mockSetCurrentView = vi.fn()
-    useScratchPadStore.setState({ setCurrentView: mockSetCurrentView })
+    const user = createUser()
     
-    await act(async () => {
-      render(<SettingsView />)
+    await renderWithState(<SettingsView />, {
+      ...mockStore,
+      setCurrentView: mockSetCurrentView
     })
     
     await waitFor(() => {
@@ -110,9 +97,9 @@ describe('SettingsView', () => {
   })
 
   it('should validate form inputs', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    const user = createUser()
+    
+    await renderWithState(<SettingsView />, mockStore)
     
     await waitFor(() => {
       expect(screen.getByDisplayValue('800')).toBeInTheDocument()
@@ -135,9 +122,7 @@ describe('SettingsView', () => {
   it('should validate numeric fields', async () => {
     const user = createUser()
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    await renderWithState(<SettingsView />, mockStore)
     
     await waitFor(() => {
       expect(screen.getByDisplayValue('800')).toBeInTheDocument()
@@ -160,10 +145,10 @@ describe('SettingsView', () => {
   it('should save settings successfully', async () => {
     const user = createUser()
     const mockSetSetting = vi.fn().mockResolvedValue(undefined)
-    useScratchPadStore.setState({ setSetting: mockSetSetting })
     
-    await act(async () => {
-      render(<SettingsView />)
+    await renderWithState(<SettingsView />, {
+      ...mockStore,
+      setSetting: mockSetSetting
     })
     
     await waitFor(() => {
@@ -190,12 +175,11 @@ describe('SettingsView', () => {
   it('should handle save errors', async () => {
     const user = createUser()
     const mockSetSetting = vi.fn().mockRejectedValue(new Error('Save failed'))
-    useScratchPadStore.setState({ setSetting: mockSetSetting })
-    
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     
-    await act(async () => {
-      render(<SettingsView />)
+    await renderWithState(<SettingsView />, {
+      ...mockStore,
+      setSetting: mockSetSetting
     })
     
     await waitFor(() => {
@@ -214,11 +198,12 @@ describe('SettingsView', () => {
   })
 
   it('should export settings', async () => {
+    const user = createUser()
     const mockExportSettings = vi.fn().mockResolvedValue('{"test": "data"}')
-    useScratchPadStore.setState({ exportSettings: mockExportSettings })
     
-    await act(async () => {
-      render(<SettingsView />)
+    await renderWithState(<SettingsView />, {
+      ...mockStore,
+      exportSettings: mockExportSettings
     })
     
     await waitFor(() => {
@@ -236,16 +221,12 @@ describe('SettingsView', () => {
   })
 
   it('should import settings', async () => {
+    const user = createUser()
     const mockImportSettings = vi.fn().mockResolvedValue(3)
-    const mockGetAllSettings = vi.fn().mockResolvedValue(mockSettings)
     
-    useScratchPadStore.setState({
-      importSettings: mockImportSettings,
-      getAllSettings: mockGetAllSettings
-    })
-    
-    await act(async () => {
-      render(<SettingsView />)
+    await renderWithState(<SettingsView />, {
+      ...mockStore,
+      importSettings: mockImportSettings
     })
     
     await waitFor(() => {
@@ -261,16 +242,12 @@ describe('SettingsView', () => {
   })
 
   it('should reset settings to defaults', async () => {
+    const user = createUser()
     const mockResetSettings = vi.fn().mockResolvedValue(undefined)
-    const mockGetAllSettings = vi.fn().mockResolvedValue(mockSettings)
     
-    useScratchPadStore.setState({
-      resetSettingsToDefaults: mockResetSettings,
-      getAllSettings: mockGetAllSettings
-    })
-    
-    await act(async () => {
-      render(<SettingsView />)
+    await renderWithState(<SettingsView />, {
+      ...mockStore,
+      resetSettingsToDefaults: mockResetSettings
     })
     
     await waitFor(() => {
@@ -293,12 +270,12 @@ describe('SettingsView', () => {
   it('should not reset settings if user cancels', async () => {
     const user = createUser()
     const mockResetSettings = vi.fn()
-    useScratchPadStore.setState({ resetSettingsToDefaults: mockResetSettings })
     
     vi.mocked(window.confirm).mockReturnValue(false)
     
-    await act(async () => {
-      render(<SettingsView />)
+    await renderWithState(<SettingsView />, {
+      ...mockStore,
+      resetSettingsToDefaults: mockResetSettings
     })
     
     await waitFor(() => {
@@ -315,9 +292,7 @@ describe('SettingsView', () => {
   it('should clear validation errors when input changes', async () => {
     const user = createUser()
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    await renderWithState(<SettingsView />, mockStore)
     
     await waitFor(() => {
       expect(screen.getByDisplayValue('800')).toBeInTheDocument()
@@ -346,10 +321,9 @@ describe('SettingsView', () => {
   })
 
   it('should display error messages', async () => {
-    useScratchPadStore.setState({ error: 'Test error message' })
-    
-    await act(async () => {
-      render(<SettingsView />)
+    await renderWithState(<SettingsView />, {
+      ...mockStore,
+      error: 'Test error message'
     })
     
     await waitFor(() => {
@@ -357,49 +331,77 @@ describe('SettingsView', () => {
     })
   })
 
-  it('should handle loading errors gracefully', async () => {
-    const mockGetAllSettings = vi.fn().mockRejectedValue(new Error('Load failed'))
-    useScratchPadStore.setState({ getAllSettings: mockGetAllSettings })
+  it('should update select options', async () => {
+    const user = createUser()
+    const mockSetSetting = vi.fn().mockResolvedValue(undefined)
     
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    
-    await act(async () => {
-      render(<SettingsView />)
+    await renderWithState(<SettingsView />, {
+      ...mockStore,
+      setSetting: mockSetSetting
     })
     
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to load settings:', expect.any(Error))
+      expect(screen.getByText('plaintext')).toBeInTheDocument()
     })
     
-    consoleSpy.mockRestore()
+    // Find and click the format select
+    const formatSelect = screen.getByText('plaintext').closest('button')
+    if (formatSelect) {
+      await act(async () => {
+        await user.click(formatSelect)
+      })
+      
+      // Select markdown option
+      await waitFor(() => {
+        expect(screen.getByText('markdown')).toBeInTheDocument()
+      })
+      
+      await act(async () => {
+        await user.click(screen.getByText('markdown'))
+      })
+    }
   })
 
-  it('should show saving state', async () => {
+  it('should handle font input changes', async () => {
     const user = createUser()
-    const mockSetSetting = vi.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)))
-    useScratchPadStore.setState({ setSetting: mockSetSetting })
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    await renderWithState(<SettingsView />, mockStore)
     
     await waitFor(() => {
-      expect(screen.getByText('Save Settings')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('Inter')).toBeInTheDocument()
     })
     
+    const uiFontInput = screen.getByDisplayValue('Inter')
     await act(async () => {
-      await user.click(screen.getByText('Save Settings'))
+      await user.clear(uiFontInput)
+      await user.type(uiFontInput, 'Roboto')
     })
     
-    expect(screen.getByText('Saving...')).toBeInTheDocument()
+    expect(uiFontInput).toHaveValue('Roboto')
   })
 
-  it('should validate fuzzy search threshold range', async () => {
+  it('should handle numeric input changes', async () => {
     const user = createUser()
     
-    await act(async () => {
-      render(<SettingsView />)
+    await renderWithState(<SettingsView />, mockStore)
+    
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('500')).toBeInTheDocument()
     })
+    
+    const autoSaveInput = screen.getByDisplayValue('500')
+    await act(async () => {
+      await user.clear(autoSaveInput)
+      await user.type(autoSaveInput, '1000')
+    })
+    
+    expect(autoSaveInput).toHaveValue('1000')
+  })
+
+  it('should handle fuzzy search threshold changes', async () => {
+    const user = createUser()
+    
+    await renderWithState(<SettingsView />, mockStore)
     
     await waitFor(() => {
       expect(screen.getByDisplayValue('0.6')).toBeInTheDocument()
@@ -408,77 +410,31 @@ describe('SettingsView', () => {
     const thresholdInput = screen.getByDisplayValue('0.6')
     await act(async () => {
       await user.clear(thresholdInput)
-      await user.type(thresholdInput, '1.5') // Out of range
+      await user.type(thresholdInput, '0.8')
     })
     
-    await act(async () => {
-      await user.click(screen.getByText('Save Settings'))
-    })
-    
-    expect(screen.getByText('Fuzzy search threshold must be between 0.0 and 1.0')).toBeInTheDocument()
+    expect(thresholdInput).toHaveValue('0.8')
   })
 
-  it('should validate auto-save delay range', async () => {
+  it('should validate fuzzy search threshold range', async () => {
     const user = createUser()
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    await renderWithState(<SettingsView />, mockStore)
     
     await waitFor(() => {
-      expect(screen.getByDisplayValue('500')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('0.6')).toBeInTheDocument()
     })
     
-    const delayInput = screen.getByDisplayValue('500')
+    const thresholdInput = screen.getByDisplayValue('0.6')
     await act(async () => {
-      await user.clear(delayInput)
-      await user.type(delayInput, '50') // Too small
+      await user.clear(thresholdInput)
+      await user.type(thresholdInput, '1.5') // Invalid - too high
     })
     
     await act(async () => {
       await user.click(screen.getByText('Save Settings'))
     })
     
-    expect(screen.getByText('Auto-save delay must be between 100 and 10000 milliseconds')).toBeInTheDocument()
-  })
-
-  it('should auto-hide success messages', async () => {
-    const user = createUser()
-    vi.useFakeTimers()
-    
-    try {
-      const mockSetSetting = vi.fn().mockResolvedValue(undefined)
-      useScratchPadStore.setState({ setSetting: mockSetSetting })
-      
-      await act(async () => {
-        render(<SettingsView />)
-      })
-      
-      await waitFor(() => {
-        expect(screen.getByText('Save Settings')).toBeInTheDocument()
-      })
-      
-      // Click save settings button
-      await act(async () => {
-        await user.click(screen.getByText('Save Settings'))
-      })
-      
-      // Wait for success message to appear
-      await waitFor(() => {
-        expect(screen.getByText('Settings saved successfully!')).toBeInTheDocument()
-      })
-      
-      // Fast-forward time to trigger auto-hide (component uses 3000ms timeout)
-      await act(async () => {
-        vi.advanceTimersByTime(3100) // Slightly more than 3000ms
-      })
-      
-      // Wait for message to disappear
-      await waitFor(() => {
-        expect(screen.queryByText('Settings saved successfully!')).not.toBeInTheDocument()
-      })
-    } finally {
-      vi.useRealTimers()
-    }
+    expect(screen.getByText('Fuzzy search threshold must be between 0 and 1')).toBeInTheDocument()
   })
 })

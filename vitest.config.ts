@@ -100,7 +100,7 @@ export default defineConfig({
     
     // Phase 3: Performance and debugging optimizations
     logHeapUsage: true,
-    retry: 1, // Reduced for faster execution
+    retry: 0, // Disabled to get accurate failure counts
     isolate: true,
     
     // Phase 3: Test execution optimization
