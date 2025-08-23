@@ -200,8 +200,8 @@ export const useScratchPadStore = create<ScratchPadState>((set, get) => ({
     if (!activeNote) return
 
     try {
-      const updatedNote = { ...activeNote, content }
-      const result = await invoke<Note>("update_note", { note: updatedNote })
+      // Backend expects (id, content) not { note }
+      const result = await invoke<Note>("update_note", { id: activeNoteId, content })
       
       set({
         notes: notes.map(note => 
@@ -267,7 +267,8 @@ export const useScratchPadStore = create<ScratchPadState>((set, get) => ({
 
   updateNote: async (note: Note) => {
     try {
-      const updatedNote = await invoke<Note>("update_note", { note })
+      // Backend expects (id, content) not { note }
+      const updatedNote = await invoke<Note>("update_note", { id: note.id, content: note.content })
       set(state => ({
         notes: state.notes.map(n => n.id === note.id ? updatedNote : n)
       }))

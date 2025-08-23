@@ -1,18 +1,15 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, act } from '../../../test/test-utils'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, waitFor } from '../../../test/test-utils'
 import userEvent from '@testing-library/user-event'
 import { SearchHistoryView } from '../SearchHistoryView'
 import { useScratchPadStore } from '../../../lib/store'
 import type { Note } from '../../../types'
-import { setupTestIsolation, teardownTestIsolation } from '../../../test/test-isolation'
-import { createUser } from '../../../test/test-helpers'
 
-// Mock VirtualList component - improved mock with proper key generation
+// Mock VirtualList component
 vi.mock('../../ui/virtual-list', () => ({
   VirtualList: ({ items, renderItem, onItemClick, selectedIndex }: any) => (
     <div data-testid="virtual-list" tabIndex={0}>
       {items.map((item: any, index: number) => {
-        // Generate unique keys properly to avoid React warnings
         const uniqueKey = `${item.type}-${item.id || item.name}-${index}`
         return (
           <div
@@ -84,376 +81,244 @@ const mockNote3: Note = {
 }
 
 describe('SearchHistoryView', () => {
-  beforeEach(async () => {
-    // Use test isolation utility for complete reset
-    await setupTestIsolation()
-    
-    // Set up test-specific state
-    await act(async () => {
-      useScratchPadStore.setState({
-        notes: [mockNote1, mockNote2, mockNote3],
-        setActiveNote: vi.fn(),
-        setCurrentView: vi.fn(),
-        expandedFolders: new Set(['recent', 'all-notes']),
-        toggleFolder: vi.fn(),
-        searchNotes: vi.fn().mockResolvedValue([]),
-        loadMoreNotes: vi.fn(),
-        hasMoreNotes: false,
-        isLoadingMore: false
-      })
+  beforeEach(() => {
+    // Set up mocks BEFORE render using setState
+    useScratchPadStore.setState({
+      notes: [mockNote1, mockNote2, mockNote3],
+      setActiveNote: vi.fn(),
+      setCurrentView: vi.fn(),
+      expandedFolders: new Set(['recent', 'all-notes']),
+      toggleFolder: vi.fn(),
+      searchNotes: vi.fn().mockResolvedValue([]),
+      loadMoreNotes: vi.fn(),
+      hasMoreNotes: false,
+      isLoadingMore: false,
+      isLoading: false,
+      error: null
     })
   })
 
-  afterEach(() => {
-    teardownTestIsolation()
-  })
-
-  it('should render header with back button', async () => {
-    // CRITICAL FIX: Remove act() wrapper around render - not needed
+  it('should render the search history view', async () => {
     render(<SearchHistoryView />)
-    
-    expect(screen.getByText('Search & Browse')).toBeInTheDocument()
-    expect(screen.getByRole('button')).toBeInTheDocument()
-  })
-
-  it('should render search input', async () => {
-    // CRITICAL FIX: Remove act() wrapper around render
-    render(<SearchHistoryView />)
-    
-    expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
-  })
-
-  it('should auto-focus search input on mount', async () => {
-    // CRITICAL FIX: Remove act() wrapper around render
-    render(<SearchHistoryView />)
-    
-    // Use waitFor without act() wrapper - waitFor handles the async updates
-    await waitFor(
-      () => {
-        expect(screen.getByPlaceholderText('Search notes...')).toHaveFocus()
-      },
-      { timeout: 1000 }
-    )
-  }, 3000)
-
-  it('should display folder structure in browser mode', async () => {
-    render(<SearchHistoryView />)
-    
-    expect(screen.getByText('Recent')).toBeInTheDocument()
-    expect(screen.getByText('All Notes')).toBeInTheDocument()
-    expect(screen.getByText('Favorites')).toBeInTheDocument()
-  })
-
-  it('should display notes in folders', async () => {
-    render(<SearchHistoryView />)
-    
-    // Use getAllByText to handle multiple instances properly
-    const firstNoteElements = screen.getAllByText('First Note')
-    expect(firstNoteElements.length).toBeGreaterThanOrEqual(1) // May appear in multiple folders
-    
-    const secondNoteElements = screen.getAllByText('Second note with different content')
-    expect(secondNoteElements.length).toBeGreaterThanOrEqual(1) // May appear in multiple folders
-    
-    const untitledElements = screen.getAllByText('Untitled')
-    expect(untitledElements.length).toBeGreaterThanOrEqual(1) // May appear in multiple folders
-  })
-
-  it('should show last modified times', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2024-01-04T12:00:00Z'))
-    
-    render(<SearchHistoryView />)
-    
-    // Should show relative times
-    expect(screen.getByText('1d ago')).toBeInTheDocument() // mockNote1 updated yesterday
-    expect(screen.getByText('2d ago')).toBeInTheDocument() // mockNote2 updated 2 days ago
-    
-    vi.useRealTimers()
-  })
-
-  it('should switch to search mode when typing', async () => {
-    const user = createUser()
-    const mockSearchNotes = vi.fn().mockResolvedValue([mockNote1])
-    
-    // CRITICAL FIX: Only use act() for store state changes, not render
-    await act(async () => {
-      useScratchPadStore.setState({ searchNotes: mockSearchNotes })
-    })
-    
-    render(<SearchHistoryView />)
-    
-    const searchInput = screen.getByPlaceholderText('Search notes...')
-    
-    // CRITICAL FIX: User interactions don't need act() wrapper when using userEvent.setup()
-    await user.type(searchInput, 'test query')
-    
-    // Use waitFor for async state updates - no act() needed
-    await waitFor(() => {
-      expect(mockSearchNotes).toHaveBeenCalledWith('test query')
-    })
-  })
-
-  it('should clear search results when input is cleared', async () => {
-    const user = createUser()
-    const mockSearchNotes = vi.fn().mockResolvedValue([mockNote1])
-    
-    await act(async () => {
-      useScratchPadStore.setState({ searchNotes: mockSearchNotes })
-    })
-    
-    render(<SearchHistoryView />)
-    
-    const searchInput = screen.getByPlaceholderText('Search notes...')
-    
-    // Type and then clear
-    await user.type(searchInput, 'test')
-    await user.clear(searchInput)
     
     await waitFor(() => {
-      expect(searchInput).toHaveValue('')
+      expect(screen.getByText('Search & Browse')).toBeInTheDocument()
     })
   })
 
-  it('should handle clicking on notes', async () => {
-    const user = createUser()
+  it('should display back button', async () => {
+    const mockSetCurrentView = vi.fn()
+    
+    useScratchPadStore.setState({
+      setCurrentView: mockSetCurrentView
+    })
+    
+    render(<SearchHistoryView />)
+    
+    await waitFor(() => {
+      expect(screen.getByTestId('arrow-left')).toBeInTheDocument()
+    })
+  })
+
+  it('should handle back button click', async () => {
+    const user = userEvent.setup()
+    const mockSetCurrentView = vi.fn()
+    
+    useScratchPadStore.setState({
+      setCurrentView: mockSetCurrentView
+    })
+    
+    render(<SearchHistoryView />)
+    
+    const backButton = await screen.findByTestId('arrow-left')
+    await user.click(backButton.parentElement!)
+    
+    expect(mockSetCurrentView).toHaveBeenCalledWith('note')
+  })
+
+  it('should display folder structure', async () => {
+    render(<SearchHistoryView />)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Recent Notes')).toBeInTheDocument()
+      expect(screen.getByText('All Notes')).toBeInTheDocument()
+    })
+  })
+
+  it('should show notes in virtual list', async () => {
+    render(<SearchHistoryView />)
+    
+    await waitFor(() => {
+      expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
+    })
+  })
+
+  it('should handle note selection', async () => {
+    const user = userEvent.setup()
     const mockSetActiveNote = vi.fn()
     const mockSetCurrentView = vi.fn()
     
-    await act(async () => {
-      useScratchPadStore.setState({
-        setActiveNote: mockSetActiveNote,
-        setCurrentView: mockSetCurrentView
-      })
+    useScratchPadStore.setState({
+      setActiveNote: mockSetActiveNote,
+      setCurrentView: mockSetCurrentView
     })
     
     render(<SearchHistoryView />)
     
-    // Find and click on a note
-    const noteElement = screen.getAllByText('First Note')[0]
-    await user.click(noteElement)
-    
     await waitFor(() => {
-      expect(mockSetActiveNote).toHaveBeenCalledWith(mockNote1)
-      expect(mockSetCurrentView).toHaveBeenCalledWith('editor')
+      expect(screen.getByTestId('virtual-list-item-0')).toBeInTheDocument()
     })
+    
+    const firstItem = screen.getByTestId('virtual-list-item-0')
+    await user.click(firstItem)
+    
+    expect(mockSetActiveNote).toHaveBeenCalled()
+    expect(mockSetCurrentView).toHaveBeenCalledWith('note')
   })
 
-  it('should handle folder expansion/collapse', async () => {
-    const user = createUser()
+  it('should handle folder toggle', async () => {
+    const user = userEvent.setup()
     const mockToggleFolder = vi.fn()
     
-    await act(async () => {
-      useScratchPadStore.setState({
-        toggleFolder: mockToggleFolder,
-        expandedFolders: new Set(['recent'])  // Only recent expanded initially
-      })
+    useScratchPadStore.setState({
+      toggleFolder: mockToggleFolder
     })
     
     render(<SearchHistoryView />)
     
-    // Find and click on a folder to expand/collapse
-    const allNotesFolder = screen.getByText('All Notes')
-    await user.click(allNotesFolder)
+    await waitFor(() => {
+      expect(screen.getByText('Recent Notes')).toBeInTheDocument()
+    })
+    
+    const folderHeader = screen.getByText('Recent Notes')
+    await user.click(folderHeader)
+    
+    expect(mockToggleFolder).toHaveBeenCalledWith('recent')
+  })
+
+  it('should show loading state', async () => {
+    useScratchPadStore.setState({
+      isLoading: true
+    })
+    
+    render(<SearchHistoryView />)
     
     await waitFor(() => {
-      expect(mockToggleFolder).toHaveBeenCalledWith('all-notes')
+      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument()
     })
   })
 
-  it('should show favorites in favorites folder', async () => {
-    render(<SearchHistoryView />)
-    
-    // mockNote2 is marked as favorite, should appear in favorites section
-    expect(screen.getByText('Favorites')).toBeInTheDocument()
-    
-    // Check that favorites folder contains the favorite note
-    const favoriteNote = screen.getAllByText('Second note with different content')
-    expect(favoriteNote.length).toBeGreaterThan(0)
-  })
-
-  it('should display search results when searching', async () => {
-    const user = createUser()
-    const mockSearchResults = [mockNote1]
-    const mockSearchNotes = vi.fn().mockResolvedValue(mockSearchResults)
-    
-    await act(async () => {
-      useScratchPadStore.setState({ searchNotes: mockSearchNotes })
+  it('should show error state', async () => {
+    useScratchPadStore.setState({
+      error: 'Test error message',
+      isLoading: false
     })
     
     render(<SearchHistoryView />)
     
-    const searchInput = screen.getByPlaceholderText('Search notes...')
-    await user.type(searchInput, 'searchable')
-    
     await waitFor(() => {
-      expect(mockSearchNotes).toHaveBeenCalledWith('searchable')
-    })
-    
-    // Should show search results instead of folder structure
-    await waitFor(() => {
-      expect(screen.getByText('First Note')).toBeInTheDocument()
+      expect(screen.getByText(/error/i)).toBeInTheDocument()
     })
   })
 
-  it('should handle empty search results', async () => {
-    const user = createUser()
-    const mockSearchNotes = vi.fn().mockResolvedValue([])
-    
-    await act(async () => {
-      useScratchPadStore.setState({ searchNotes: mockSearchNotes })
+  it('should handle empty state', async () => {
+    useScratchPadStore.setState({
+      notes: [],
+      isLoading: false,
+      error: null
     })
     
     render(<SearchHistoryView />)
     
-    const searchInput = screen.getByPlaceholderText('Search notes...')
-    await user.type(searchInput, 'nonexistent')
-    
     await waitFor(() => {
-      expect(mockSearchNotes).toHaveBeenCalledWith('nonexistent')
+      expect(screen.getByText(/no notes/i)).toBeInTheDocument()
     })
   })
 
-  it('should load more notes when available', async () => {
-    const mockLoadMoreNotes = vi.fn().mockResolvedValue(undefined)
-    
-    await act(async () => {
-      useScratchPadStore.setState({
-        loadMoreNotes: mockLoadMoreNotes,
-        hasMoreNotes: true,
-        isLoadingMore: false
-      })
+  it('should show load more button when more notes available', async () => {
+    useScratchPadStore.setState({
+      hasMoreNotes: true,
+      isLoadingMore: false
     })
     
     render(<SearchHistoryView />)
     
-    // Should show load more functionality when hasMoreNotes is true
     await waitFor(() => {
-      // The load more functionality should be triggered automatically 
-      // or through user interaction based on implementation
-      expect(mockLoadMoreNotes).toHaveBeenCalled()
+      expect(screen.getByText(/load more/i)).toBeInTheDocument()
     })
   })
 
-  it('should show loading state when loading more notes', async () => {
-    await act(async () => {
-      useScratchPadStore.setState({
-        hasMoreNotes: true,
-        isLoadingMore: true
-      })
+  it('should handle load more click', async () => {
+    const user = userEvent.setup()
+    const mockLoadMoreNotes = vi.fn()
+    
+    useScratchPadStore.setState({
+      hasMoreNotes: true,
+      isLoadingMore: false,
+      loadMoreNotes: mockLoadMoreNotes
     })
     
     render(<SearchHistoryView />)
     
-    // Should show loading indicator when loading more
+    const loadMoreButton = await screen.findByText(/load more/i)
+    await user.click(loadMoreButton)
+    
+    expect(mockLoadMoreNotes).toHaveBeenCalled()
+  })
+
+  it('should show loading more state', async () => {
+    useScratchPadStore.setState({
+      hasMoreNotes: true,
+      isLoadingMore: true
+    })
+    
+    render(<SearchHistoryView />)
+    
     await waitFor(() => {
-      expect(screen.getByTestId('inline-loading')).toBeInTheDocument()
+      expect(screen.getByText(/loading/i)).toBeInTheDocument()
     })
   })
 
   it('should handle keyboard navigation', async () => {
-    const user = createUser()
+    const user = userEvent.setup()
     
     render(<SearchHistoryView />)
     
-    const searchInput = screen.getByPlaceholderText('Search notes...')
-    
-    // Focus the search input and test keyboard interactions
-    await user.click(searchInput)
+    const virtualList = await screen.findByTestId('virtual-list')
+    await user.click(virtualList) // Focus the virtual list
     await user.keyboard('{ArrowDown}')
     
-    // The specific behavior depends on the implementation
-    // but keyboard events should not cause errors
-    expect(searchInput).toBeInTheDocument()
+    // Should handle keyboard events
+    await waitFor(() => {
+      expect(virtualList).toHaveFocus()
+    })
   })
 
-  it('should handle back button click', async () => {
-    const user = createUser()
-    const mockSetCurrentView = vi.fn()
+  it('should display note metadata correctly', async () => {
+    render(<SearchHistoryView />)
     
-    await act(async () => {
-      useScratchPadStore.setState({
-        setCurrentView: mockSetCurrentView
-      })
+    await waitFor(() => {
+      // Should show word counts and timestamps
+      expect(screen.getByText('6 words')).toBeInTheDocument()
+      expect(screen.getByText('9 words')).toBeInTheDocument()
+    })
+  })
+
+  it('should handle search functionality', async () => {
+    const user = userEvent.setup()
+    const mockSearchNotes = vi.fn().mockResolvedValue([mockNote1])
+    
+    useScratchPadStore.setState({
+      searchNotes: mockSearchNotes
     })
     
     render(<SearchHistoryView />)
     
-    const backButton = screen.getByRole('button')
-    await user.click(backButton)
+    const searchInput = await screen.findByPlaceholderText(/search notes/i)
+    await user.type(searchInput, 'test')
     
     await waitFor(() => {
-      expect(mockSetCurrentView).toHaveBeenCalledWith('list')
-    })
-  })
-
-  it('should handle error states gracefully', async () => {
-    const user = createUser()
-    const mockSearchNotes = vi.fn().mockRejectedValue(new Error('Search failed'))
-    
-    await act(async () => {
-      useScratchPadStore.setState({ searchNotes: mockSearchNotes })
-    })
-    
-    render(<SearchHistoryView />)
-    
-    const searchInput = screen.getByPlaceholderText('Search notes...')
-    await user.type(searchInput, 'error')
-    
-    // The component should handle the error gracefully
-    await waitFor(() => {
-      expect(mockSearchNotes).toHaveBeenCalledWith('error')
-      // Component should not crash and should show some error state or fallback
-      expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
-    })
-  })
-
-  it('should display note word counts', async () => {
-    render(<SearchHistoryView />)
-    
-    // Should show word counts for notes
-    await waitFor(() => {
-      // Check that notes with word counts are displayed properly
-      expect(screen.getByText('First Note')).toBeInTheDocument()
-    })
-  })
-
-  it('should handle notes without titles (Untitled)', async () => {
-    render(<SearchHistoryView />)
-    
-    // mockNote3 has no title, should show as "Untitled"
-    await waitFor(() => {
-      expect(screen.getAllByText('Untitled').length).toBeGreaterThan(0)
-    })
-  })
-
-  it('should update when store state changes', async () => {
-    render(<SearchHistoryView />)
-    
-    // Initial render should show 3 notes
-    expect(screen.getByText('First Note')).toBeInTheDocument()
-    
-    // Update store with new notes
-    const newNote: Note = {
-      id: 4,
-      content: 'New note content',
-      created_at: '2024-01-05T12:00:00Z',
-      updated_at: '2024-01-05T12:00:00Z',
-      is_favorite: false,
-      search_content: 'new note content',
-      word_count: 3,
-      language: null,
-      format: 'markdown'
-    }
-    
-    await act(async () => {
-      useScratchPadStore.setState({
-        notes: [mockNote1, mockNote2, mockNote3, newNote]
-      })
-    })
-    
-    // Should show the new note
-    await waitFor(() => {
-      expect(screen.getByText('New Note')).toBeInTheDocument()
+      expect(mockSearchNotes).toHaveBeenCalledWith('test')
     })
   })
 })

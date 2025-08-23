@@ -1,14 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useScratchPadStore } from '../store'
 import type { Note, ApiError } from '../../types'
-
-// Mock Tauri API
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn()
-}))
-
-// Import the mocked invoke function
 import { invoke } from '@tauri-apps/api/core'
+
+// Get the mocked invoke function from setup.ts
 const mockInvoke = vi.mocked(invoke)
 
 // Mock data
@@ -33,7 +28,7 @@ const mockApiError: ApiError = {
 
 describe('ScratchPadStore', () => {
   beforeEach(() => {
-    // Reset store state before each test
+    // Reset store state before each test - match setup.ts initial state
     useScratchPadStore.setState({
       notes: [],
       activeNoteId: null,
@@ -43,7 +38,19 @@ describe('ScratchPadStore', () => {
       error: null,
       expandedFolders: new Set(['recent', 'all-notes']),
       selectedSearchIndex: 0,
-      searchQuery: ''
+      searchQuery: '',
+      searchResults: [],
+      searchTotalCount: 0,
+      currentSearchPage: 0,
+      searchPageSize: 20,
+      hasMoreSearchResults: false,
+      searchQueryTime: 0,
+      lastQueryComplexity: null,
+      recentSearches: [],
+      searchHistory: [],
+      notesCount: 0,
+      hasMoreNotes: false,
+      isLoadingMore: false,
     })
     
     mockInvoke.mockClear()
@@ -110,7 +117,10 @@ describe('ScratchPadStore', () => {
   describe('Note Management', () => {
     it('should load notes successfully', async () => {
       const mockNotes = [mockNote]
-      mockInvoke.mockResolvedValue(mockNotes)
+      // Mock both calls that loadNotes makes
+      mockInvoke
+        .mockResolvedValueOnce(mockNotes) // for get_all_notes
+        .mockResolvedValueOnce(1) // for get_notes_count
       
       const { loadNotes } = useScratchPadStore.getState()
       
@@ -118,6 +128,7 @@ describe('ScratchPadStore', () => {
       
       const state = useScratchPadStore.getState()
       expect(mockInvoke).toHaveBeenCalledWith('get_all_notes')
+      expect(mockInvoke).toHaveBeenCalledWith('get_notes_count')
       expect(state.notes).toEqual(mockNotes)
       expect(state.activeNoteId).toBe(1)
       expect(state.isLoading).toBe(false)
@@ -151,7 +162,8 @@ describe('ScratchPadStore', () => {
       await saveNote('Updated content')
       
       expect(mockInvoke).toHaveBeenCalledWith('update_note', {
-        note: { ...mockNote, content: 'Updated content' }
+        id: 1,
+        content: 'Updated content'
       })
       
       const state = useScratchPadStore.getState()
@@ -207,7 +219,10 @@ describe('ScratchPadStore', () => {
       
       await updateNote(updatedNote)
       
-      expect(mockInvoke).toHaveBeenCalledWith('update_note', { note: updatedNote })
+      expect(mockInvoke).toHaveBeenCalledWith('update_note', { 
+        id: updatedNote.id, 
+        content: updatedNote.content 
+      })
       
       const state = useScratchPadStore.getState()
       expect(state.notes[0]).toEqual(updatedNote)

@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { vi, beforeEach, afterEach } from 'vitest'
+import { vi, afterEach } from 'vitest'
 import { cleanup, configure } from '@testing-library/react'
 import { useScratchPadStore } from '../lib/store'
 
@@ -14,11 +14,16 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn()
 }))
 
-// Minimal cleanup after each test
+// SINGLE cleanup mechanism after each test
 afterEach(() => {
-  cleanup() // React Testing Library cleanup
-  vi.clearAllMocks() // Clear all mocks
-  vi.useRealTimers() // Reset timers
+  // React Testing Library cleanup ONLY
+  cleanup()
+  
+  // Clear all mocks
+  vi.clearAllMocks()
+  
+  // Reset timers
+  vi.useRealTimers()
   
   // Reset store to initial state
   const initialState = {
@@ -46,11 +51,6 @@ afterEach(() => {
   }
   
   useScratchPadStore.setState(initialState)
-})
-
-// Minimal beforeEach setup
-beforeEach(() => {
-  vi.clearAllMocks()
 })
 
 // Essential DOM mocks only
@@ -101,4 +101,3 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }))
-

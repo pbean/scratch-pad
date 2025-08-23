@@ -309,6 +309,7 @@ export function SearchHistoryView() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search notes..."
+            data-testid="search-history-input"
             className="w-full bg-input text-foreground placeholder-muted-foreground pl-10 pr-10 py-2 rounded-md outline-none focus-ring smooth-transition text-sm"
           />
           {isSearching && (
@@ -358,6 +359,7 @@ export function SearchHistoryView() {
             className="h-full"
             renderItem={(item, _index, isSelected) => (
               <div
+                data-testid={`search-item-${item.id}`}
                 className={`
                   flex items-center gap-2 px-4 py-2 cursor-pointer smooth-transition text-sm h-12 button-press
                   ${isSelected ? "bg-accent text-accent-foreground search-highlight" : "hover:bg-muted hover-lift"}

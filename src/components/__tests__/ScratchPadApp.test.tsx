@@ -6,7 +6,6 @@ import { useScratchPadStore } from '../../lib/store'
 import { invoke } from '@tauri-apps/api/core'
 
 // Mock Tauri API
-vi.mock('@tauri-apps/api/core')
 const mockInvoke = vi.mocked(invoke)
 
 // Mock performance monitoring hooks

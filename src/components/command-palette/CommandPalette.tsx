@@ -198,6 +198,7 @@ export function CommandPalette() {
               {filteredCommands.map((command, index) => (
                 <div
                   key={command.id}
+                  data-testid={`command-item-${command.id}`}
                   className={`
                     command-item flex items-center gap-3 p-3 cursor-pointer smooth-transition button-press
                     ${index === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-muted"}

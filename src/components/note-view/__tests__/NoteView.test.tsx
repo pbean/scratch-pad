@@ -7,11 +7,6 @@ import type { Note } from '../../../types'
 import { setupTestIsolation, teardownTestIsolation } from '../../../test/test-isolation'
 
 // Mock Tauri API
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn()
-}))
-
-// Import the mocked invoke function
 import { invoke } from '@tauri-apps/api/core'
 const mockInvoke = vi.mocked(invoke)
 

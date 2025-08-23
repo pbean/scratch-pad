@@ -317,10 +317,10 @@ export function SettingsView() {
         {/* Main Settings Tabs */}
         <Tabs defaultValue="general" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
-            <TabsTrigger value="optimization">Optimization</TabsTrigger>
+            <TabsTrigger value="general" data-testid="settings-tab-general">General</TabsTrigger>
+            <TabsTrigger value="performance" data-testid="settings-tab-performance">Performance</TabsTrigger>
+            <TabsTrigger value="monitoring" data-testid="settings-tab-monitoring">Monitoring</TabsTrigger>
+            <TabsTrigger value="optimization" data-testid="settings-tab-optimization">Optimization</TabsTrigger>
           </TabsList>
 
           {/* General Settings Tab */}
@@ -338,6 +338,7 @@ export function SettingsView() {
                   <Label htmlFor="globalShortcut">Global Shortcut</Label>
                   <Input
                     id="globalShortcut"
+                    data-testid="global-shortcut-input"
                     value={formData.globalShortcut}
                     onChange={(e) => handleInputChange("globalShortcut", e.target.value)}
                     placeholder="e.g., Ctrl+Shift+N"
@@ -548,7 +549,7 @@ export function SettingsView() {
 
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-4 pt-6 border-t">
-              <Button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2">
+              <Button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2" data-testid="save-settings-button">
                 <Save className="h-4 w-4" />
                 {isSaving ? "Saving..." : "Save Settings"}
               </Button>
