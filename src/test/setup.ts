@@ -317,10 +317,10 @@ beforeAll(() => {
     'cursor-pointer': 'pointer'
   }
   
-  global.getComputedStyle = vi.fn().mockImplementation((element: Element | null) => {
+  global.getComputedStyle = vi.fn().mockImplementation((element: any) => {
     // Handle null/undefined element gracefully - CRITICAL FIX
-    if (!element) {
-      const fallbackStyle = {
+    if (!element || typeof element.classList === 'undefined') {
+      const fallbackStyle: any = {
         getPropertyValue: vi.fn().mockReturnValue(''),
         getPropertyPriority: vi.fn().mockReturnValue(''),
         setProperty: vi.fn(),

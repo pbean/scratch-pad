@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TabBar } from '../TabBar'
 import { useScratchPadStore } from '../../../lib/store'
@@ -84,7 +84,13 @@ describe('TabBar', () => {
     
     render(<TabBar />)
     
-    await user.click(screen.getByText('Second note content'))
+    const secondTabText = screen.getByText('Second note content')
+    expect(secondTabText).toBeInTheDocument()
+    
+    // Click on the parent div that has the onClick handler
+    const secondTab = secondTabText.closest('div')
+    expect(secondTab).toBeTruthy()
+    fireEvent.click(secondTab!)
     
     expect(mockSetActiveNote).toHaveBeenCalledWith(2)
   })
@@ -111,7 +117,7 @@ describe('TabBar', () => {
     render(<TabBar />)
     
     const closeButtons = screen.getAllByRole('button')
-    await user.click(closeButtons[1]) // Close second tab
+    fireEvent.click(closeButtons[1]) // Close second tab
     
     expect(mockDeleteNote).toHaveBeenCalledWith(2)
   })
@@ -128,7 +134,7 @@ describe('TabBar', () => {
     render(<TabBar />)
     
     const closeButtons = screen.getAllByRole('button')
-    await user.click(closeButtons[0]) // Close first tab (active tab)
+    fireEvent.click(closeButtons[0]) // Close first tab (active tab)
     
     expect(mockDeleteNote).toHaveBeenCalledWith(1)
     expect(mockSetActiveNote).not.toHaveBeenCalled()
@@ -205,7 +211,7 @@ describe('TabBar', () => {
     
     const inactiveTab = screen.getByText('Second note content').closest('div')
     
-    await user.hover(inactiveTab!)
+    fireEvent.mouseEnter(inactiveTab!)
     
     expect(inactiveTab).toHaveClass('hover:bg-muted')
   })
