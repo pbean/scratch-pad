@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useScratchPadStore } from "../../lib/store"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -48,28 +48,38 @@ export function SettingsView() {
     loadSettings()
   }, [])
 
+  const isMounted = useRef(true)
+  
+  useEffect(() => {
+    return () => { isMounted.current = false }
+  }, [])
+
   const loadSettings = async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const settings = await getAllSettings()
+      const settings = getAllSettings ? await getAllSettings() : {}
       
-      setFormData({
-        globalShortcut: settings.global_shortcut || "Ctrl+Shift+N",
-        uiFont: settings.ui_font || "Inter",
-        editorFont: settings.editor_font || "SauceCodePro Nerd Font",
-        defaultNoteFormat: (settings.default_note_format as NoteFormat) || "plaintext",
-        layoutMode: (settings.layout_mode as LayoutMode) || "default",
-        windowWidth: settings.window_width || "800",
-        windowHeight: settings.window_height || "600",
-        autoSaveDelay: settings.auto_save_delay_ms || "500",
-        searchLimit: settings.search_limit || "100",
-        fuzzySearchThreshold: settings.fuzzy_search_threshold || "0.6"
-      })
+      if (isMounted.current) {
+        setFormData({
+          globalShortcut: settings.global_shortcut || "Ctrl+Shift+N",
+          uiFont: settings.ui_font || "Inter",
+          editorFont: settings.editor_font || "SauceCodePro Nerd Font",
+          defaultNoteFormat: (settings.default_note_format as NoteFormat) || "plaintext",
+          layoutMode: (settings.layout_mode as LayoutMode) || "default",
+          windowWidth: settings.window_width || "800",
+          windowHeight: settings.window_height || "600",
+          autoSaveDelay: settings.auto_save_delay_ms || "500",
+          searchLimit: settings.search_limit || "100",
+          fuzzySearchThreshold: settings.fuzzy_search_threshold || "0.6"
+        })
+      }
     } catch (error) {
       console.error("Failed to load settings:", error)
     } finally {
-      setIsLoading(false)
+      if (isMounted.current) {
+        setIsLoading(false)
+      }
     }
   }
 
@@ -143,12 +153,20 @@ export function SettingsView() {
       if (formData.searchLimit) await setSetting("search_limit", formData.searchLimit)
       if (formData.fuzzySearchThreshold) await setSetting("fuzzy_search_threshold", formData.fuzzySearchThreshold)
 
-      setSuccessMessage("Settings saved successfully!")
-      setTimeout(() => setSuccessMessage(null), 3000)
+      if (isMounted.current) {
+        setSuccessMessage("Settings saved successfully!")
+        setTimeout(() => {
+          if (isMounted.current) {
+            setSuccessMessage(null)
+          }
+        }, 3000)
+      }
     } catch (error) {
       console.error("Failed to save settings:", error)
     } finally {
-      setIsSaving(false)
+      if (isMounted.current) {
+        setIsSaving(false)
+      }
     }
   }
 
@@ -167,8 +185,14 @@ export function SettingsView() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
 
-      setSuccessMessage("Settings exported successfully!")
-      setTimeout(() => setSuccessMessage(null), 3000)
+      if (isMounted.current) {
+        setSuccessMessage("Settings exported successfully!")
+        setTimeout(() => {
+          if (isMounted.current) {
+            setSuccessMessage(null)
+          }
+        }, 3000)
+      }
     } catch (error) {
       console.error("Failed to export settings:", error)
     }
@@ -189,11 +213,19 @@ export function SettingsView() {
         // Reload settings after import
         await loadSettings()
         
-        setSuccessMessage(`Successfully imported ${count} settings!`)
-        setTimeout(() => setSuccessMessage(null), 3000)
+        if (isMounted.current) {
+          setSuccessMessage(`Successfully imported ${count} settings!`)
+          setTimeout(() => {
+            if (isMounted.current) {
+              setSuccessMessage(null)
+            }
+          }, 3000)
+        }
       } catch (error) {
         console.error("Failed to import settings:", error)
-        setError("Failed to import settings. Please check the file format.")
+        if (isMounted.current) {
+          setError("Failed to import settings. Please check the file format.")
+        }
       }
     }
     input.click()
@@ -208,8 +240,14 @@ export function SettingsView() {
       await resetSettingsToDefaults()
       await loadSettings()
       
-      setSuccessMessage("Settings reset to defaults successfully!")
-      setTimeout(() => setSuccessMessage(null), 3000)
+      if (isMounted.current) {
+        setSuccessMessage("Settings reset to defaults successfully!")
+        setTimeout(() => {
+          if (isMounted.current) {
+            setSuccessMessage(null)
+          }
+        }, 3000)
+      }
     } catch (error) {
       console.error("Failed to reset settings:", error)
     }

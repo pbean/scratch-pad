@@ -96,20 +96,17 @@ export function CommandPalette() {
       command.description?.toLowerCase().includes(query.toLowerCase()),
   )
 
-  // FE-FIX-002: Simplified synchronous focus management to prevent race conditions
+  // CRITICAL FIX #2: CommandPalette Cleanup with focus management safety
   useEffect(() => {
     if (isCommandPaletteOpen && inputRef.current) {
-      // Use direct synchronous focus for better CI stability
-      const focusInput = () => {
-        if (inputRef.current) {
+      const timer = setTimeout(() => {
+        if (inputRef.current && document.body.contains(inputRef.current)) {
           inputRef.current.focus()
           setQuery("")
           setSelectedIndex(0)
         }
-      }
-
-      // Use simple setTimeout for more reliable CI performance
-      setTimeout(focusInput, 0)
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [isCommandPaletteOpen])
 

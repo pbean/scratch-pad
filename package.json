@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
     "type-check:ci": "tsc --noEmit -p tsconfig.ci.json",
-    "test": "vitest"
+    "test": "vitest",
+    "test:stable": "vitest --config vitest.stable.config.ts"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",

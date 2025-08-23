@@ -36,6 +36,7 @@ export function SearchHistoryView() {
   const [isSearching, setIsSearching] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const debounceTimerRef = useRef<NodeJS.Timeout | undefined>()
 
   // Build tree structure from notes
   useEffect(() => {
@@ -122,6 +123,15 @@ export function SearchHistoryView() {
     setFlattenedItems(flattenTree(treeData))
   }, [treeData])
 
+  // CRITICAL FIX #3: SearchHistoryView Timer Cleanup
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
+
   // Handle search with debouncing
   useEffect(() => {
     const performSearch = async () => {
@@ -142,8 +152,10 @@ export function SearchHistoryView() {
       }
     }
 
-    const debounceTimer = setTimeout(performSearch, 300)
-    return () => clearTimeout(debounceTimer)
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    debounceTimerRef.current = setTimeout(performSearch, 300)
   }, [query, searchNotes])
 
   // Load more notes when scrolling near bottom

@@ -1,5 +1,4 @@
 import { vi } from 'vitest'
-import { act } from '@testing-library/react'
 import { useScratchPadStore } from '../lib/store'
 
 /**
@@ -37,9 +36,6 @@ export const INITIAL_STORE_STATE = {
   isLoadingMore: false,
 }
 
-// Store mocks separately to prevent loss
-let preservedMocks: Record<string, any> = {}
-
 /**
  * Reset all stores to their initial state
  * This ensures complete test isolation
@@ -63,53 +59,6 @@ export function resetAllStores() {
   
   // Reset Zustand store with preserved mocks
   useScratchPadStore.setState(resetState)
-}
-
-/**
- * Setup test isolation with mock preservation
- * Stores mocks separately to prevent loss during component mount
- */
-export async function setupTestIsolationWithMocks(mocks?: any) {
-  // Clear everything first
-  vi.clearAllMocks()
-  vi.clearAllTimers()
-  
-  // Get clean initial state
-  const { getInitialState } = useScratchPadStore
-  const initialState = getInitialState()
-  
-  // Reset to initial state first
-  useScratchPadStore.setState(initialState)
-  
-  // Apply mocks if provided
-  if (mocks) {
-    preservedMocks = mocks
-    await act(async () => {
-      useScratchPadStore.setState(mocks)
-    })
-  }
-  
-  // Ensure mocks are set
-  await new Promise(resolve => setTimeout(resolve, 10))
-}
-
-/**
- * Enhanced teardown with explicit cleanup
- */
-export function teardownTestIsolationEnhanced() {
-  // Clear timers with explicit cleanup
-  if (vi.isFakeTimers()) {
-    vi.clearAllTimers()
-    vi.useRealTimers()
-  }
-  
-  // Clear mocks
-  vi.clearAllMocks()
-  preservedMocks = {}
-  
-  // Clean DOM
-  document.body.innerHTML = ''
-  document.getElementById('test-root')?.remove()
 }
 
 /**
