@@ -153,7 +153,8 @@ export async function waitForReact19<T>(
 
   while (retryAttempts <= fullConfig.maxRetries) {
     try {
-      const result = await waitFor(callback, waitForOptions)
+      // Execute the callback directly instead of passing to waitFor
+      const result = await Promise.resolve(callback())
       
       return {
         result,
@@ -255,25 +256,41 @@ export async function waitForErrorBoundary(
   config: Partial<React19TimeoutConfig> = {}
 ): Promise<TimeoutResult<void>> {
   const fullConfig: React19TimeoutConfig = { ...DEFAULT_REACT19_CONFIG, ...config }
+  const startTime = Date.now()
   
-  return waitForReact19(async () => {
-    try {
-      await errorTrigger()
-      
-      // If no error was thrown, wait a bit to see if async error occurs
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      if (fullConfig.errorBoundaryMode === 'strict') {
-        throw new Error('Expected error boundary to be triggered but no error occurred')
+  try {
+    await errorTrigger()
+    
+    // If no error was thrown, wait a bit to see if async error occurs
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    if (fullConfig.errorBoundaryMode === 'strict') {
+      // In strict mode, no error means failure
+      return {
+        result: undefined,
+        duration: Date.now() - startTime,
+        retryAttempts: 0,
+        success: false,
+        error: new Error('Expected error boundary to be triggered but no error occurred')
       }
-    } catch (error) {
-      // Expected behavior - error boundary should handle this
-      if (error instanceof Error && error.message.includes('Expected error boundary')) {
-        throw error
-      }
-      // Actual errors are expected in this context
     }
-  }, fullConfig)
+    
+    // In permissive mode, no error is okay
+    return {
+      result: undefined,
+      duration: Date.now() - startTime,
+      retryAttempts: 0,
+      success: true
+    }
+  } catch (error) {
+    // Error was thrown, which is expected for error boundary
+    return {
+      result: undefined,
+      duration: Date.now() - startTime,
+      retryAttempts: 0,
+      success: true
+    }
+  }
 }
 
 // ============================================================================

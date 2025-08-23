@@ -273,7 +273,6 @@ describe('ScratchPadApp', () => {
   it('should handle initialization errors gracefully', async () => {
     // Mock console.error to suppress error output
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const toastErrorSpy = vi.fn()
     
     // Test case 1: initializeSettings fails (loadNotes should NOT be called)
     const mockLoadNotes = vi.fn().mockResolvedValue(undefined)
@@ -284,26 +283,16 @@ describe('ScratchPadApp', () => {
       initializeSettings: mockInitializeSettings
     })
     
-    // Mock the toast.error function
-    const originalToast = (window as any).toast
-    ;(window as any).toast = { error: toastErrorSpy }
-    
     // Render the component
     const { container } = render(<ScratchPadApp />)
     
-    // Wait for initializeSettings to be called and fail
+    // Wait for error to be logged - the error handler is inside an async function
     await waitFor(() => {
-      expect(mockInitializeSettings).toHaveBeenCalled()
-    }, { timeout: 2000 })
-    
-    // Wait a bit to ensure error handling completes
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    // Verify error was logged
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "Failed to initialize app:", 
-      expect.any(Error)
-    )
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Failed to initialize app:", 
+        expect.any(Error)
+      )
+    }, { timeout: 3000 })
     
     // Since initializeSettings failed, loadNotes should NOT have been called
     // (because it's only called after initializeSettings succeeds)
@@ -313,7 +302,6 @@ describe('ScratchPadApp', () => {
     expect(container.firstChild).toBeTruthy()
     
     // Clean up
-    ;(window as any).toast = originalToast
     consoleErrorSpy.mockRestore()
   })
   
@@ -335,20 +323,18 @@ describe('ScratchPadApp', () => {
       expect(mockInitializeSettings).toHaveBeenCalled()
     }, { timeout: 2000 })
     
-    // Wait a bit for the setTimeout to trigger loadNotes (150ms delay)
-    await new Promise(resolve => setTimeout(resolve, 200))
-    
-    // Now loadNotes should have been called
-    expect(mockLoadNotes).toHaveBeenCalled()
+    // Wait for loadNotes to be called (it's called after a 150ms setTimeout)
+    await waitFor(() => {
+      expect(mockLoadNotes).toHaveBeenCalled()
+    }, { timeout: 3000 })
     
     // Component should be rendered
     expect(container.firstChild).toBeTruthy()
   })
   
   it('should handle loadNotes errors gracefully', async () => {
-    // Mock console.error and toast to verify error handling
+    // Mock console.error to verify error handling
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const toastErrorSpy = vi.fn()
     
     // Mock successful initializeSettings but failed loadNotes
     const mockLoadNotes = vi.fn().mockRejectedValue(new Error('Load failed'))
@@ -359,10 +345,6 @@ describe('ScratchPadApp', () => {
       initializeSettings: mockInitializeSettings
     })
     
-    // Mock the toast.error function
-    const originalToast = (window as any).toast
-    ;(window as any).toast = { error: toastErrorSpy }
-    
     // Render the component
     const { container } = render(<ScratchPadApp />)
     
@@ -371,21 +353,23 @@ describe('ScratchPadApp', () => {
       expect(mockInitializeSettings).toHaveBeenCalled()
     }, { timeout: 2000 })
     
-    // Wait for the setTimeout to trigger and loadNotes to fail (150ms + processing time)
-    await new Promise(resolve => setTimeout(resolve, 300))
+    // Wait for loadNotes to be called (after 150ms setTimeout)
+    await waitFor(() => {
+      expect(mockLoadNotes).toHaveBeenCalled()
+    }, { timeout: 3000 })
     
-    // Verify loadNotes was called and error was handled
-    expect(mockLoadNotes).toHaveBeenCalled()
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "Failed to load notes:",
-      expect.any(Error)
-    )
+    // Wait for error to be logged
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Failed to load notes:",
+        expect.any(Error)
+      )
+    }, { timeout: 3000 })
     
     // Component should still be rendered despite loadNotes error
     expect(container.firstChild).toBeTruthy()
     
     // Clean up
-    ;(window as any).toast = originalToast
     consoleErrorSpy.mockRestore()
   })
 })

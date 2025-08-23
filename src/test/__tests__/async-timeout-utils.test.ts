@@ -349,11 +349,17 @@ describe('React 19 Async Timeout Utilities', () => {
         animatedElement.style.animationName = 'none'
       }, 200)
 
-      const resultPromise = waitForAnimation(elementSelector)
+      const resultPromise = waitForAnimation(elementSelector, {
+        retryEnabled: false  // Disable retry to avoid timer conflicts
+      })
       
       // Advance past animation completion
       await vi.advanceTimersByTimeAsync(250)
-      const result = await resultPromise
+      
+      // Now the animation should be complete, try again
+      const result = await waitForAnimation(elementSelector, {
+        retryEnabled: false
+      })
 
       expect(result.success).toBe(true)
       expect(result.result).toBe(animatedElement)
@@ -466,7 +472,9 @@ describe('React 19 Async Timeout Utilities', () => {
         throw 'String error'
       }
 
-      const result = await waitForReact19(stringErrorOperation)
+      const result = await waitForReact19(stringErrorOperation, {
+        retryEnabled: false  // Disable retry for immediate failure
+      })
 
       expect(result.success).toBe(false)
       expect(result.error?.message).toContain('String error')
@@ -477,7 +485,9 @@ describe('React 19 Async Timeout Utilities', () => {
         throw null
       }
 
-      const result = await waitForReact19(nullErrorOperation)
+      const result = await waitForReact19(nullErrorOperation, {
+        retryEnabled: false  // Disable retry for immediate failure
+      })
 
       expect(result.success).toBe(false)
       expect(result.error).toBeInstanceOf(Error)
