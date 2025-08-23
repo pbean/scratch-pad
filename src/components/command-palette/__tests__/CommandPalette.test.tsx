@@ -6,6 +6,7 @@ import { useScratchPadStore } from '../../../lib/store'
 import type { Note } from '../../../types'
 import { invoke } from '@tauri-apps/api/core'
 import { setupTestIsolation, teardownTestIsolation } from '../../../test/test-isolation'
+import { createUser } from '../../../test/test-helpers'
 
 // Mock Tauri API
 vi.mock('@tauri-apps/api/core', () => ({
@@ -232,7 +233,7 @@ describe('CommandPalette', () => {
   })
 
   it('should filter commands based on search query', async () => {
-    const user = userEvent.setup({ delay: null })
+    const user = createUser()
     
     await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
@@ -256,6 +257,8 @@ describe('CommandPalette', () => {
   })
 
   it('should filter commands by description', async () => {
+    const user = createUser()
+    
     await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
@@ -277,6 +280,8 @@ describe('CommandPalette', () => {
   })
 
   it('should show "No commands found" when no matches', async () => {
+    const user = createUser()
+    
     await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
@@ -297,6 +302,7 @@ describe('CommandPalette', () => {
   })
 
   it('should close on Escape key', async () => {
+    const user = createUser()
     const mockSetCommandPaletteOpen = vi.fn()
     
     await act(async () => {
@@ -321,6 +327,8 @@ describe('CommandPalette', () => {
   })
 
   it('should navigate with arrow keys', async () => {
+    const user = createUser()
+    
     await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
@@ -352,6 +360,8 @@ describe('CommandPalette', () => {
   })
 
   it('should wrap navigation at boundaries', async () => {
+    const user = createUser()
+    
     await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })
@@ -382,6 +392,7 @@ describe('CommandPalette', () => {
   })
 
   it('should execute command on Enter', async () => {
+    const user = createUser()
     const mockSetCurrentView = vi.fn()
     const mockSetCommandPaletteOpen = vi.fn()
     
@@ -418,6 +429,7 @@ describe('CommandPalette', () => {
   })
 
   it('should execute command on click', async () => {
+    const user = createUser()
     const mockCreateNote = vi.fn()
     const mockSetCommandPaletteOpen = vi.fn()
     
@@ -447,6 +459,7 @@ describe('CommandPalette', () => {
   })
 
   it('should handle export note command', async () => {
+    const user = createUser()
     vi.mocked(invoke).mockResolvedValue(undefined)
     
     await act(async () => {
@@ -482,6 +495,7 @@ describe('CommandPalette', () => {
   })
 
   it('should handle export note error', async () => {
+    const user = createUser()
     vi.mocked(invoke).mockRejectedValue(new Error('Export failed'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     
@@ -508,6 +522,8 @@ describe('CommandPalette', () => {
   })
 
   it('should handle export when no active note', async () => {
+    const user = createUser()
+    
     act(() => {
       useScratchPadStore.setState({
         isCommandPaletteOpen: true,

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { SettingsView } from '../SettingsView'
 import { useScratchPadStore } from '../../../lib/store'
 import { setupTestIsolation, teardownTestIsolation } from '../../../test/test-isolation'
+import { createUser } from '../../../test/test-helpers'
 
 const mockSettings = {
   global_shortcut: 'Ctrl+Shift+N',
@@ -19,8 +20,6 @@ const mockSettings = {
 }
 
 describe('SettingsView', () => {
-  const user = userEvent.setup()
-
   beforeEach(async () => {
     // Use test isolation utility for complete reset
     await setupTestIsolation()
@@ -134,6 +133,8 @@ describe('SettingsView', () => {
   })
 
   it('should validate numeric fields', async () => {
+    const user = createUser()
+    
     await act(async () => {
       render(<SettingsView />)
     })
@@ -157,6 +158,7 @@ describe('SettingsView', () => {
   })
 
   it('should save settings successfully', async () => {
+    const user = createUser()
     const mockSetSetting = vi.fn().mockResolvedValue(undefined)
     useScratchPadStore.setState({ setSetting: mockSetSetting })
     
@@ -186,6 +188,7 @@ describe('SettingsView', () => {
   })
 
   it('should handle save errors', async () => {
+    const user = createUser()
     const mockSetSetting = vi.fn().mockRejectedValue(new Error('Save failed'))
     useScratchPadStore.setState({ setSetting: mockSetSetting })
     
@@ -288,6 +291,7 @@ describe('SettingsView', () => {
   })
 
   it('should not reset settings if user cancels', async () => {
+    const user = createUser()
     const mockResetSettings = vi.fn()
     useScratchPadStore.setState({ resetSettingsToDefaults: mockResetSettings })
     
@@ -309,6 +313,8 @@ describe('SettingsView', () => {
   })
 
   it('should clear validation errors when input changes', async () => {
+    const user = createUser()
+    
     await act(async () => {
       render(<SettingsView />)
     })
@@ -369,6 +375,7 @@ describe('SettingsView', () => {
   })
 
   it('should show saving state', async () => {
+    const user = createUser()
     const mockSetSetting = vi.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)))
     useScratchPadStore.setState({ setSetting: mockSetSetting })
     
@@ -388,6 +395,8 @@ describe('SettingsView', () => {
   })
 
   it('should validate fuzzy search threshold range', async () => {
+    const user = createUser()
+    
     await act(async () => {
       render(<SettingsView />)
     })
@@ -410,6 +419,8 @@ describe('SettingsView', () => {
   })
 
   it('should validate auto-save delay range', async () => {
+    const user = createUser()
+    
     await act(async () => {
       render(<SettingsView />)
     })
@@ -432,6 +443,7 @@ describe('SettingsView', () => {
   })
 
   it('should auto-hide success messages', async () => {
+    const user = createUser()
     vi.useFakeTimers()
     
     try {

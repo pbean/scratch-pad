@@ -5,6 +5,7 @@ import { SearchHistoryView } from '../SearchHistoryView'
 import { useScratchPadStore } from '../../../lib/store'
 import type { Note } from '../../../types'
 import { setupTestIsolation, teardownTestIsolation } from '../../../test/test-isolation'
+import { createUser } from '../../../test/test-helpers'
 
 // Mock VirtualList component - improved mock with proper key generation
 vi.mock('../../ui/virtual-list', () => ({
@@ -83,15 +84,9 @@ const mockNote3: Note = {
 }
 
 describe('SearchHistoryView', () => {
-  // CRITICAL FIX: Setup userEvent with delay null to avoid act() issues
-  const user = userEvent.setup({ delay: null })
-
   beforeEach(async () => {
     // Use test isolation utility for complete reset
     await setupTestIsolation()
-    
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2024-01-04T12:00:00Z'))
     
     // Set up test-specific state
     await act(async () => {
@@ -110,7 +105,6 @@ describe('SearchHistoryView', () => {
   })
 
   afterEach(() => {
-    vi.useRealTimers()
     teardownTestIsolation()
   })
 
@@ -165,14 +159,20 @@ describe('SearchHistoryView', () => {
   })
 
   it('should show last modified times', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-01-04T12:00:00Z'))
+    
     render(<SearchHistoryView />)
     
     // Should show relative times
     expect(screen.getByText('1d ago')).toBeInTheDocument() // mockNote1 updated yesterday
     expect(screen.getByText('2d ago')).toBeInTheDocument() // mockNote2 updated 2 days ago
+    
+    vi.useRealTimers()
   })
 
   it('should switch to search mode when typing', async () => {
+    const user = createUser()
     const mockSearchNotes = vi.fn().mockResolvedValue([mockNote1])
     
     // CRITICAL FIX: Only use act() for store state changes, not render
@@ -194,6 +194,7 @@ describe('SearchHistoryView', () => {
   })
 
   it('should clear search results when input is cleared', async () => {
+    const user = createUser()
     const mockSearchNotes = vi.fn().mockResolvedValue([mockNote1])
     
     await act(async () => {
@@ -214,6 +215,7 @@ describe('SearchHistoryView', () => {
   })
 
   it('should handle clicking on notes', async () => {
+    const user = createUser()
     const mockSetActiveNote = vi.fn()
     const mockSetCurrentView = vi.fn()
     
@@ -237,6 +239,7 @@ describe('SearchHistoryView', () => {
   })
 
   it('should handle folder expansion/collapse', async () => {
+    const user = createUser()
     const mockToggleFolder = vi.fn()
     
     await act(async () => {
@@ -269,6 +272,7 @@ describe('SearchHistoryView', () => {
   })
 
   it('should display search results when searching', async () => {
+    const user = createUser()
     const mockSearchResults = [mockNote1]
     const mockSearchNotes = vi.fn().mockResolvedValue(mockSearchResults)
     
@@ -292,6 +296,7 @@ describe('SearchHistoryView', () => {
   })
 
   it('should handle empty search results', async () => {
+    const user = createUser()
     const mockSearchNotes = vi.fn().mockResolvedValue([])
     
     await act(async () => {
@@ -346,6 +351,8 @@ describe('SearchHistoryView', () => {
   })
 
   it('should handle keyboard navigation', async () => {
+    const user = createUser()
+    
     render(<SearchHistoryView />)
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
@@ -360,6 +367,7 @@ describe('SearchHistoryView', () => {
   })
 
   it('should handle back button click', async () => {
+    const user = createUser()
     const mockSetCurrentView = vi.fn()
     
     await act(async () => {
@@ -379,6 +387,7 @@ describe('SearchHistoryView', () => {
   })
 
   it('should handle error states gracefully', async () => {
+    const user = createUser()
     const mockSearchNotes = vi.fn().mockRejectedValue(new Error('Search failed'))
     
     await act(async () => {
