@@ -114,18 +114,11 @@ const waitForSelectedIndex = async (expectedIndex: number) => {
 }
 
 describe('CommandPalette', () => {
-  let user: ReturnType<typeof userEvent.setup>
   let renderResult: ReturnType<typeof render>
 
   beforeEach(async () => {
     // Use the test isolation utility for complete store reset
     await setupTestIsolation()
-    
-    // Setup userEvent with CI-optimized configuration
-    user = userEvent.setup({
-      delay: process.env.CI === 'true' ? 50 : null,
-      advanceTimers: vi.advanceTimersByTime,
-    })
     
     // Set up necessary mock functions after reset
     await act(async () => {
@@ -239,6 +232,8 @@ describe('CommandPalette', () => {
   })
 
   it('should filter commands based on search query', async () => {
+    const user = userEvent.setup({ delay: null })
+    
     await act(async () => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
     })

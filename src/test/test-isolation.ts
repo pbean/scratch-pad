@@ -91,11 +91,11 @@ export function cleanupTest() {
  * Use this in all test files for consistent isolation
  */
 export async function setupTestIsolation() {
-  // Reset stores first
-  resetAllStores()
-  
-  // Clear any existing mocks
+  // Clear any existing mocks first (before resetting stores)
   vi.clearAllMocks()
+  
+  // Reset stores
+  resetAllStores()
   
   // Wait for any pending state updates to settle
   await new Promise(resolve => setTimeout(resolve, 0))
