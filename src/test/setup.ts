@@ -411,6 +411,20 @@ beforeAll(() => {
             if (classList.includes('pointer-events-auto')) return 'auto'
             return 'auto' // default
             
+          case 'animation-name':
+            // Check if element has inline style for animation
+            if (element instanceof HTMLElement && element.style.animationName) {
+              return element.style.animationName
+            }
+            return 'none' // default - no animation
+            
+          case 'transition-property':
+            // Check if element has inline style for transition
+            if (element instanceof HTMLElement && element.style.transitionProperty) {
+              return element.style.transitionProperty
+            }
+            return 'none' // default - no transition
+            
           default:
             // Check if any class matches our map for this property
             for (const className of classList) {

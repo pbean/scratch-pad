@@ -152,9 +152,23 @@ export async function waitForReact19<T>(
   }
 
   while (retryAttempts <= fullConfig.maxRetries) {
+    let timeoutId: NodeJS.Timeout | undefined
     try {
-      // Execute the callback directly instead of passing to waitFor
-      const result = await Promise.resolve(callback())
+      // Create a timeout promise that rejects after the specified timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`Operation timeout after ${fullConfig.timeout}ms`))
+        }, fullConfig.timeout)
+      })
+      
+      // Race between the callback and the timeout
+      const result = await Promise.race([
+        Promise.resolve(callback()),
+        timeoutPromise
+      ])
+      
+      // Clear the timeout if operation completed successfully
+      if (timeoutId) clearTimeout(timeoutId)
       
       return {
         result,
@@ -163,6 +177,9 @@ export async function waitForReact19<T>(
         success: true
       }
     } catch (error) {
+      // Clear timeout if it exists
+      if (timeoutId) clearTimeout(timeoutId)
+      
       lastError = error instanceof Error ? error : new Error(String(error))
       
       // Check if error should be filtered out (non-retryable)
