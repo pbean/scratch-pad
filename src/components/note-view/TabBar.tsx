@@ -20,6 +20,7 @@ const TabItem = React.memo<TabItemProps>(({ note, isActive, showCloseButton, onS
 
   return (
     <div
+      data-testid={`tab-${note.id}`}
       className={`
         flex items-center gap-2 px-4 py-2 cursor-pointer border-r border-border min-w-0 max-w-48 smooth-transition
         ${isActive 
@@ -32,6 +33,7 @@ const TabItem = React.memo<TabItemProps>(({ note, isActive, showCloseButton, onS
       <span className="truncate text-sm">{getNoteTitle(note)}</span>
       {showCloseButton && (
         <button
+          data-testid={`close-tab-${note.id}`}
           onClick={(e) => onClose(e, note.id)}
           className="p-1 hover:bg-muted-foreground/20 rounded smooth-transition opacity-60 hover:opacity-100"
         >

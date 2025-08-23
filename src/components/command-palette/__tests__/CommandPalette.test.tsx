@@ -50,7 +50,7 @@ const getCommandSearchInput = async () => {
     if (inputs.length === 0) {
       throw new Error('No command search input found')
     }
-  })
+  }, { timeout: CI_TIMEOUT })
   
   // Now get the input
   const inputs = screen.queryAllByTestId('command-search-input')
@@ -58,7 +58,7 @@ const getCommandSearchInput = async () => {
     // This should not happen with proper cleanup, but handle gracefully
     console.warn(`Found ${inputs.length} command search inputs, using the last one`)
   }
-  return inputs[inputs.length - 1]
+  return inputs[inputs.length - 1] as HTMLInputElement
 }
 
 // Enhanced focus wait utility for CI environment
@@ -230,6 +230,7 @@ describe('CommandPalette', () => {
   it('should display command descriptions', async () => {
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     
@@ -245,6 +246,7 @@ describe('CommandPalette', () => {
   it('should display keyboard shortcuts', async () => {
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     
@@ -258,6 +260,7 @@ describe('CommandPalette', () => {
   it('should filter commands based on search query', async () => {
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     
@@ -279,6 +282,7 @@ describe('CommandPalette', () => {
   it('should filter commands by description', async () => {
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     
@@ -299,6 +303,7 @@ describe('CommandPalette', () => {
   it('should show "No commands found" when no matches', async () => {
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     
@@ -342,6 +347,7 @@ describe('CommandPalette', () => {
   it('should navigate with arrow keys', async () => {
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     
@@ -372,6 +378,7 @@ describe('CommandPalette', () => {
   it('should wrap navigation at boundaries', async () => {
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     
@@ -468,6 +475,7 @@ describe('CommandPalette', () => {
     
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     
@@ -503,6 +511,7 @@ describe('CommandPalette', () => {
     
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     
@@ -599,6 +608,7 @@ describe('CommandPalette', () => {
   it('should reset selection when query changes', async () => {
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     
@@ -636,6 +646,7 @@ describe('CommandPalette', () => {
   it('should render command icons', async () => {
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     
@@ -652,6 +663,7 @@ describe('CommandPalette', () => {
   it('should apply correct styling', async () => {
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     
@@ -672,6 +684,7 @@ describe('CommandPalette', () => {
   it('should handle keyboard navigation with filtered results', async () => {
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     
@@ -697,6 +710,7 @@ describe('CommandPalette', () => {
   it('should handle case-insensitive filtering', async () => {
     act(() => {
       useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    })
     
     renderResult = render(<CommandPalette />)
     

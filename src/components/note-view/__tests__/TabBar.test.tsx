@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, cleanup } from '../../../test/test-utils'
 import userEvent from '@testing-library/user-event'
 import { TabBar } from '../TabBar'
 import { useScratchPadStore } from '../../../lib/store'
@@ -48,8 +48,6 @@ const mockNote3: Note = {
 }
 
 describe('TabBar', () => {
-  const user = userEvent.setup()
-
   beforeEach(() => {
     // Reset store state
     useScratchPadStore.setState({
@@ -58,6 +56,11 @@ describe('TabBar', () => {
       setActiveNote: vi.fn(),
       deleteNote: vi.fn()
     })
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.clearAllMocks()
   })
 
   it('should render all note tabs', () => {
@@ -85,13 +88,10 @@ describe('TabBar', () => {
     
     render(<TabBar />)
     
-    const secondTabText = screen.getByText('Second note content')
-    expect(secondTabText).toBeInTheDocument()
+    const secondTab = screen.getByTestId('tab-2')
+    expect(secondTab).toBeInTheDocument()
     
-    // Click on the parent div that has the onClick handler
-    const secondTab = secondTabText.closest('div')
-    expect(secondTab).toBeTruthy()
-    await user.click(secondTab!)
+    await user.click(secondTab)
     
     expect(mockSetActiveNote).toHaveBeenCalledWith(2)
   })
@@ -99,8 +99,9 @@ describe('TabBar', () => {
   it('should show close button for each tab when multiple notes exist', () => {
     render(<TabBar />)
     
-    const closeButtons = screen.getAllByRole('button')
-    expect(closeButtons).toHaveLength(3) // One for each note
+    expect(screen.getByTestId('close-tab-1')).toBeInTheDocument()
+    expect(screen.getByTestId('close-tab-2')).toBeInTheDocument()
+    expect(screen.getByTestId('close-tab-3')).toBeInTheDocument()
   })
 
   it('should not show close button when only one note exists', () => {
@@ -118,8 +119,8 @@ describe('TabBar', () => {
     
     render(<TabBar />)
     
-    const closeButtons = screen.getAllByRole('button')
-    await user.click(closeButtons[1]) // Close second tab
+    const closeButton = screen.getByTestId('close-tab-2')
+    await user.click(closeButton)
     
     expect(mockDeleteNote).toHaveBeenCalledWith(2)
   })
@@ -136,8 +137,8 @@ describe('TabBar', () => {
     
     render(<TabBar />)
     
-    const closeButtons = screen.getAllByRole('button')
-    await user.click(closeButtons[0]) // Close first tab (active tab)
+    const closeButton = screen.getByTestId('close-tab-1')
+    await user.click(closeButton)
     
     expect(mockDeleteNote).toHaveBeenCalledWith(1)
     expect(mockSetActiveNote).not.toHaveBeenCalled()
@@ -152,7 +153,9 @@ describe('TabBar', () => {
   it('should use first line as tab title when no nickname', () => {
     render(<TabBar />)
     
-    expect(screen.getByText('Second note content')).toBeInTheDocument()
+    const secondTab = screen.getByTestId('tab-2')
+    expect(secondTab).toBeInTheDocument()
+    expect(secondTab).toHaveTextContent('Second note content')
   })
 
   it('should show "Untitled" when no content and no nickname', () => {

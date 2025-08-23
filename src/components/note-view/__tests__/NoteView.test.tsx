@@ -90,7 +90,7 @@ describe('NoteView', () => {
   it('should render textarea with note content', async () => {
     render(<NoteView />)
     
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByTestId('note-textarea')
     expect(textarea).toBeInTheDocument()
     expect(textarea).toHaveValue('Test note content\nSecond line')
   })
@@ -130,14 +130,14 @@ describe('NoteView', () => {
   it('should auto-focus textarea on mount', async () => {
     render(<NoteView />)
     
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByTestId('note-textarea')
     expect(textarea).toHaveFocus()
   })
 
   it('should update content when typing', async () => {
     render(<NoteView />)
     
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByTestId('note-textarea')
     
     // Use fireEvent for more reliable testing
     act(() => {
@@ -156,7 +156,7 @@ describe('NoteView', () => {
     
     render(<NoteView />)
     
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByTestId('note-textarea')
     
     // Change content
     act(() => {
@@ -247,7 +247,7 @@ describe('NoteView', () => {
     
     const { container: _container } = render(<NoteView />)
     
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByTestId('note-textarea')
     
     await act(async () => {
       fireEvent.change(textarea, { target: { value: 'Content to save' } })
@@ -405,7 +405,7 @@ describe('NoteView', () => {
     
     render(<NoteView />)
     
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByTestId('note-textarea')
     expect(textarea).toHaveAttribute('placeholder', 'No note selected')
   })
 
@@ -424,7 +424,7 @@ describe('NoteView', () => {
     
     rerender(<NoteView />)
     
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByTestId('note-textarea')
     expect(textarea).toHaveValue('Different content')
   })
 
@@ -455,7 +455,7 @@ describe('NoteView', () => {
     
     render(<NoteView />)
     
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByTestId('note-textarea')
     
     // Change content
     act(() => {
@@ -477,7 +477,7 @@ describe('NoteView', () => {
   it('should calculate word count correctly', async () => {
     render(<NoteView />)
     
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByTestId('note-textarea')
     
     act(() => {
       fireEvent.change(textarea, { target: { value: 'One two three four five' } })
@@ -489,7 +489,7 @@ describe('NoteView', () => {
   it('should handle empty content word count', async () => {
     render(<NoteView />)
     
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByTestId('note-textarea')
     
     act(() => {
       fireEvent.change(textarea, { target: { value: '' } })

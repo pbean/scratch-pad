@@ -199,6 +199,7 @@ export function NoteView() {
       <div className="flex-1 flex flex-col min-h-0">
         <textarea
           ref={textareaRef}
+          data-testid="note-textarea"
           value={content}
           onChange={handleContentChange}
           className="flex-1 w-full p-6 font-mono text-sm leading-relaxed resize-none border-none outline-none focus-glow smooth-transition fade-in"
