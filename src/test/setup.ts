@@ -5,6 +5,7 @@ import { cleanup, configure } from '@testing-library/react'
 import { useScratchPadStore } from '../lib/store'
 import { mockAllIsIntersecting } from 'react-intersection-observer/test-utils'
 import { tauriHandlers, resetMockDatabase } from './mocks/handlers'
+import { resetStoreSpies } from './store-testing'
 
 // Configure React Testing Library for React 19
 configure({
@@ -14,22 +15,31 @@ configure({
 
 // Mock Tauri API with our handlers
 vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(async (cmd: string, args?: any) => {
-    const handler = tauriHandlers[cmd as keyof typeof tauriHandlers]
-    if (!handler) {
-      throw new Error(`Unknown Tauri command: ${cmd}`)
-    }
-    return handler(args || {})
-  })
+  invoke: vi.fn()
 }))
 
 // Mock IntersectionObserver for VirtualList components
-beforeEach(() => {
+beforeEach(async () => {
   // Make all items visible by default in virtual lists
   mockAllIsIntersecting(true)
   
   // Reset mock database for each test
   resetMockDatabase()
+  
+  // Set up default invoke implementation with handlers
+  const tauriCore = await import('@tauri-apps/api/core')
+  const mockInvoke = tauriCore.invoke as any
+  
+  // Only set up if it's a vi.fn (mock function)
+  if (mockInvoke && typeof mockInvoke.mockImplementation === 'function') {
+    mockInvoke.mockImplementation(async (cmd: string, args?: any) => {
+      const handler = tauriHandlers[cmd as keyof typeof tauriHandlers]
+      if (!handler) {
+        throw new Error(`Unknown Tauri command: ${cmd}`)
+      }
+      return handler(args || {})
+    })
+  }
 })
 
 // SINGLE cleanup mechanism after each test
@@ -45,6 +55,9 @@ afterEach(() => {
   
   // Reset mock database
   resetMockDatabase()
+  
+  // Reset store spies (restores original methods)
+  resetStoreSpies()
   
   // Simple, complete store reset - no preservation
   useScratchPadStore.setState({

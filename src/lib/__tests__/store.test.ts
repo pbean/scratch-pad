@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useScratchPadStore } from '../store'
 import type { Note, ApiError } from '../../types'
 import { addMockNote, resetMockDatabase, getMockNotes } from '../../test/mocks/handlers'
+import { mockInvoke } from '../../test/store-testing'
 
 // Mock data
 const mockNote: Note = {
@@ -112,7 +113,7 @@ describe('ScratchPadStore', () => {
   })
 
   describe('Note Management', () => {
-    it.skip('should load notes successfully', async () => {
+    it('should load notes successfully', async () => {
       // Add a note to the mock database
       const testNote = addMockNote('Test note content')
       
@@ -134,7 +135,7 @@ describe('ScratchPadStore', () => {
       // In production, we'd configure MSW to return errors for specific test cases
     })
 
-    it.skip('should save note successfully', async () => {
+    it('should save note successfully', async () => {
       // Add a note to the mock database first
       const note = addMockNote('Original content')
       
@@ -153,7 +154,7 @@ describe('ScratchPadStore', () => {
       expect(state.notes[0].content).toBe('Updated content')
     })
 
-    it.skip('should create note successfully', async () => {
+    it('should create note successfully', async () => {
       const { createNote } = useScratchPadStore.getState()
       
       await createNote('New note')
@@ -167,7 +168,7 @@ describe('ScratchPadStore', () => {
       expect(state.isLoading).toBe(false)
     })
 
-    it.skip('should delete note successfully', async () => {
+    it('should delete note successfully', async () => {
       // Add notes to mock database
       const note1 = addMockNote('Note 1')
       const note2 = addMockNote('Note 2')
@@ -287,9 +288,16 @@ describe('ScratchPadStore', () => {
   })
 
   describe('Settings Management', () => {
-    it.skip('should get all settings', async () => {
+    it('should get all settings', async () => {
       const mockSettings = { setting1: 'value1', setting2: 'value2' }
-      mockInvoke.mockResolvedValue(mockSettings)
+      
+      // Override the mock implementation for this test
+      mockInvoke.mockImplementation(async (cmd: string) => {
+        if (cmd === 'get_all_settings') {
+          return mockSettings
+        }
+        throw new Error(`Unexpected command: ${cmd}`)
+      })
       
       const { getAllSettings } = useScratchPadStore.getState()
       
@@ -299,8 +307,14 @@ describe('ScratchPadStore', () => {
       expect(result).toEqual(mockSettings)
     })
 
-    it.skip('should get single setting', async () => {
-      mockInvoke.mockResolvedValue('test-value')
+    it('should get single setting', async () => {
+      // Override the mock implementation for this test
+      mockInvoke.mockImplementation(async (cmd: string, args: any) => {
+        if (cmd === 'get_setting' && args?.key === 'test-key') {
+          return 'test-value'
+        }
+        throw new Error(`Unexpected command: ${cmd}`)
+      })
       
       const { getSetting } = useScratchPadStore.getState()
       
@@ -310,8 +324,14 @@ describe('ScratchPadStore', () => {
       expect(result).toBe('test-value')
     })
 
-    it.skip('should set setting', async () => {
-      mockInvoke.mockResolvedValue(undefined)
+    it('should set setting', async () => {
+      // Override the mock implementation for this test
+      mockInvoke.mockImplementation(async (cmd: string, args: any) => {
+        if (cmd === 'set_setting' && args?.key === 'test-key' && args?.value === 'test-value') {
+          return undefined
+        }
+        throw new Error(`Unexpected command: ${cmd}`)
+      })
       
       const { setSetting } = useScratchPadStore.getState()
       
@@ -325,8 +345,13 @@ describe('ScratchPadStore', () => {
   })
 
   describe('Global Shortcut Management', () => {
-    it.skip('should get current global shortcut', async () => {
-      mockInvoke.mockResolvedValue('Ctrl+Shift+N')
+    it('should get current global shortcut', async () => {
+      mockInvoke.mockImplementation(async (cmd: string) => {
+        if (cmd === 'get_current_global_shortcut') {
+          return 'Ctrl+Shift+N'
+        }
+        throw new Error(`Unexpected command: ${cmd}`)
+      })
       
       const { getCurrentGlobalShortcut } = useScratchPadStore.getState()
       
@@ -336,8 +361,13 @@ describe('ScratchPadStore', () => {
       expect(result).toBe('Ctrl+Shift+N')
     })
 
-    it.skip('should register global shortcut', async () => {
-      mockInvoke.mockResolvedValue(undefined)
+    it('should register global shortcut', async () => {
+      mockInvoke.mockImplementation(async (cmd: string, args: any) => {
+        if (cmd === 'register_global_shortcut' && args?.shortcut === 'Ctrl+Alt+S') {
+          return undefined
+        }
+        throw new Error(`Unexpected command: ${cmd}`)
+      })
       
       const { registerGlobalShortcut } = useScratchPadStore.getState()
       
@@ -348,8 +378,13 @@ describe('ScratchPadStore', () => {
       })
     })
 
-    it.skip('should test global shortcut', async () => {
-      mockInvoke.mockResolvedValue(true)
+    it('should test global shortcut', async () => {
+      mockInvoke.mockImplementation(async (cmd: string, args: any) => {
+        if (cmd === 'test_global_shortcut' && args?.shortcut === 'Ctrl+Alt+T') {
+          return true
+        }
+        throw new Error(`Unexpected command: ${cmd}`)
+      })
       
       const { testGlobalShortcut } = useScratchPadStore.getState()
       
@@ -363,8 +398,13 @@ describe('ScratchPadStore', () => {
   })
 
   describe('Window Management', () => {
-    it.skip('should show window', async () => {
-      mockInvoke.mockResolvedValue(undefined)
+    it('should show window', async () => {
+      mockInvoke.mockImplementation(async (cmd: string) => {
+        if (cmd === 'show_window') {
+          return undefined
+        }
+        throw new Error(`Unexpected command: ${cmd}`)
+      })
       
       const { showWindow } = useScratchPadStore.getState()
       
@@ -373,8 +413,13 @@ describe('ScratchPadStore', () => {
       expect(mockInvoke).toHaveBeenCalledWith('show_window')
     })
 
-    it.skip('should hide window', async () => {
-      mockInvoke.mockResolvedValue(undefined)
+    it('should hide window', async () => {
+      mockInvoke.mockImplementation(async (cmd: string) => {
+        if (cmd === 'hide_window') {
+          return undefined
+        }
+        throw new Error(`Unexpected command: ${cmd}`)
+      })
       
       const { hideWindow } = useScratchPadStore.getState()
       
@@ -383,8 +428,13 @@ describe('ScratchPadStore', () => {
       expect(mockInvoke).toHaveBeenCalledWith('hide_window')
     })
 
-    it.skip('should set layout mode', async () => {
-      mockInvoke.mockResolvedValue(undefined)
+    it('should set layout mode', async () => {
+      mockInvoke.mockImplementation(async (cmd: string, args: any) => {
+        if (cmd === 'set_layout_mode' && args?.mode === 'half') {
+          return undefined
+        }
+        throw new Error(`Unexpected command: ${cmd}`)
+      })
       
       const { setLayoutMode } = useScratchPadStore.getState()
       
@@ -393,8 +443,13 @@ describe('ScratchPadStore', () => {
       expect(mockInvoke).toHaveBeenCalledWith('set_layout_mode', { mode: 'half' })
     })
 
-    it.skip('should get layout mode', async () => {
-      mockInvoke.mockResolvedValue('full')
+    it('should get layout mode', async () => {
+      mockInvoke.mockImplementation(async (cmd: string) => {
+        if (cmd === 'get_layout_mode') {
+          return 'full'
+        }
+        throw new Error(`Unexpected command: ${cmd}`)
+      })
       
       const { getLayoutMode } = useScratchPadStore.getState()
       

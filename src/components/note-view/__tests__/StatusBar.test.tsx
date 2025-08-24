@@ -27,7 +27,7 @@ describe('StatusBar', () => {
     expect(screen.getByText('Test Note')).toBeInTheDocument()
   })
 
-  it.skip('should render word, character, and line counts', () => {
+  it('should render word, character, and line counts', () => {
     render(<StatusBar {...defaultProps} />)
     
     expect(screen.getByText('10 words')).toBeInTheDocument()
@@ -35,7 +35,7 @@ describe('StatusBar', () => {
     expect(screen.getByText('3 lines')).toBeInTheDocument()
   })
 
-  it.skip('should show "Not saved" when lastSaved is null and not auto-saving', () => {
+  it('should show "Not saved" when lastSaved is null and not auto-saving', () => {
     render(<StatusBar {...defaultProps} />)
     
     expect(screen.getByText('Not saved')).toBeInTheDocument()
@@ -99,7 +99,7 @@ describe('StatusBar', () => {
     expect(screen.getByText('100 lines')).toBeInTheDocument()
   })
 
-  it.skip('should apply correct CSS classes', () => {
+  it('should apply correct CSS classes', () => {
     render(<StatusBar {...defaultProps} />)
     
     const statusBar = screen.getByText('Test Note').closest('div')?.parentElement
@@ -117,7 +117,7 @@ describe('StatusBar', () => {
     )
   })
 
-  it.skip('should have proper layout structure', () => {
+  it('should have proper layout structure', () => {
     render(<StatusBar {...defaultProps} />)
     
     const statusBar = screen.getByText('Test Note').closest('div')?.parentElement
@@ -167,7 +167,7 @@ describe('StatusBar', () => {
     expect(screen.getByText(/Saved.*2:00 PM/)).toBeInTheDocument()
   })
 
-  it.skip('should prioritize auto-saving status over last saved', () => {
+  it('should prioritize auto-saving status over last saved', () => {
     const recentSave = new Date()
     
     render(<StatusBar {...defaultProps} lastSaved={recentSave} saveStatus="saving" />)
@@ -192,7 +192,7 @@ describe('StatusBar', () => {
     expect(screen.getByText(specialTitle)).toBeInTheDocument()
   })
 
-  it.skip('should maintain consistent spacing', () => {
+  it('should maintain consistent spacing', () => {
     render(<StatusBar {...defaultProps} />)
     
     const leftSection = screen.getByText('Test Note').parentElement
