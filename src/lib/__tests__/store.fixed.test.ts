@@ -60,11 +60,16 @@ describe('ScratchPadStore', () => {
     })
 
     it('should toggle command palette', () => {
-      const { toggleCommandPalette } = useScratchPadStore.getState()
+      const { setCommandPaletteOpen } = useScratchPadStore.getState()
+      const { isCommandPaletteOpen } = useScratchPadStore.getState()
       
-      toggleCommandPalette()
-      
+      // Toggle on
+      setCommandPaletteOpen(!isCommandPaletteOpen)
       expect(useScratchPadStore.getState().isCommandPaletteOpen).toBe(true)
+      
+      // Toggle off
+      setCommandPaletteOpen(!useScratchPadStore.getState().isCommandPaletteOpen)
+      expect(useScratchPadStore.getState().isCommandPaletteOpen).toBe(false)
     })
 
     it('should set active note', () => {

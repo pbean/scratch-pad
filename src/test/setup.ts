@@ -87,12 +87,29 @@ afterEach(async () => {
     await new Promise(resolve => setTimeout(resolve, 0))
   })
   
-  // 3. Force remove any lingering portal elements
-  document.querySelectorAll('[data-radix-portal]').forEach(el => el.remove())
-  document.querySelectorAll('.palette-backdrop').forEach(el => el.remove())
-  document.querySelectorAll('[role="dialog"]').forEach(el => el.remove())
+  // 3. More targeted portal cleanup
+  const portalRoot = document.getElementById('radix-portal-root')
+  if (portalRoot) {
+    portalRoot.innerHTML = ''
+  }
   
-  // 4. Clean up body but don't enforce strict checks
+  // 4. Clean specific portal containers by data attribute
+  document.querySelectorAll('[data-radix-portal]').forEach(el => {
+    el.remove()
+  })
+  
+  // 5. Clean up dialogs and overlays
+  document.querySelectorAll('[role="dialog"], [data-testid="dialog-overlay"], .palette-backdrop').forEach(el => {
+    el.remove()
+  })
+  
+  // 6. Ensure each test gets fresh container
+  const root = document.getElementById('root')
+  if (root) {
+    root.innerHTML = ''
+  }
+  
+  // 7. Clean up body but don't enforce strict checks
   try {
     const bodyChildren = Array.from(document.body.children)
     const nonRootElements = bodyChildren.filter(el => el.id !== 'root')
@@ -128,7 +145,11 @@ afterEach(async () => {
     }
   })
   
-  // Only reset data fields, not methods
+  // PROPER RESET: Use getInitialState to preserve all methods
+  const initialState = useScratchPadStore.getInitialState()
+  useScratchPadStore.setState(initialState, true) // true = replace entire state
+  
+  // Then only reset specific data fields that tests might have modified
   useScratchPadStore.setState({
     notes: [],
     activeNoteId: null,
@@ -151,7 +172,7 @@ afterEach(async () => {
     notesCount: 0,
     hasMoreNotes: false,
     isLoadingMore: false
-  }, false) // false = partial update, preserves existing functions
+  }, false) // false = partial update, preserves functions from initialState
 })
 
 // Essential DOM mocks only
