@@ -1,7 +1,10 @@
 import '@testing-library/jest-dom'
-import { vi, afterEach } from 'vitest'
+import React from 'react'
+import { vi, afterEach, beforeAll, afterAll, beforeEach } from 'vitest'
 import { cleanup, configure } from '@testing-library/react'
 import { useScratchPadStore } from '../lib/store'
+import { mockAllIsIntersecting } from 'react-intersection-observer/test-utils'
+import { tauriHandlers, resetMockDatabase } from './mocks/handlers'
 
 // Configure React Testing Library for React 19
 configure({
@@ -9,10 +12,25 @@ configure({
   asyncUtilTimeout: 3000
 })
 
-// SINGLE Tauri mock setup - ONLY HERE, nowhere else
+// Mock Tauri API with our handlers
 vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn()
+  invoke: vi.fn(async (cmd: string, args?: any) => {
+    const handler = tauriHandlers[cmd as keyof typeof tauriHandlers]
+    if (!handler) {
+      throw new Error(`Unknown Tauri command: ${cmd}`)
+    }
+    return handler(args || {})
+  })
 }))
+
+// Mock IntersectionObserver for VirtualList components
+beforeEach(() => {
+  // Make all items visible by default in virtual lists
+  mockAllIsIntersecting(true)
+  
+  // Reset mock database for each test
+  resetMockDatabase()
+})
 
 // SINGLE cleanup mechanism after each test
 afterEach(() => {
@@ -24,6 +42,9 @@ afterEach(() => {
   
   // Reset timers
   vi.useRealTimers()
+  
+  // Reset mock database
+  resetMockDatabase()
   
   // Reset store to initial state
   const initialState = {
@@ -100,4 +121,29 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
+}))
+
+// Enhanced Radix UI component mocks for better test compatibility
+vi.mock('@radix-ui/react-tabs', () => ({
+  Root: ({ children, ...props }: any) => React.createElement('div', { 'data-testid': 'tabs-root', ...props }, children),
+  List: ({ children, ...props }: any) => React.createElement('div', { role: 'tablist', ...props }, children),
+  Trigger: ({ children, ...props }: any) => React.createElement('button', { role: 'tab', ...props }, children),
+  Content: ({ children, ...props }: any) => React.createElement('div', { role: 'tabpanel', ...props }, children),
+}))
+
+vi.mock('@radix-ui/react-dialog', () => ({
+  Root: ({ children, open }: any) => open ? children : null,
+  Portal: ({ children }: any) => children,
+  Overlay: ({ children, ...props }: any) => React.createElement('div', { 'data-testid': 'dialog-overlay', ...props }, children),
+  Content: ({ children, ...props }: any) => React.createElement('div', { 'data-testid': 'dialog-content', ...props }, children),
+  Title: ({ children, ...props }: any) => React.createElement('h2', props, children),
+  Description: ({ children, ...props }: any) => React.createElement('p', props, children),
+  Close: ({ children, ...props }: any) => React.createElement('button', { 'data-testid': 'dialog-close', ...props }, children),
+}))
+
+vi.mock('@radix-ui/react-popover', () => ({
+  Root: ({ children }: any) => children,
+  Trigger: ({ children, ...props }: any) => React.createElement('button', { 'data-testid': 'popover-trigger', ...props }, children),
+  Portal: ({ children }: any) => children,
+  Content: ({ children, ...props }: any) => React.createElement('div', { 'data-testid': 'popover-content', ...props }, children),
 }))

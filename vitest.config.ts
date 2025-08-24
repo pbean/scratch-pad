@@ -12,12 +12,13 @@ export default defineConfig({
   },
   test: {
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    environment: 'jsdom',
+    environment: 'happy-dom', // Changed from 'jsdom' for better Radix UI support
     setupFiles: [
       './src/test/setup.ts', 
       './src/test/performance-setup.ts'
     ],
     globals: true,
+    css: true, // Enable CSS handling with happy-dom
     
     // Phase 3: Optimized timeouts for parallel execution
     testTimeout: 8000, // Reduced from 10s for faster execution
@@ -28,16 +29,10 @@ export default defineConfig({
     restoreMocks: true,
     mockReset: true, // Added for better test isolation
     
-    // Phase 3: Enhanced React 19 environment configuration
-    // Phase 5: Apply minimal config improvements for better stability
+    // Phase 3: Enhanced environment configuration for happy-dom
+    // Happy-dom doesn't need the same configuration as jsdom
     environmentOptions: {
-      jsdom: {
-        resources: 'usable',
-        pretendToBeVisual: true,
-        html: '<!DOCTYPE html><html><head></head><body><div id="root"></div></body></html>',
-        runScripts: 'dangerously',
-        url: 'http://localhost:3000'
-      }
+      // Happy-dom automatically provides better Shadow DOM and Web Component support
     },
     
     // Phase 3: Environment variables for parallel execution

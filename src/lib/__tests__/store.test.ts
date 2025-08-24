@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useScratchPadStore } from '../store'
 import type { Note, ApiError } from '../../types'
 import { invoke } from '@tauri-apps/api/core'
+import { addMockNote, resetMockDatabase, getMockNotes } from '../../test/mocks/handlers'
 
 // Get the mocked invoke function from setup.ts
 const mockInvoke = vi.mocked(invoke)
@@ -28,6 +29,8 @@ const mockApiError: ApiError = {
 
 describe('ScratchPadStore', () => {
   beforeEach(() => {
+    // Reset the mock database
+    resetMockDatabase()
     // Reset store state before each test - match setup.ts initial state
     useScratchPadStore.setState({
       notes: [],
@@ -116,11 +119,8 @@ describe('ScratchPadStore', () => {
 
   describe('Note Management', () => {
     it('should load notes successfully', async () => {
-      const mockNotes = [mockNote]
-      // Mock both calls that loadNotes makes
-      mockInvoke
-        .mockResolvedValueOnce(mockNotes) // for get_all_notes
-        .mockResolvedValueOnce(1) // for get_notes_count
+      // Add a note to the mock database
+      const testNote = addMockNote('Test note content')
       
       const { loadNotes } = useScratchPadStore.getState()
       
@@ -129,8 +129,9 @@ describe('ScratchPadStore', () => {
       const state = useScratchPadStore.getState()
       expect(mockInvoke).toHaveBeenCalledWith('get_all_notes')
       expect(mockInvoke).toHaveBeenCalledWith('get_notes_count')
-      expect(state.notes).toEqual(mockNotes)
-      expect(state.activeNoteId).toBe(1)
+      expect(state.notes).toHaveLength(1)
+      expect(state.notes[0].content).toBe('Test note content')
+      expect(state.activeNoteId).toBe(testNote.id)
       expect(state.isLoading).toBe(false)
       expect(state.error).toBeNull()
     })
@@ -171,9 +172,6 @@ describe('ScratchPadStore', () => {
     })
 
     it('should create note successfully', async () => {
-      const newNote = { ...mockNote, id: 2, content: 'New note' }
-      mockInvoke.mockResolvedValue(newNote)
-      
       const { createNote } = useScratchPadStore.getState()
       
       await createNote('New note')
@@ -181,39 +179,43 @@ describe('ScratchPadStore', () => {
       expect(mockInvoke).toHaveBeenCalledWith('create_note', { content: 'New note' })
       
       const state = useScratchPadStore.getState()
-      expect(state.notes).toContain(newNote)
-      expect(state.activeNoteId).toBe(2)
+      expect(state.notes).toHaveLength(1)
+      expect(state.notes[0].content).toBe('New note')
+      expect(state.activeNoteId).toBe(state.notes[0].id)
       expect(state.currentView).toBe('note')
       expect(state.isLoading).toBe(false)
     })
 
     it('should delete note successfully', async () => {
-      mockInvoke.mockResolvedValue(undefined)
+      // Add notes to mock database
+      const note1 = addMockNote('Note 1')
+      const note2 = addMockNote('Note 2')
       
-      // Set up initial state with multiple notes
-      const note2 = { ...mockNote, id: 2 }
+      // Set up initial state with the notes
       useScratchPadStore.setState({
-        notes: [mockNote, note2],
-        activeNoteId: 1
+        notes: [note1, note2],
+        activeNoteId: note1.id
       })
       
       const { deleteNote } = useScratchPadStore.getState()
       
-      await deleteNote(1)
+      await deleteNote(note1.id)
       
-      expect(mockInvoke).toHaveBeenCalledWith('delete_note', { id: 1 })
+      expect(mockInvoke).toHaveBeenCalledWith('delete_note', { id: note1.id })
       
       const state = useScratchPadStore.getState()
       expect(state.notes).toHaveLength(1)
-      expect(state.notes[0].id).toBe(2)
-      expect(state.activeNoteId).toBe(2) // Should switch to remaining note
+      expect(state.notes[0].id).toBe(note2.id)
+      expect(state.activeNoteId).toBe(note2.id) // Should switch to remaining note
     })
 
     it('should update note successfully', async () => {
-      const updatedNote = { ...mockNote, content: 'Updated' }
-      mockInvoke.mockResolvedValue(updatedNote)
+      // Add a note to the mock database
+      const note = addMockNote('Original content')
+      const updatedNote = { ...note, content: 'Updated' }
       
-      useScratchPadStore.setState({ notes: [mockNote] })
+      // Load the note into the store
+      useScratchPadStore.setState({ notes: [note] })
       
       const { updateNote } = useScratchPadStore.getState()
       
@@ -225,7 +227,7 @@ describe('ScratchPadStore', () => {
       })
       
       const state = useScratchPadStore.getState()
-      expect(state.notes[0]).toEqual(updatedNote)
+      expect(state.notes[0].content).toBe('Updated')
     })
   })
 
