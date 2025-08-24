@@ -12,7 +12,7 @@ export default defineConfig({
   },
   test: {
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    environment: 'happy-dom', // Changed from 'jsdom' for better Radix UI support
+    environment: 'jsdom', // Using jsdom for compatibility
     setupFiles: [
       './src/test/setup.ts', 
       './src/test/performance-setup.ts'
@@ -29,10 +29,15 @@ export default defineConfig({
     restoreMocks: true,
     mockReset: true, // Added for better test isolation
     
-    // Phase 3: Enhanced environment configuration for happy-dom
-    // Happy-dom doesn't need the same configuration as jsdom
+    // Phase 3: Enhanced environment configuration
     environmentOptions: {
-      // Happy-dom automatically provides better Shadow DOM and Web Component support
+      jsdom: {
+        resources: 'usable',
+        pretendToBeVisual: true,
+        html: '<!DOCTYPE html><html><head></head><body><div id="root"></div></body></html>',
+        runScripts: 'dangerously',
+        url: 'http://localhost:3000'
+      }
     },
     
     // Phase 3: Environment variables for parallel execution
