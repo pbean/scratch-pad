@@ -37,7 +37,7 @@ afterEach(() => {
   // React Testing Library cleanup ONLY
   cleanup()
   
-  // Clear all mocks
+  // Clear all mocks (but don't reset implementations)
   vi.clearAllMocks()
   
   // Reset timers
@@ -46,8 +46,10 @@ afterEach(() => {
   // Reset mock database
   resetMockDatabase()
   
-  // Reset store to initial state
-  const initialState = {
+  // Smart store reset - preserve functions, reset data only
+  const currentState = useScratchPadStore.getState()
+  const resetState: any = {
+    // Data properties only - reset these to initial values
     notes: [],
     activeNoteId: null,
     currentView: 'note' as const,
@@ -71,7 +73,15 @@ afterEach(() => {
     isLoadingMore: false,
   }
   
-  useScratchPadStore.setState(initialState)
+  // Preserve all functions (including mocks that tests may have set)
+  Object.keys(currentState).forEach(key => {
+    const value = currentState[key as keyof typeof currentState]
+    if (typeof value === 'function') {
+      resetState[key] = value
+    }
+  })
+  
+  useScratchPadStore.setState(resetState)
 })
 
 // Essential DOM mocks only

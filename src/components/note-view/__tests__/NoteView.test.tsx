@@ -3,6 +3,7 @@ import { render, screen, act, fireEvent } from '../../../test/test-utils'
 // import userEvent from '@testing-library/user-event'
 import { NoteView } from '../NoteView'
 import { useScratchPadStore } from '../../../lib/store'
+import { setMockStoreData, mockStoreMethod } from '../../../test/store-test-utils'
 import type { Note } from '../../../types'
 import { setupTestIsolation, teardownTestIsolation } from '../../../test/test-isolation'
 
@@ -62,20 +63,20 @@ describe('NoteView', () => {
     
     vi.useFakeTimers()
     
-    // Reset store state
-    act(() => {
-      useScratchPadStore.setState({
-        notes: [mockNote],
-        activeNoteId: 1,
-        getActiveNote: () => mockNote,
-        saveNote: vi.fn(),
-        setActiveNote: vi.fn(),
-        setCommandPaletteOpen: vi.fn(),
-        createNote: vi.fn(),
-        deleteNote: vi.fn(),
-        setCurrentView: vi.fn()
-      })
+    // Set store data
+    setMockStoreData({
+      notes: [mockNote],
+      activeNoteId: 1
     })
+    
+    // Mock the getActiveNote function to return the mock note
+    mockStoreMethod('getActiveNote', () => mockNote)
+    
+    // Mock other commonly used methods
+    mockStoreMethod('saveNote', vi.fn())
+    mockStoreMethod('setActiveNote', vi.fn())
+    mockStoreMethod('createNote', vi.fn())
+    mockStoreMethod('deleteNote', vi.fn())
     
     mockInvoke.mockClear()
     mockInvoke.mockResolvedValue(undefined)
@@ -97,9 +98,7 @@ describe('NoteView', () => {
   it('should render tab bar when multiple notes exist', async () => {
     const note2 = { ...mockNote, id: 2, content: 'Second note' }
     
-    act(() => {
-      useScratchPadStore.setState({ notes: [mockNote, note2] })
-    })
+    setMockStoreData({ notes: [mockNote, note2] })
     
     render(<NoteView />)
     
@@ -108,7 +107,7 @@ describe('NoteView', () => {
 
   it('should not render tab bar when only one note exists', async () => {
     act(() => {
-      useScratchPadStore.setState({ notes: [mockNote] })
+      setMockStoreData({ notes: [mockNote] })
     })
     
     render(<NoteView />)
@@ -150,7 +149,7 @@ describe('NoteView', () => {
     const mockSaveNote = vi.fn().mockResolvedValue(undefined)
     
     act(() => {
-      useScratchPadStore.setState({ saveNote: mockSaveNote })
+      mockStoreMethod('saveNote', mockSaveNote)
     })
     
     render(<NoteView />)
@@ -176,7 +175,7 @@ describe('NoteView', () => {
     const mockSaveNote = vi.fn()
     
     act(() => {
-      useScratchPadStore.setState({ saveNote: mockSaveNote })
+      mockStoreMethod('saveNote', mockSaveNote)
     })
     
     render(<NoteView />)
@@ -193,7 +192,7 @@ describe('NoteView', () => {
     const mockSetCommandPaletteOpen = vi.fn()
     
     act(() => {
-      useScratchPadStore.setState({ setCommandPaletteOpen: mockSetCommandPaletteOpen })
+      mockStoreMethod('setCommandPaletteOpen', mockSetCommandPaletteOpen)
     })
     
     render(<NoteView />)
@@ -209,7 +208,7 @@ describe('NoteView', () => {
     const mockSetCurrentView = vi.fn()
     
     act(() => {
-      useScratchPadStore.setState({ setCurrentView: mockSetCurrentView })
+      mockStoreMethod('setCurrentView', mockSetCurrentView)
     })
     
     render(<NoteView />)
@@ -225,7 +224,7 @@ describe('NoteView', () => {
     const mockCreateNote = vi.fn()
     
     act(() => {
-      useScratchPadStore.setState({ createNote: mockCreateNote })
+      mockStoreMethod('createNote', mockCreateNote)
     })
     
     render(<NoteView />)
@@ -241,7 +240,7 @@ describe('NoteView', () => {
     const mockSaveNote = vi.fn()
     
     act(() => {
-      useScratchPadStore.setState({ saveNote: mockSaveNote })
+      mockStoreMethod('saveNote', mockSaveNote)
     })
     
     const { container: _container } = render(<NoteView />)
@@ -449,7 +448,7 @@ describe('NoteView', () => {
     const mockSaveNote = vi.fn().mockRejectedValue(new Error('Save failed'))
     
     act(() => {
-      useScratchPadStore.setState({ saveNote: mockSaveNote })
+      mockStoreMethod('saveNote', mockSaveNote)
     })
     
     render(<NoteView />)
