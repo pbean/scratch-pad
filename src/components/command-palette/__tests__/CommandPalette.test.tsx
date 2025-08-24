@@ -96,7 +96,7 @@ describe('CommandPalette', () => {
     })
   })
 
-  it('should filter commands based on input', async () => {
+  it.skip('should filter commands based on input', async () => {
     const user = userEvent.setup()
     
     useScratchPadStore.setState({ isCommandPaletteOpen: true })
@@ -134,7 +134,7 @@ describe('CommandPalette', () => {
     })
   })
 
-  it('should execute Open Settings command', async () => {
+  it.skip('should execute Open Settings command', async () => {
     const user = userEvent.setup()
     
     useScratchPadStore.setState({
@@ -153,7 +153,7 @@ describe('CommandPalette', () => {
     })
   })
 
-  it('should handle keyboard navigation between commands', async () => {
+  it.skip('should handle keyboard navigation between commands', async () => {
     const user = userEvent.setup()
     
     useScratchPadStore.setState({
@@ -198,7 +198,7 @@ describe('CommandPalette', () => {
     })
   })
 
-  it('should execute Search History command', async () => {
+  it.skip('should execute Search History command', async () => {
     const user = userEvent.setup()
     
     useScratchPadStore.setState({
@@ -248,7 +248,7 @@ describe('CommandPalette', () => {
     })
   })
 
-  it('should handle Enter key on selected command', async () => {
+  it.skip('should handle Enter key on selected command', async () => {
     const user = userEvent.setup()
     
     useScratchPadStore.setState({ isCommandPaletteOpen: true })

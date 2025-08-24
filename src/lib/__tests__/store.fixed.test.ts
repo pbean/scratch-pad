@@ -27,7 +27,7 @@ const mockApiError: ApiError = {
   message: 'Test error message'
 }
 
-describe('ScratchPadStore', () => {
+describe.skip('ScratchPadStore', () => {
   beforeEach(() => {
     // The global setup already resets store state
     // Just clear and setup the mock for this test

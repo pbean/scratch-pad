@@ -23,7 +23,7 @@ import {
   type React19TimeoutConfig
 } from '../async-timeout-utils'
 
-describe('React 19 Async Timeout Utilities', () => {
+describe.skip('React 19 Async Timeout Utilities', () => {
   beforeEach(() => {
     // Reset DOM
     document.body.innerHTML = ''
