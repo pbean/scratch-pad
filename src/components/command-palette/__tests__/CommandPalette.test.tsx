@@ -3,9 +3,8 @@ import { render, screen, waitFor } from '../../../test/test-utils'
 import userEvent from '@testing-library/user-event'
 import { CommandPalette } from '../CommandPalette'
 import { useScratchPadStore } from '../../../lib/store'
-import { setMockStoreData, mockStoreMethod, spyOnStore } from '../../../test/store-test-utils'
+import { addMockNote, resetMockDatabase } from '../../../test/mocks/handlers'
 import type { Note } from '../../../types'
-import { invoke } from '@tauri-apps/api/core'
 
 // Mock toast hook
 const mockToast = {
@@ -35,8 +34,11 @@ const mockNote: Note = {
 
 describe('CommandPalette', () => {
   beforeEach(() => {
-    // Set up data state only
-    setMockStoreData({
+    // Reset the mock database and store state
+    resetMockDatabase()
+    
+    // Set up initial state
+    useScratchPadStore.setState({
       isCommandPaletteOpen: false,
       searchQuery: '',
       searchResults: [],
@@ -45,26 +47,19 @@ describe('CommandPalette', () => {
       recentSearches: [],
     })
     
-    // Mock store methods that are commonly used
-    mockStoreMethod('searchNotes', vi.fn().mockResolvedValue([]))
-    mockStoreMethod('createNote', vi.fn().mockResolvedValue(mockNote))
-    mockStoreMethod('deleteNote', vi.fn().mockResolvedValue(undefined))
-    mockStoreMethod('loadNotes', vi.fn().mockResolvedValue([]))
-    
-    // Reset Tauri and toast mocks
-    vi.mocked(invoke).mockClear()
+    // Reset toast mocks
     Object.values(mockToast).forEach(fn => fn.mockClear())
   })
 
   it('should not render when closed', () => {
-    setMockStoreData({ isCommandPaletteOpen: false })
+    useScratchPadStore.setState({ isCommandPaletteOpen: false })
     render(<CommandPalette />)
     
     expect(screen.queryByPlaceholderText('Type a command or search...')).not.toBeInTheDocument()
   })
 
   it('should render when open', async () => {
-    setMockStoreData({ isCommandPaletteOpen: true })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     render(<CommandPalette />)
     
@@ -74,7 +69,7 @@ describe('CommandPalette', () => {
   })
 
   it('should focus input when opened', async () => {
-    setMockStoreData({ isCommandPaletteOpen: true })
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     render(<CommandPalette />)
     
@@ -84,204 +79,208 @@ describe('CommandPalette', () => {
     })
   })
 
-  it('should handle search input changes', async () => {
+  it('should display all commands initially', async () => {
     const user = userEvent.setup()
     
-    setMockStoreData({ isCommandPaletteOpen: true })
-    const searchSpy = mockStoreMethod('searchNotes', vi.fn().mockResolvedValue([mockNote]))
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
+    
+    render(<CommandPalette />)
+    
+    // Check that all commands are visible
+    await waitFor(() => {
+      expect(screen.getByText('New Note')).toBeInTheDocument()
+      expect(screen.getByText('Open Settings')).toBeInTheDocument()
+      expect(screen.getByText('Export Note')).toBeInTheDocument()
+      expect(screen.getByText('Search History')).toBeInTheDocument()
+      expect(screen.getByText('Open Folder')).toBeInTheDocument()
+    })
+  })
+
+  it('should filter commands based on input', async () => {
+    const user = userEvent.setup()
+    
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     render(<CommandPalette />)
     
     const input = await screen.findByPlaceholderText('Type a command or search...')
-    await user.type(input, 'test')
+    await user.type(input, 'settings')
     
     await waitFor(() => {
-      expect(searchSpy).toHaveBeenCalledWith('test')
+      // Only Settings command should be visible
+      expect(screen.getByText('Open Settings')).toBeInTheDocument()
+      expect(screen.queryByText('New Note')).not.toBeInTheDocument()
+      expect(screen.queryByText('Export Note')).not.toBeInTheDocument()
     })
   })
 
-  it('should display search results', async () => {
-    setMockStoreData({
-      isCommandPaletteOpen: true,
-      searchResults: [mockNote]
+  it('should execute New Note command', async () => {
+    const user = userEvent.setup()
+    
+    useScratchPadStore.setState({
+      isCommandPaletteOpen: true
     })
     
     render(<CommandPalette />)
     
+    const newNoteCmd = await screen.findByText('New Note')
+    await user.click(newNoteCmd)
+    
+    // Check that a new note was created via MSW
     await waitFor(() => {
-      expect(screen.getByText('Test Note')).toBeInTheDocument()
+      const state = useScratchPadStore.getState()
+      expect(state.notes).toHaveLength(1)
+      expect(state.activeNoteId).toBeTruthy()
     })
   })
 
-  it('should handle note selection', async () => {
+  it('should execute Open Settings command', async () => {
     const user = userEvent.setup()
     
-    setMockStoreData({
-      isCommandPaletteOpen: true,
-      searchResults: [mockNote]
+    useScratchPadStore.setState({
+      isCommandPaletteOpen: true
     })
-    const setActiveNoteSpy = spyOnStore('setActiveNote')
-    const setCommandPaletteOpenSpy = spyOnStore('setCommandPaletteOpen')
     
     render(<CommandPalette />)
     
-    const noteItem = await screen.findByText('Test Note')
-    await user.click(noteItem)
+    const settingsCmd = await screen.findByText('Open Settings')
+    await user.click(settingsCmd)
     
-    expect(setActiveNoteSpy).toHaveBeenCalledWith(1)
-    expect(setCommandPaletteOpenSpy).toHaveBeenCalledWith(false)
-  })
-
-  it('should handle new note creation', async () => {
-    const user = userEvent.setup()
-    
-    setMockStoreData({
-      isCommandPaletteOpen: true,
-      searchQuery: 'new note content',
-      searchResults: []
-    })
-    const createNoteSpy = mockStoreMethod('createNote', vi.fn().mockResolvedValue(mockNote))
-    const setActiveNoteSpy = spyOnStore('setActiveNote')
-    const setCommandPaletteOpenSpy = spyOnStore('setCommandPaletteOpen')
-    
-    render(<CommandPalette />)
-    
-    const input = await screen.findByPlaceholderText('Type a command or search...')
-    await user.type(input, '{enter}')
-    
+    // Check that the view changed to settings
     await waitFor(() => {
-      expect(createNoteSpy).toHaveBeenCalledWith('new note content')
-      expect(setActiveNoteSpy).toHaveBeenCalledWith(1)
-      expect(setCommandPaletteOpenSpy).toHaveBeenCalledWith(false)
+      const state = useScratchPadStore.getState()
+      expect(state.currentView).toBe('settings')
     })
   })
 
-  it('should handle keyboard navigation', async () => {
+  it('should handle keyboard navigation between commands', async () => {
     const user = userEvent.setup()
     
-    setMockStoreData({
-      isCommandPaletteOpen: true,
-      searchResults: [mockNote, { ...mockNote, id: 2, nickname: 'Second Note' }]
+    useScratchPadStore.setState({
+      isCommandPaletteOpen: true
     })
     
     render(<CommandPalette />)
     
     const input = await screen.findByPlaceholderText('Type a command or search...')
+    
+    // Navigate down to first command
     await user.type(input, '{arrowdown}')
     
-    // Should highlight first item
+    // First command should be highlighted
     await waitFor(() => {
-      const firstItem = screen.getByText('Test Note')
-      expect(firstItem).toHaveClass('bg-accent')
+      const firstCommand = screen.getByText('Search History').closest('[role="option"]')
+      expect(firstCommand).toHaveAttribute('aria-selected', 'true')
     })
     
+    // Navigate down to second command
     await user.type(input, '{arrowdown}')
     
-    // Should move to second item
     await waitFor(() => {
-      const secondItem = screen.getByText('Second Note')
-      expect(secondItem).toHaveClass('bg-accent')
+      const secondCommand = screen.getByText('New Note').closest('[role="option"]')
+      expect(secondCommand).toHaveAttribute('aria-selected', 'true')
     })
   })
 
   it('should close on Escape key', async () => {
     const user = userEvent.setup()
     
-    setMockStoreData({ isCommandPaletteOpen: true })
-    const setCommandPaletteOpenSpy = spyOnStore('setCommandPaletteOpen')
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     render(<CommandPalette />)
     
     const input = await screen.findByPlaceholderText('Type a command or search...')
     await user.type(input, '{escape}')
     
-    expect(setCommandPaletteOpenSpy).toHaveBeenCalledWith(false)
+    await waitFor(() => {
+      const state = useScratchPadStore.getState()
+      expect(state.isCommandPaletteOpen).toBe(false)
+    })
   })
 
-  it('should handle delete note command', async () => {
+  it('should execute Search History command', async () => {
     const user = userEvent.setup()
     
-    setMockStoreData({
-      isCommandPaletteOpen: true,
-      searchResults: [mockNote]
+    useScratchPadStore.setState({
+      isCommandPaletteOpen: true
     })
-    const deleteNoteSpy = mockStoreMethod('deleteNote', vi.fn().mockResolvedValue(undefined))
+    
+    render(<CommandPalette />)
+    
+    const searchCmd = await screen.findByText('Search History')
+    await user.click(searchCmd)
+    
+    await waitFor(() => {
+      const state = useScratchPadStore.getState()
+      expect(state.currentView).toBe('search-history')
+    })
+  })
+
+  it('should show Export Note command', async () => {
+    const user = userEvent.setup()
+    
+    // Add an active note so export is available
+    const note = addMockNote('Test content')
+    useScratchPadStore.setState({
+      isCommandPaletteOpen: true,
+      notes: [note],
+      activeNoteId: note.id
+    })
+    
+    render(<CommandPalette />)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Export Note')).toBeInTheDocument()
+    })
+  })
+
+  it('should show command shortcuts', async () => {
+    useScratchPadStore.setState({
+      isCommandPaletteOpen: true
+    })
+    
+    render(<CommandPalette />)
+    
+    await waitFor(() => {
+      // Check that shortcuts are displayed
+      expect(screen.getByText('Ctrl+Shift+F')).toBeInTheDocument() // Search History
+      expect(screen.getByText('Ctrl+N')).toBeInTheDocument() // New Note
+    })
+  })
+
+  it('should handle Enter key on selected command', async () => {
+    const user = userEvent.setup()
+    
+    useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     render(<CommandPalette />)
     
     const input = await screen.findByPlaceholderText('Type a command or search...')
-    await user.type(input, 'delete:1')
+    
+    // Navigate to first command and execute
+    await user.type(input, '{arrowdown}')
     await user.type(input, '{enter}')
     
+    // Should execute Search History command
     await waitFor(() => {
-      expect(deleteNoteSpy).toHaveBeenCalledWith(1)
+      const state = useScratchPadStore.getState()
+      expect(state.currentView).toBe('search-history')
     })
   })
 
-  // Skipping favorite toggle test as toggleFavorite method doesn't exist in store
-  it.skip('should handle favorite toggle command', async () => {
-    const user = userEvent.setup()
-    
-    setMockStoreData({
-      isCommandPaletteOpen: true,
-      searchResults: [mockNote]
-    })
-    // toggleFavorite method doesn't exist in current store implementation
-    
-    render(<CommandPalette />)
-    
-    const input = await screen.findByPlaceholderText('Type a command or search...')
-    await user.type(input, 'favorite:1')
-    await user.type(input, '{enter}')
-    
-    // Test would need toggleFavorite to be implemented
-  })
-
-  it('should show recent searches when input is empty', async () => {
-    setMockStoreData({
-      isCommandPaletteOpen: true,
-      searchQuery: '',
-      recentSearches: ['recent search'],
-      searchResults: []
-    })
-    
-    render(<CommandPalette />)
-    
-    await waitFor(() => {
-      expect(screen.getByText('Recent Searches')).toBeInTheDocument()
-      expect(screen.getByText('recent search')).toBeInTheDocument()
-    })
-  })
-
-  it('should handle error states gracefully', async () => {
-    const user = userEvent.setup()
-    
-    setMockStoreData({ isCommandPaletteOpen: true })
-    mockStoreMethod('searchNotes', vi.fn().mockRejectedValue(new Error('Search failed')))
-    
-    render(<CommandPalette />)
-    
-    const input = await screen.findByPlaceholderText('Type a command or search...')
-    await user.type(input, 'test')
-    
-    // Should not crash and continue to work
-    await waitFor(() => {
-      expect(input).toHaveValue('test')
-    })
-  })
-
-  it('should clear search query when opened', async () => {
-    setMockStoreData({
-      isCommandPaletteOpen: false,
-      searchQuery: 'old query'
-    })
-    
+  it('should reset input when opened', async () => {
     const { rerender } = render(<CommandPalette />)
     
-    // Open the palette
-    setMockStoreData({
-      isCommandPaletteOpen: true,
-      searchQuery: ''
+    // First render with palette closed
+    useScratchPadStore.setState({
+      isCommandPaletteOpen: false
+    })
+    
+    rerender(<CommandPalette />)
+    
+    // Now open the palette
+    useScratchPadStore.setState({
+      isCommandPaletteOpen: true
     })
     
     rerender(<CommandPalette />)

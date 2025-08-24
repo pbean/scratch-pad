@@ -1,15 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act, fireEvent } from '../../../test/test-utils'
-// import userEvent from '@testing-library/user-event'
+import { render, screen, act, fireEvent, waitFor } from '../../../test/test-utils'
+import userEvent from '@testing-library/user-event'
 import { NoteView } from '../NoteView'
 import { useScratchPadStore } from '../../../lib/store'
-import { setMockStoreData, mockStoreMethod } from '../../../test/store-test-utils'
+import { addMockNote, resetMockDatabase } from '../../../test/mocks/handlers'
 import type { Note } from '../../../types'
-import { setupTestIsolation, teardownTestIsolation } from '../../../test/test-isolation'
-
-// Mock Tauri API
-import { invoke } from '@tauri-apps/api/core'
-const mockInvoke = vi.mocked(invoke)
 
 // Mock useSmartAutoSave hook
 vi.mock('../../../hooks/useSmartAutoSave', () => ({
@@ -57,34 +52,22 @@ const mockNote: Note = {
 describe('NoteView', () => {
   // const _user = userEvent.setup()
 
-  beforeEach(async () => {
-    // Use test isolation utility for complete reset
-    await setupTestIsolation()
+  beforeEach(() => {
+    // Reset mock database
+    resetMockDatabase()
     
     vi.useFakeTimers()
     
-    // Set store data
-    setMockStoreData({
-      notes: [mockNote],
-      activeNoteId: 1
+    // Add a note to the mock database and set store state
+    const note = addMockNote(mockNote.content)
+    useScratchPadStore.setState({
+      notes: [{ ...note, ...mockNote }],
+      activeNoteId: mockNote.id
     })
-    
-    // Mock the getActiveNote function to return the mock note
-    mockStoreMethod('getActiveNote', () => mockNote)
-    
-    // Mock other commonly used methods
-    mockStoreMethod('saveNote', vi.fn())
-    mockStoreMethod('setActiveNote', vi.fn())
-    mockStoreMethod('createNote', vi.fn())
-    mockStoreMethod('deleteNote', vi.fn())
-    
-    mockInvoke.mockClear()
-    mockInvoke.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
     vi.useRealTimers()
-    teardownTestIsolation()
   })
 
   it('should render textarea with note content', async () => {
@@ -98,7 +81,7 @@ describe('NoteView', () => {
   it('should render tab bar when multiple notes exist', async () => {
     const note2 = { ...mockNote, id: 2, content: 'Second note' }
     
-    setMockStoreData({ notes: [mockNote, note2] })
+    useScratchPadStore.setState({ notes: [mockNote, note2] })
     
     render(<NoteView />)
     
@@ -107,7 +90,7 @@ describe('NoteView', () => {
 
   it('should not render tab bar when only one note exists', async () => {
     act(() => {
-      setMockStoreData({ notes: [mockNote] })
+      useScratchPadStore.setState({ notes: [mockNote] })
     })
     
     render(<NoteView />)

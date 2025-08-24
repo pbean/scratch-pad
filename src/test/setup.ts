@@ -23,9 +23,6 @@ vi.mock('@tauri-apps/api/core', () => ({
   })
 }))
 
-// Store the original functions from the store
-let originalStoreFunctions: Record<string, any> = {}
-
 // Mock IntersectionObserver for VirtualList components
 beforeEach(() => {
   // Make all items visible by default in virtual lists
@@ -33,17 +30,6 @@ beforeEach(() => {
   
   // Reset mock database for each test
   resetMockDatabase()
-  
-  // Capture original store functions on first test
-  if (Object.keys(originalStoreFunctions).length === 0) {
-    const state = useScratchPadStore.getState()
-    Object.keys(state).forEach(key => {
-      const value = state[key as keyof typeof state]
-      if (typeof value === 'function') {
-        originalStoreFunctions[key] = value
-      }
-    })
-  }
 })
 
 // SINGLE cleanup mechanism after each test
@@ -51,7 +37,7 @@ afterEach(() => {
   // React Testing Library cleanup ONLY
   cleanup()
   
-  // Clear all mocks (but don't reset implementations)
+  // Clear all mocks
   vi.clearAllMocks()
   
   // Reset timers
@@ -60,10 +46,8 @@ afterEach(() => {
   // Reset mock database
   resetMockDatabase()
   
-  // Smart store reset - preserve functions, reset data only
-  const currentState = useScratchPadStore.getState()
-  const resetState: any = {
-    // Data properties only - reset these to initial values
+  // Simple, complete store reset - no preservation
+  useScratchPadStore.setState({
     notes: [],
     activeNoteId: null,
     currentView: 'note' as const,
@@ -85,27 +69,8 @@ afterEach(() => {
     notesCount: 0,
     hasMoreNotes: false,
     isLoadingMore: false,
-  }
-  
-  // Intelligently preserve functions
-  Object.keys(currentState).forEach(key => {
-    const value = currentState[key as keyof typeof currentState]
-    if (typeof value === 'function') {
-      // Check if this is a mock function (has mockImplementation property)
-      if ('mockImplementation' in value || 'mockResolvedValue' in value) {
-        // Keep the mock for tests that explicitly set it
-        resetState[key] = value
-      } else if (originalStoreFunctions[key]) {
-        // Restore original function if we have it and it's not mocked
-        resetState[key] = originalStoreFunctions[key]
-      } else {
-        // Keep current function as fallback
-        resetState[key] = value
-      }
-    }
+    // Functions will be automatically restored by Zustand
   })
-  
-  useScratchPadStore.setState(resetState)
 })
 
 // Essential DOM mocks only

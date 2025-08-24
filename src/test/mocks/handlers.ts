@@ -157,9 +157,30 @@ export const tauriHandlers = {
   },
   
   // Settings operations
+  get_all_settings: async () => {
+    // Return mock settings
+    return {
+      theme: 'dark',
+      font_size: 14,
+      auto_save: true,
+      note_directory: '/home/user/notes'
+    }
+  },
+  
+  get_setting: async ({ key }: { key: string }) => {
+    // Return mock setting value
+    const settings: Record<string, any> = {
+      theme: 'dark',
+      font_size: 14,
+      auto_save: true,
+      note_directory: '/home/user/notes'
+    }
+    return settings[key] || null
+  },
+  
   set_setting: async ({ key, value }: { key: string; value: any }) => {
     // Mock implementation
-    return { success: true }
+    return undefined
   },
   
   reset_settings_to_defaults: async () => {
@@ -172,11 +193,11 @@ export const tauriHandlers = {
   
   // Window operations
   show_window: async () => {
-    return { success: true }
+    return undefined
   },
   
   hide_window: async () => {
-    return { success: true }
+    return undefined
   },
   
   toggle_window: async () => {
@@ -192,16 +213,29 @@ export const tauriHandlers = {
   },
   
   set_layout_mode: async ({ mode }: { mode: string }) => {
-    return { success: true }
+    return undefined
+  },
+  
+  get_layout_mode: async () => {
+    return 'full'
   },
   
   // Shortcut operations
-  register_global_shortcut: async ({ shortcut }: { shortcut: string }) => {
-    return { success: true }
+  get_current_global_shortcut: async () => {
+    return 'Ctrl+Shift+N'
   },
   
-  unregister_global_shortcut: async ({ shortcut }: { shortcut: string }) => {
-    return { success: true }
+  register_global_shortcut: async ({ shortcut }: { shortcut: string }) => {
+    return undefined
+  },
+  
+  unregister_global_shortcut: async () => {
+    return undefined
+  },
+  
+  test_global_shortcut: async ({ shortcut }: { shortcut: string }) => {
+    // Return true for valid shortcuts
+    return true
   },
   
   update_global_shortcut: async ({ 
@@ -212,6 +246,22 @@ export const tauriHandlers = {
     newShortcut: string 
   }) => {
     return { success: true }
+  },
+  
+  // Plugin operations
+  get_plugin_info: async () => {
+    return [
+      { name: 'markdown-plugin', version: '1.0.0' },
+      { name: 'syntax-highlight', version: '2.0.0' }
+    ]
+  },
+  
+  get_plugin_count: async () => {
+    return 2
+  },
+  
+  get_available_note_formats: async () => {
+    return ['plaintext', 'markdown', 'html']
   },
 }
 
