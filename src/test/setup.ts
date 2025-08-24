@@ -23,6 +23,9 @@ vi.mock('@tauri-apps/api/core', () => ({
   })
 }))
 
+// Store the original functions from the store
+let originalStoreFunctions: Record<string, any> = {}
+
 // Mock IntersectionObserver for VirtualList components
 beforeEach(() => {
   // Make all items visible by default in virtual lists
@@ -30,6 +33,17 @@ beforeEach(() => {
   
   // Reset mock database for each test
   resetMockDatabase()
+  
+  // Capture original store functions on first test
+  if (Object.keys(originalStoreFunctions).length === 0) {
+    const state = useScratchPadStore.getState()
+    Object.keys(state).forEach(key => {
+      const value = state[key as keyof typeof state]
+      if (typeof value === 'function') {
+        originalStoreFunctions[key] = value
+      }
+    })
+  }
 })
 
 // SINGLE cleanup mechanism after each test
@@ -73,11 +87,21 @@ afterEach(() => {
     isLoadingMore: false,
   }
   
-  // Preserve all functions (including mocks that tests may have set)
+  // Intelligently preserve functions
   Object.keys(currentState).forEach(key => {
     const value = currentState[key as keyof typeof currentState]
     if (typeof value === 'function') {
-      resetState[key] = value
+      // Check if this is a mock function (has mockImplementation property)
+      if ('mockImplementation' in value || 'mockResolvedValue' in value) {
+        // Keep the mock for tests that explicitly set it
+        resetState[key] = value
+      } else if (originalStoreFunctions[key]) {
+        // Restore original function if we have it and it's not mocked
+        resetState[key] = originalStoreFunctions[key]
+      } else {
+        // Keep current function as fallback
+        resetState[key] = value
+      }
     }
   })
   
