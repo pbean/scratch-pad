@@ -87,7 +87,7 @@ describe('ScratchPadApp', () => {
     vi.clearAllMocks()
   })
 
-  it.skip('should render note view by default - times out', async () => {
+  it('should render note view by default', async () => {
     render(<ScratchPadApp />)
     
     await waitFor(() => {
@@ -99,7 +99,7 @@ describe('ScratchPadApp', () => {
     expect(screen.queryByTestId('settings-view')).not.toBeInTheDocument()
   })
 
-  it.skip('should render search history view when currentView is search-history - times out', async () => {
+  it('should render search history view when currentView is search-history - times out', async () => {
     useScratchPadStore.setState({ currentView: 'search-history' })
     render(<ScratchPadApp />)
     
@@ -111,7 +111,7 @@ describe('ScratchPadApp', () => {
     expect(screen.queryByTestId('settings-view')).not.toBeInTheDocument()
   })
 
-  it.skip('should render settings view when currentView is settings - times out', async () => {
+  it('should render settings view when currentView is settings - times out', async () => {
     useScratchPadStore.setState({ currentView: 'settings' })
     render(<ScratchPadApp />)
     
@@ -123,7 +123,7 @@ describe('ScratchPadApp', () => {
     expect(screen.queryByTestId('search-history-view')).not.toBeInTheDocument()
   })
 
-  it.skip('should display error message when error exists - times out', async () => {
+  it('should display error message when error exists - times out', async () => {
     useScratchPadStore.setState({ error: 'Test error message' })
     render(<ScratchPadApp />)
     
@@ -138,7 +138,7 @@ describe('ScratchPadApp', () => {
     expect(screen.queryByTestId('settings-view')).not.toBeInTheDocument()
   })
 
-  it.skip('should initialize app on mount - times out', async () => {
+  it('should initialize app on mount - times out', async () => {
     const mockLoadNotes = vi.fn().mockResolvedValue(undefined)
     const mockInitializeSettings = vi.fn().mockResolvedValue(undefined)
     
@@ -223,7 +223,7 @@ describe('ScratchPadApp', () => {
     expect(mockSafeInvoke).not.toHaveBeenCalledWith('hide_window')
   })
 
-  it.skip('should handle hide window error gracefully - times out', async () => {
+  it('should handle hide window error gracefully - times out', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { safeInvoke } = await import('../error-boundary')
     const mockSafeInvoke = vi.mocked(safeInvoke)
@@ -331,7 +331,7 @@ describe('ScratchPadApp', () => {
     expect(container.firstChild).toBeTruthy()
   })
   
-  it.skip('should handle loadNotes errors gracefully - times out', async () => {
+  it('should handle loadNotes errors gracefully - times out', async () => {
     // Mock console.error to verify error handling
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     

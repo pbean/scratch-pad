@@ -37,7 +37,7 @@ describe('CommandPalette', () => {
     // Reset the mock database and store state
     resetMockDatabase()
     
-    // Set up initial state
+    // Ensure clean state - explicitly set closed first
     useScratchPadStore.setState({
       isCommandPaletteOpen: false,
       searchQuery: '',
@@ -49,6 +49,9 @@ describe('CommandPalette', () => {
     
     // Reset toast mocks
     Object.values(mockToast).forEach(fn => fn.mockClear())
+    
+    // Clear any existing rendered elements
+    document.body.innerHTML = ''
   })
 
   it('should not render when closed', () => {
@@ -58,45 +61,50 @@ describe('CommandPalette', () => {
     expect(screen.queryByPlaceholderText('Type a command or search...')).not.toBeInTheDocument()
   })
 
-  it.skip('should render when open - times out', async () => {
+  it('should render when open', async () => {
     useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     render(<CommandPalette />)
     
+    // Wait for the component to render and check there's only one
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Type a command or search...')).toBeInTheDocument()
+      const inputs = screen.queryAllByPlaceholderText('Type a command or search...')
+      expect(inputs).toHaveLength(1)
     })
+    
+    const input = screen.getByPlaceholderText('Type a command or search...')
+    expect(input).toBeInTheDocument()
   })
 
-  it.skip('should focus input when opened - times out', async () => {
+  it('should focus input when opened', async () => {
     useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     render(<CommandPalette />)
     
+    // Use findBy and wait for focus
+    const input = await screen.findByPlaceholderText('Type a command or search...')
     await waitFor(() => {
-      const input = screen.getByPlaceholderText('Type a command or search...')
       expect(input).toHaveFocus()
     })
   })
 
-  it.skip('should display all commands initially - times out', async () => {
-    const user = userEvent.setup()
-    
+  it('should display all commands initially', async () => {
     useScratchPadStore.setState({ isCommandPaletteOpen: true })
     
     render(<CommandPalette />)
     
-    // Check that all commands are visible
-    await waitFor(() => {
-      expect(screen.getByText('New Note')).toBeInTheDocument()
-      expect(screen.getByText('Open Settings')).toBeInTheDocument()
-      expect(screen.getByText('Export Note')).toBeInTheDocument()
-      expect(screen.getByText('Search History')).toBeInTheDocument()
-      expect(screen.getByText('Open Folder')).toBeInTheDocument()
-    })
+    // Wait for the component to render first
+    await screen.findByPlaceholderText('Type a command or search...')
+    
+    // Then check for all commands
+    expect(await screen.findByText('New Note')).toBeInTheDocument()
+    expect(await screen.findByText('Open Settings')).toBeInTheDocument()
+    expect(await screen.findByText('Export Note')).toBeInTheDocument()
+    expect(await screen.findByText('Search History')).toBeInTheDocument()
+    expect(await screen.findByText('Open Folder')).toBeInTheDocument()
   })
 
-  it.skip('should filter commands based on input - times out', async () => {
+  it('should filter commands based on input', async () => {
     const user = userEvent.setup()
     
     useScratchPadStore.setState({ isCommandPaletteOpen: true })
@@ -106,15 +114,15 @@ describe('CommandPalette', () => {
     const input = await screen.findByPlaceholderText('Type a command or search...')
     await user.type(input, 'settings')
     
-    await waitFor(() => {
+    await waitFor(async () => {
       // Only Settings command should be visible
-      expect(screen.getByText('Open Settings')).toBeInTheDocument()
+      expect(await screen.findByText('Open Settings')).toBeInTheDocument()
       expect(screen.queryByText('New Note')).not.toBeInTheDocument()
       expect(screen.queryByText('Export Note')).not.toBeInTheDocument()
     })
   })
 
-  it.skip('should execute New Note command - times out', async () => {
+  it('should execute New Note command', async () => {
     const user = userEvent.setup()
     
     useScratchPadStore.setState({
@@ -123,6 +131,8 @@ describe('CommandPalette', () => {
     
     render(<CommandPalette />)
     
+    // Wait for palette to render then find command
+    await screen.findByPlaceholderText('Type a command or search...')
     const newNoteCmd = await screen.findByText('New Note')
     await user.click(newNoteCmd)
     
@@ -134,7 +144,7 @@ describe('CommandPalette', () => {
     })
   })
 
-  it.skip('should execute Open Settings command - times out', async () => {
+  it('should execute Open Settings command', async () => {
     const user = userEvent.setup()
     
     useScratchPadStore.setState({
@@ -143,6 +153,8 @@ describe('CommandPalette', () => {
     
     render(<CommandPalette />)
     
+    // Wait for palette to render then find command
+    await screen.findByPlaceholderText('Type a command or search...')
     const settingsCmd = await screen.findByText('Open Settings')
     await user.click(settingsCmd)
     
@@ -153,7 +165,7 @@ describe('CommandPalette', () => {
     })
   })
 
-  it.skip('should handle keyboard navigation between commands - times out', async () => {
+  it('should handle keyboard navigation between commands', async () => {
     const user = userEvent.setup()
     
     useScratchPadStore.setState({
@@ -168,16 +180,16 @@ describe('CommandPalette', () => {
     await user.type(input, '{arrowdown}')
     
     // First command should be highlighted
-    await waitFor(() => {
-      const firstCommand = screen.getByText('Search History').closest('[role="option"]')
+    await waitFor(async () => {
+      const firstCommand = (await screen.findByText('Search History')).closest('[role="option"]')
       expect(firstCommand).toHaveAttribute('aria-selected', 'true')
     })
     
     // Navigate down to second command
     await user.type(input, '{arrowdown}')
     
-    await waitFor(() => {
-      const secondCommand = screen.getByText('New Note').closest('[role="option"]')
+    await waitFor(async () => {
+      const secondCommand = (await screen.findByText('New Note')).closest('[role="option"]')
       expect(secondCommand).toHaveAttribute('aria-selected', 'true')
     })
   })
@@ -198,7 +210,7 @@ describe('CommandPalette', () => {
     })
   })
 
-  it.skip('should execute Search History command - times out', async () => {
+  it('should execute Search History command', async () => {
     const user = userEvent.setup()
     
     useScratchPadStore.setState({
@@ -207,6 +219,8 @@ describe('CommandPalette', () => {
     
     render(<CommandPalette />)
     
+    // Wait for palette then find command
+    await screen.findByPlaceholderText('Type a command or search...')
     const searchCmd = await screen.findByText('Search History')
     await user.click(searchCmd)
     
@@ -216,9 +230,7 @@ describe('CommandPalette', () => {
     })
   })
 
-  it.skip('should show Export Note command - times out', async () => {
-    const user = userEvent.setup()
-    
+  it('should show Export Note command', async () => {
     // Add an active note so export is available
     const note = addMockNote('Test content')
     useScratchPadStore.setState({
@@ -229,26 +241,27 @@ describe('CommandPalette', () => {
     
     render(<CommandPalette />)
     
-    await waitFor(() => {
-      expect(screen.getByText('Export Note')).toBeInTheDocument()
-    })
+    // Wait for palette to render then check command
+    await screen.findByPlaceholderText('Type a command or search...')
+    expect(await screen.findByText('Export Note')).toBeInTheDocument()
   })
 
-  it.skip('should show command shortcuts - times out', async () => {
+  it('should show command shortcuts', async () => {
     useScratchPadStore.setState({
       isCommandPaletteOpen: true
     })
     
     render(<CommandPalette />)
     
-    await waitFor(() => {
-      // Check that shortcuts are displayed
-      expect(screen.getByText('Ctrl+Shift+F')).toBeInTheDocument() // Search History
-      expect(screen.getByText('Ctrl+N')).toBeInTheDocument() // New Note
-    })
+    // Wait for palette to render then check shortcuts
+    await screen.findByPlaceholderText('Type a command or search...')
+    
+    // Check that shortcuts are displayed
+    expect(await screen.findByText('Ctrl+Shift+F')).toBeInTheDocument() // Search History
+    expect(await screen.findByText('Ctrl+N')).toBeInTheDocument() // New Note
   })
 
-  it.skip('should handle Enter key on selected command - times out', async () => {
+  it('should handle Enter key on selected command', async () => {
     const user = userEvent.setup()
     
     useScratchPadStore.setState({ isCommandPaletteOpen: true })
@@ -268,7 +281,7 @@ describe('CommandPalette', () => {
     })
   })
 
-  it.skip('should reset input when opened - times out', async () => {
+  it('should reset input when opened', async () => {
     const { rerender } = render(<CommandPalette />)
     
     // First render with palette closed
@@ -285,9 +298,8 @@ describe('CommandPalette', () => {
     
     rerender(<CommandPalette />)
     
-    await waitFor(() => {
-      const input = screen.getByPlaceholderText('Type a command or search...')
-      expect(input).toHaveValue('')
-    })
+    // Use findBy for async element
+    const input = await screen.findByPlaceholderText('Type a command or search...')
+    expect(input).toHaveValue('')
   })
 })

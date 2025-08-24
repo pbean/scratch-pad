@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom'
 import React from 'react'
 import { vi, afterEach, beforeAll, afterAll, beforeEach } from 'vitest'
-import { cleanup, configure } from '@testing-library/react'
+import { cleanup, configure, act } from '@testing-library/react'
 import { useScratchPadStore } from '../lib/store'
 import { mockAllIsIntersecting } from 'react-intersection-observer/test-utils'
 import { tauriHandlers, resetMockDatabase } from './mocks/handlers'
@@ -13,10 +13,50 @@ configure({
   asyncUtilTimeout: 3000
 })
 
-// Mock Tauri API with our handlers
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn()
-}))
+// Capture all original store methods once at module level
+let originalStoreMethods: Record<string, any> = {}
+
+beforeAll(() => {
+  // Capture all original store methods from initial state
+  const initialState = useScratchPadStore.getInitialState()
+  Object.entries(initialState).forEach(([key, value]) => {
+    if (typeof value === 'function') {
+      originalStoreMethods[key] = value
+    }
+  })
+  
+  // Also capture from current state if any additional methods exist
+  const currentState = useScratchPadStore.getState()
+  Object.entries(currentState).forEach(([key, value]) => {
+    if (typeof value === 'function' && !originalStoreMethods[key]) {
+      originalStoreMethods[key] = value
+    }
+  })
+})
+
+// Mock Tauri API - this hoists to the top and creates the mock inline
+vi.mock('@tauri-apps/api/core', async () => {
+  const { vi } = await import('vitest')
+  const { tauriHandlers } = await import('./mocks/handlers')
+  
+  const mockInvoke = vi.fn(async (cmd: string, args?: any) => {
+    const handler = tauriHandlers[cmd as keyof typeof tauriHandlers]
+    if (!handler) {
+      throw new Error(`Unknown Tauri command: ${cmd}`)
+    }
+    return handler(args || {})
+  })
+  
+  return {
+    invoke: mockInvoke
+  }
+})
+
+// Export the mock for tests that need to spy on it
+export const getMockInvoke = async () => {
+  const { invoke } = await import('@tauri-apps/api/core')
+  return invoke as ReturnType<typeof vi.fn>
+}
 
 // Mock IntersectionObserver for VirtualList components
 beforeEach(async () => {
@@ -26,29 +66,50 @@ beforeEach(async () => {
   // Reset mock database for each test
   resetMockDatabase()
   
-  // Set up default invoke implementation with handlers
-  const tauriCore = await import('@tauri-apps/api/core')
-  const mockInvoke = tauriCore.invoke as any
-  
-  // Only set up if it's a vi.fn (mock function)
-  if (mockInvoke && typeof mockInvoke.mockImplementation === 'function') {
-    mockInvoke.mockImplementation(async (cmd: string, args?: any) => {
-      const handler = tauriHandlers[cmd as keyof typeof tauriHandlers]
-      if (!handler) {
-        throw new Error(`Unknown Tauri command: ${cmd}`)
-      }
-      return handler(args || {})
-    })
+  // Clear mock calls but keep implementation
+  try {
+    const mockInvoke = await getMockInvoke()
+    if (mockInvoke && typeof mockInvoke.mockClear === 'function') {
+      mockInvoke.mockClear()
+    }
+  } catch (e) {
+    // Mock might not be available yet
   }
 })
 
 // SINGLE cleanup mechanism after each test
-afterEach(() => {
-  // React Testing Library cleanup ONLY
+afterEach(async () => {
+  // 1. React Testing Library cleanup
   cleanup()
   
-  // Clear all mocks
-  vi.clearAllMocks()
+  // 2. Wait for all React updates to complete
+  await act(async () => {
+    await new Promise(resolve => setTimeout(resolve, 0))
+  })
+  
+  // 3. Force remove any lingering portal elements
+  document.querySelectorAll('[data-radix-portal]').forEach(el => el.remove())
+  document.querySelectorAll('.palette-backdrop').forEach(el => el.remove())
+  document.querySelectorAll('[role="dialog"]').forEach(el => el.remove())
+  
+  // 4. Clean up body but don't enforce strict checks
+  try {
+    const bodyChildren = Array.from(document.body.children)
+    const nonRootElements = bodyChildren.filter(el => el.id !== 'root')
+    nonRootElements.forEach(el => el.remove())
+  } catch (e) {
+    // Ignore cleanup errors
+  }
+  
+  // Clear mock calls but preserve implementations
+  try {
+    const mockInvoke = await getMockInvoke()
+    if (mockInvoke && typeof mockInvoke.mockClear === 'function') {
+      mockInvoke.mockClear()
+    }
+  } catch (e) {
+    // Mock might not be available in all tests
+  }
   
   // Reset timers
   vi.useRealTimers()
@@ -59,7 +120,15 @@ afterEach(() => {
   // Reset store spies (restores original methods)
   resetStoreSpies()
   
-  // Simple, complete store reset - no preservation
+  // Clear spy calls if they exist on current store methods
+  const currentStore = useScratchPadStore.getState()
+  Object.values(currentStore).forEach(value => {
+    if (typeof value === 'function' && value.mockClear) {
+      value.mockClear()
+    }
+  })
+  
+  // Only reset data fields, not methods
   useScratchPadStore.setState({
     notes: [],
     activeNoteId: null,
@@ -81,9 +150,8 @@ afterEach(() => {
     searchHistory: [],
     notesCount: 0,
     hasMoreNotes: false,
-    isLoadingMore: false,
-    // Functions will be automatically restored by Zustand
-  })
+    isLoadingMore: false
+  }, false) // false = partial update, preserves existing functions
 })
 
 // Essential DOM mocks only

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup } from '../../../test/test-utils'
+import { render, screen, cleanup, waitFor } from '../../../test/test-utils'
 import userEvent from '@testing-library/user-event'
 import { TabBar } from '../TabBar'
 import { useScratchPadStore } from '../../../lib/store'
@@ -92,12 +92,14 @@ describe('TabBar', () => {
     
     render(<TabBar />)
     
-    const secondTab = screen.getByTestId('tab-2')
+    const secondTab = await screen.findByTestId('tab-2')
     expect(secondTab).toBeInTheDocument()
     
     await user.click(secondTab)
     
-    expect(mockSetActiveNote).toHaveBeenCalledWith(2)
+    await waitFor(() => {
+      expect(mockSetActiveNote).toHaveBeenCalledWith(2)
+    })
   })
 
   it('should show close button for each tab when multiple notes exist', () => {
@@ -123,10 +125,12 @@ describe('TabBar', () => {
     
     render(<TabBar />)
     
-    const closeButton = screen.getByTestId('close-tab-2')
+    const closeButton = await screen.findByTestId('close-tab-2')
     await user.click(closeButton)
     
-    expect(mockDeleteNote).toHaveBeenCalledWith(2)
+    await waitFor(() => {
+      expect(mockDeleteNote).toHaveBeenCalledWith(2)
+    })
   })
 
   it('should not switch tab when close button is clicked', async () => {
@@ -141,11 +145,13 @@ describe('TabBar', () => {
     
     render(<TabBar />)
     
-    const closeButton = screen.getByTestId('close-tab-1')
+    const closeButton = await screen.findByTestId('close-tab-1')
     await user.click(closeButton)
     
-    expect(mockDeleteNote).toHaveBeenCalledWith(1)
-    expect(mockSetActiveNote).not.toHaveBeenCalled()
+    await waitFor(() => {
+      expect(mockDeleteNote).toHaveBeenCalledWith(1)
+      expect(mockSetActiveNote).not.toHaveBeenCalled()
+    })
   })
 
   it('should use nickname as tab title when available', () => {

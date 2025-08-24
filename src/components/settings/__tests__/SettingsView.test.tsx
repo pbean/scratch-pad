@@ -63,7 +63,7 @@ describe('SettingsView', () => {
     })
   })
 
-  it.skip('should load and display settings - times out', async () => {
+  it('should load and display settings - times out', async () => {
     render(<SettingsView />)
     
     await waitFor(() => {
@@ -73,7 +73,7 @@ describe('SettingsView', () => {
     })
   })
 
-  it.skip('should render all settings sections - times out', async () => {
+  it('should render all settings sections - times out', async () => {
     render(<SettingsView />)
     
     await waitFor(() => {
@@ -85,7 +85,7 @@ describe('SettingsView', () => {
     })
   })
 
-  it.skip('should handle back button click - flaky', async () => {
+  it('should handle back button click - flaky', async () => {
     const user = userEvent.setup()
     const mockSetCurrentView = vi.fn()
     
@@ -130,7 +130,7 @@ describe('SettingsView', () => {
     expect(screen.getByText('Global shortcut cannot be empty')).toBeInTheDocument()
   })
 
-  it.skip('should validate numeric fields - times out', async () => {
+  it('should validate numeric fields - times out', async () => {
     const user = userEvent.setup()
     
     render(<SettingsView />)
@@ -149,7 +149,7 @@ describe('SettingsView', () => {
     expect(screen.getByText('Window width must be between 400 and 3840 pixels')).toBeInTheDocument()
   })
 
-  it.skip('should save settings successfully - times out', async () => {
+  it('should save settings successfully - times out', async () => {
     const user = userEvent.setup()
     const mockSetSetting = vi.fn().mockResolvedValue(undefined)
     
@@ -214,7 +214,7 @@ describe('SettingsView', () => {
     consoleSpy.mockRestore()
   })
 
-  it.skip('should export settings - times out', async () => {
+  it('should export settings - times out', async () => {
     const user = userEvent.setup()
     const mockExportSettings = vi.fn().mockResolvedValue('{"test": "data"}')
     
@@ -243,7 +243,7 @@ describe('SettingsView', () => {
     })
   })
 
-  it.skip('should reset settings to defaults - times out', async () => {
+  it('should reset settings to defaults - times out', async () => {
     const user = userEvent.setup()
     const mockResetSettings = vi.fn().mockResolvedValue(undefined)
     const mockGetAllSettings = vi.fn().mockResolvedValue(mockSettings)
@@ -415,7 +415,7 @@ describe('SettingsView', () => {
     expect(screen.getByText('Fuzzy search threshold must be between 0.0 and 1.0')).toBeInTheDocument()
   })
 
-  it.skip('should validate auto-save delay range - times out', async () => {
+  it('should validate auto-save delay range - times out', async () => {
     const user = userEvent.setup()
     
     render(<SettingsView />)
@@ -433,7 +433,7 @@ describe('SettingsView', () => {
     expect(screen.getByText('Auto-save delay must be between 100 and 10000 milliseconds')).toBeInTheDocument()
   })
 
-  it.skip('should auto-hide success messages - times out', async () => {
+  it('should auto-hide success messages - times out', async () => {
     vi.useFakeTimers()
     
     try {

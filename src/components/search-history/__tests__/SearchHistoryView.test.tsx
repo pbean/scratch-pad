@@ -120,7 +120,7 @@ describe('SearchHistoryView', () => {
     })
   })
 
-  it.skip('should handle back button click - times out', async () => {
+  it('should handle back button click', async () => {
     const user = userEvent.setup()
     const mockSetCurrentView = vi.fn()
     
@@ -133,16 +133,17 @@ describe('SearchHistoryView', () => {
     const backButton = await screen.findByTestId('arrow-left')
     await user.click(backButton.parentElement!)
     
-    expect(mockSetCurrentView).toHaveBeenCalledWith('note')
+    await waitFor(() => {
+      expect(mockSetCurrentView).toHaveBeenCalledWith('note')
+    })
   })
 
-  it.skip('should display folder structure - times out', async () => {
+  it('should display folder structure', async () => {
     render(<SearchHistoryView />)
     
-    await waitFor(() => {
-      expect(screen.getByText('Recent Notes')).toBeInTheDocument()
-      expect(screen.getByText('All Notes')).toBeInTheDocument()
-    })
+    // Use findBy for async rendering
+    expect(await screen.findByText('Recent Notes')).toBeInTheDocument()
+    expect(await screen.findByText('All Notes')).toBeInTheDocument()
   })
 
   it('should show notes in virtual list', async () => {
@@ -153,7 +154,7 @@ describe('SearchHistoryView', () => {
     })
   })
 
-  it.skip('should handle note selection - times out', async () => {
+  it('should handle note selection', async () => {
     const user = userEvent.setup()
     const mockSetActiveNote = vi.fn()
     const mockSetCurrentView = vi.fn()
@@ -165,18 +166,17 @@ describe('SearchHistoryView', () => {
     
     render(<SearchHistoryView />)
     
-    await waitFor(() => {
-      expect(screen.getByTestId('virtual-list-item-0')).toBeInTheDocument()
-    })
-    
-    const firstItem = screen.getByTestId('virtual-list-item-0')
+    // Use findBy for async element
+    const firstItem = await screen.findByTestId('virtual-list-item-0')
     await user.click(firstItem)
     
-    expect(mockSetActiveNote).toHaveBeenCalled()
-    expect(mockSetCurrentView).toHaveBeenCalledWith('note')
+    await waitFor(() => {
+      expect(mockSetActiveNote).toHaveBeenCalled()
+      expect(mockSetCurrentView).toHaveBeenCalledWith('note')
+    })
   })
 
-  it.skip('should handle folder toggle - times out', async () => {
+  it('should handle folder toggle', async () => {
     const user = userEvent.setup()
     const mockToggleFolder = vi.fn()
     
@@ -186,29 +186,27 @@ describe('SearchHistoryView', () => {
     
     render(<SearchHistoryView />)
     
-    await waitFor(() => {
-      expect(screen.getByText('Recent Notes')).toBeInTheDocument()
-    })
-    
-    const folderHeader = screen.getByText('Recent Notes')
+    // Use findBy for async element
+    const folderHeader = await screen.findByText('Recent Notes')
     await user.click(folderHeader)
     
-    expect(mockToggleFolder).toHaveBeenCalledWith('recent')
+    await waitFor(() => {
+      expect(mockToggleFolder).toHaveBeenCalledWith('recent')
+    })
   })
 
-  it.skip('should show loading state - times out', async () => {
+  it('should show loading state', async () => {
     useScratchPadStore.setState({
       isLoading: true
     })
     
     render(<SearchHistoryView />)
     
-    await waitFor(() => {
-      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument()
-    })
+    // Use findBy for async element
+    expect(await screen.findByTestId('loading-spinner')).toBeInTheDocument()
   })
 
-  it.skip('should show error state - times out', async () => {
+  it('should show error state', async () => {
     useScratchPadStore.setState({
       error: 'Test error message',
       isLoading: false
@@ -216,12 +214,11 @@ describe('SearchHistoryView', () => {
     
     render(<SearchHistoryView />)
     
-    await waitFor(() => {
-      expect(screen.getByText(/error/i)).toBeInTheDocument()
-    })
+    // Use findBy for async element
+    expect(await screen.findByText(/error/i)).toBeInTheDocument()
   })
 
-  it.skip('should handle empty state - times out', async () => {
+  it('should handle empty state', async () => {
     useScratchPadStore.setState({
       notes: [],
       isLoading: false,
@@ -230,9 +227,8 @@ describe('SearchHistoryView', () => {
     
     render(<SearchHistoryView />)
     
-    await waitFor(() => {
-      expect(screen.getByText(/no notes/i)).toBeInTheDocument()
-    })
+    // Use findBy for async element
+    expect(await screen.findByText(/no notes/i)).toBeInTheDocument()
   })
 
   it('should show load more button when more notes available', async () => {
@@ -266,7 +262,7 @@ describe('SearchHistoryView', () => {
     expect(mockLoadMoreNotes).toHaveBeenCalled()
   })
 
-  it.skip('should show loading more state - times out', async () => {
+  it('should show loading more state', async () => {
     useScratchPadStore.setState({
       hasMoreNotes: true,
       isLoadingMore: true
@@ -274,12 +270,11 @@ describe('SearchHistoryView', () => {
     
     render(<SearchHistoryView />)
     
-    await waitFor(() => {
-      expect(screen.getByText(/loading/i)).toBeInTheDocument()
-    })
+    // Use findBy for async element
+    expect(await screen.findByText(/loading/i)).toBeInTheDocument()
   })
 
-  it.skip('should handle keyboard navigation - times out', async () => {
+  it('should handle keyboard navigation', async () => {
     const user = userEvent.setup()
     
     render(<SearchHistoryView />)
@@ -294,7 +289,7 @@ describe('SearchHistoryView', () => {
     })
   })
 
-  it.skip('should display note metadata correctly - times out', async () => {
+  it('should display note metadata correctly', async () => {
     render(<SearchHistoryView />)
     
     await waitFor(() => {
@@ -304,7 +299,7 @@ describe('SearchHistoryView', () => {
     })
   })
 
-  it.skip('should handle search functionality - times out', async () => {
+  it('should handle search functionality', async () => {
     const user = userEvent.setup()
     const mockSearchNotes = vi.fn().mockResolvedValue([mockNote1])
     

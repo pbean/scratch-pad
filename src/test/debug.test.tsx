@@ -5,7 +5,7 @@ function SimpleComponent() {
   return <div>Hello World</div>
 }
 
-describe.skip('React rendering debug', () => {
+describe('React rendering debug', () => {
   it('should debug the rendering environment', () => {
     const testRoot = document.getElementById('test-root')!
     const result = render(<SimpleComponent />, { container: testRoot })
