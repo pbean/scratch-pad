@@ -100,7 +100,7 @@ describe('ScratchPadApp', () => {
     expect(screen.queryByTestId('settings-view')).not.toBeInTheDocument()
   })
 
-  it.skip('should render search history view when currentView is search-history - times out', async () => {
+  it('should render search history view when currentView is search-history - times out', async () => {
     useScratchPadStore.setState({ currentView: 'search-history' })
     render(<ScratchPadApp />)
     

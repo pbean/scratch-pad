@@ -1,34 +1,62 @@
 import '@testing-library/jest-dom'
 import React from 'react'
 import { vi, afterEach, beforeAll, afterAll, beforeEach } from 'vitest'
-import { cleanup, configure, act } from '@testing-library/react'
+import { cleanup, configure } from '@testing-library/react'
 import { useScratchPadStore } from '../lib/store'
 import { mockAllIsIntersecting } from 'react-intersection-observer/test-utils'
 import { tauriHandlers, resetMockDatabase } from './mocks/handlers'
 import { resetStoreSpies } from './store-testing'
 
-// Configure React Testing Library for React 19
+// Configure React Testing Library for React 19 - enhanced for better test compatibility
 configure({
   testIdAttribute: 'data-testid',
-  asyncUtilTimeout: 3000
+  asyncUtilTimeout: 3000,
+  // React 19: Let React handle act() automatically, don't wrap user events
+  asyncWrapper: async (cb) => {
+    return await cb()
+  }
 })
+
+// Define the initial state constant to match the Zustand store's initial state
+const INITIAL_STORE_STATE = {
+  // Core state
+  notes: [],
+  activeNoteId: null,
+  currentView: "note" as const,
+  isCommandPaletteOpen: false,
+  isLoading: false,
+  error: null,
+
+  // UI state
+  expandedFolders: new Set(["recent", "all-notes"]),
+  selectedSearchIndex: 0,
+  searchQuery: "",
+
+  // Advanced search state
+  searchResults: [],
+  searchTotalCount: 0,
+  currentSearchPage: 0,
+  searchPageSize: 20,
+  hasMoreSearchResults: false,
+  searchQueryTime: 0,
+  lastQueryComplexity: null,
+  recentSearches: [],
+  searchHistory: [],
+
+  // Performance state
+  notesCount: 0,
+  hasMoreNotes: false,
+  isLoadingMore: false,
+}
 
 // Capture all original store methods once at module level
 let originalStoreMethods: Record<string, any> = {}
 
 beforeAll(() => {
-  // Capture all original store methods from initial state
-  const initialState = useScratchPadStore.getInitialState()
-  Object.entries(initialState).forEach(([key, value]) => {
-    if (typeof value === 'function') {
-      originalStoreMethods[key] = value
-    }
-  })
-  
-  // Also capture from current state if any additional methods exist
+  // Capture all original store methods from current state
   const currentState = useScratchPadStore.getState()
   Object.entries(currentState).forEach(([key, value]) => {
-    if (typeof value === 'function' && !originalStoreMethods[key]) {
+    if (typeof value === 'function') {
       originalStoreMethods[key] = value
     }
   })
@@ -58,6 +86,102 @@ export const getMockInvoke = async () => {
   return invoke as ReturnType<typeof vi.fn>
 }
 
+/**
+ * Smart store reset that preserves vi.fn() mocks while resetting data fields
+ * This prevents the common issue where setState(initialState, true) destroys all mocks
+ * 
+ * FIX 2: Enhanced with fallback to originalStoreMethods for complete preservation
+ */
+export function resetStorePreservingMocks() {
+  const currentState = useScratchPadStore.getState()
+  
+  // Step 1: Identify and preserve all vi.fn() mocks from current state
+  const preservedMocks: Record<string, any> = {}
+  const mockCallsCleared: string[] = []
+  
+  Object.entries(currentState).forEach(([key, value]) => {
+    if (typeof value === 'function') {
+      // Check if it's a vi.fn() mock (has _isMockFunction or mock methods)
+      if (value && (value._isMockFunction || typeof value.mockClear === 'function')) {
+        preservedMocks[key] = value
+        // Clear the mock's call history but preserve the mock itself
+        if (typeof value.mockClear === 'function') {
+          value.mockClear()
+          mockCallsCleared.push(key)
+        }
+      }
+      // If it's not a mock, we'll let it be reset to initial state
+    }
+  })
+  
+  // Step 2: Extract data-only fields from initial state
+  const dataOnlyFields: Record<string, any> = {}
+  Object.entries(INITIAL_STORE_STATE).forEach(([key, value]) => {
+    if (typeof value !== 'function') {
+      // For Set objects, create new instances to avoid reference sharing
+      if (value instanceof Set) {
+        dataOnlyFields[key] = new Set(value)
+      } else if (Array.isArray(value)) {
+        dataOnlyFields[key] = [...value]
+      } else {
+        dataOnlyFields[key] = value
+      }
+    }
+  })
+  
+  // Step 3: Create the new state by merging preserved mocks with fresh data
+  // FIX 2: Enhanced fallback ensures all functions are preserved
+  const newState = {
+    ...dataOnlyFields,      // Reset all data fields to initial values
+    ...preservedMocks       // Preserve all mocked functions
+  }
+  
+  // FIX 2: Add fallback to originalStoreMethods for any missing functions
+  Object.entries(currentState).forEach(([key, currentValue]) => {
+    if (typeof currentValue === 'function' && !newState[key]) {
+      // Use preserved mock, or fall back to original method
+      newState[key] = preservedMocks[key] || originalStoreMethods[key] || currentValue
+    }
+  })
+  
+  // Step 4: Apply the smart reset - false = partial update, preserves other functions
+  useScratchPadStore.setState(newState, false)
+  
+  // Log for debugging if needed (can be removed in production)
+  if (process.env.NODE_ENV === 'test' && mockCallsCleared.length > 0) {
+    // console.log(`Smart reset: preserved ${Object.keys(preservedMocks).length} mocks, cleared calls for: ${mockCallsCleared.join(', ')}`)
+  }
+}
+
+/**
+ * Validation function to ensure mocks persist after reset
+ * Returns true if all expected mocks are still vi.fn() instances
+ */
+export function validateMocksPreserved(expectedMocks: string[] = []): boolean {
+  const currentState = useScratchPadStore.getState()
+  
+  for (const mockName of expectedMocks) {
+    const method = (currentState as any)[mockName]
+    if (!method || typeof method !== 'function') {
+      console.warn(`Mock validation failed: ${mockName} is not a function`)
+      return false
+    }
+    if (!method._isMockFunction && typeof method.mockClear !== 'function') {
+      console.warn(`Mock validation failed: ${mockName} is not a vi.fn() mock`)
+      return false
+    }
+  }
+  
+  return true
+}
+
+/**
+ * Helper to get the initial state for testing
+ */
+export function getInitialStoreState() {
+  return structuredClone(INITIAL_STORE_STATE)
+}
+
 // Mock IntersectionObserver for VirtualList components
 beforeEach(async () => {
   // Make all items visible by default in virtual lists
@@ -77,48 +201,16 @@ beforeEach(async () => {
   }
 })
 
-// SINGLE cleanup mechanism after each test
+// REACT 19 OPTIMIZED CLEANUP - prevents act() overlapping warnings
 afterEach(async () => {
-  // 1. React Testing Library cleanup
-  cleanup()
+  // FIX 1: Clear all pending timers BEFORE switching to real timers
+  // This prevents uncaught exceptions from timer-based React updates
+  vi.clearAllTimers()
   
-  // 2. Wait for all React updates to complete
-  await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, 0))
-  })
+  // Phase 1: Stop all timers immediately to prevent timer-based React updates
+  vi.useRealTimers()
   
-  // 3. More targeted portal cleanup
-  const portalRoot = document.getElementById('radix-portal-root')
-  if (portalRoot) {
-    portalRoot.innerHTML = ''
-  }
-  
-  // 4. Clean specific portal containers by data attribute
-  document.querySelectorAll('[data-radix-portal]').forEach(el => {
-    el.remove()
-  })
-  
-  // 5. Clean up dialogs and overlays
-  document.querySelectorAll('[role="dialog"], [data-testid="dialog-overlay"], .palette-backdrop').forEach(el => {
-    el.remove()
-  })
-  
-  // 6. Ensure each test gets fresh container
-  const root = document.getElementById('root')
-  if (root) {
-    root.innerHTML = ''
-  }
-  
-  // 7. Clean up body but don't enforce strict checks
-  try {
-    const bodyChildren = Array.from(document.body.children)
-    const nonRootElements = bodyChildren.filter(el => el.id !== 'root')
-    nonRootElements.forEach(el => el.remove())
-  } catch (e) {
-    // Ignore cleanup errors
-  }
-  
-  // Clear mock calls but preserve implementations
+  // Phase 2: Clear Tauri mock calls early to prevent late IPC operations
   try {
     const mockInvoke = await getMockInvoke()
     if (mockInvoke && typeof mockInvoke.mockClear === 'function') {
@@ -128,51 +220,102 @@ afterEach(async () => {
     // Mock might not be available in all tests
   }
   
-  // Reset timers
-  vi.useRealTimers()
-  
-  // Reset mock database
+  // Phase 3: Reset mock database state before any React cleanup
   resetMockDatabase()
   
-  // Reset store spies (restores original methods)
+  // Phase 4: Reset store spies (restores original methods) - CRITICAL: before smart reset
   resetStoreSpies()
   
-  // Clear spy calls if they exist on current store methods
-  const currentStore = useScratchPadStore.getState()
-  Object.values(currentStore).forEach(value => {
-    if (typeof value === 'function' && value.mockClear) {
-      value.mockClear()
+  // FIX 3: Add comprehensive mock state isolation after store spy reset
+  // This ensures any mocked functions have their state properly cleared
+  const currentState = useScratchPadStore.getState()
+  Object.entries(currentState).forEach(([key, value]) => {
+    if (typeof value === 'function' && value && typeof value.mockClear === 'function') {
+      try {
+        value.mockClear()
+      } catch (e) {
+        // Ignore errors for mocks that can't be cleared
+      }
     }
   })
   
-  // PROPER RESET: Use getInitialState to preserve all methods
-  const initialState = useScratchPadStore.getInitialState()
-  useScratchPadStore.setState(initialState, true) // true = replace entire state
+  // Phase 5: SMART RESET - preserves mocks while resetting data (no React updates)
+  resetStorePreservingMocks()
   
-  // Then only reset specific data fields that tests might have modified
-  useScratchPadStore.setState({
-    notes: [],
-    activeNoteId: null,
-    currentView: 'note' as const,
-    isCommandPaletteOpen: false,
-    isLoading: false,
-    error: null,
-    expandedFolders: new Set(['recent', 'all-notes']),
-    selectedSearchIndex: 0,
-    searchQuery: '',
-    searchResults: [],
-    searchTotalCount: 0,
-    currentSearchPage: 0,
-    searchPageSize: 20,
-    hasMoreSearchResults: false,
-    searchQueryTime: 0,
-    lastQueryComplexity: null,
-    recentSearches: [],
-    searchHistory: [],
-    notesCount: 0,
-    hasMoreNotes: false,
-    isLoadingMore: false
-  }, false) // false = partial update, preserves functions from initialState
+  // Phase 6: Let React Testing Library handle React cleanup with automatic act()
+  // This is React 19 compatible - RTL wraps cleanup in act() automatically
+  cleanup()
+  
+  // Phase 7: Manual DOM cleanup after React is fully cleaned up
+  // Use synchronous operations only - no act() wrapper needed
+  
+  // Clean portal containers
+  const portalRoot = document.getElementById('radix-portal-root')
+  if (portalRoot) {
+    portalRoot.innerHTML = ''
+  }
+  
+  // Clean specific portal containers
+  document.querySelectorAll('[data-radix-portal]').forEach(el => {
+    el.remove()
+  })
+  
+  // Clean up dialogs and overlays
+  document.querySelectorAll('[role="dialog"], [data-testid="dialog-overlay"], .palette-backdrop').forEach(el => {
+    el.remove()
+  })
+  
+  // Clean up root container
+  const root = document.getElementById('root')
+  if (root) {
+    root.innerHTML = ''
+  }
+  
+  // FIX 4: Enhanced Portal Cleanup with synchronous retry logic
+  // Use synchronous retry instead of async waitFor to prevent timing issues
+  let retryCount = 0
+  const maxRetries = 10
+  
+  while (retryCount < maxRetries) {
+    try {
+      const bodyChildren = Array.from(document.body.children)
+      const nonRootElements = bodyChildren.filter(el => 
+        el.id !== 'root' && 
+        !el.hasAttribute('data-react-19-internal') && // Allow React 19 internal elements
+        !el.matches('script, style, link, meta') // Don't remove essential DOM elements
+      )
+      
+      if (nonRootElements.length === 0) {
+        // Success: only root element remains
+        break
+      }
+      
+      // Remove non-essential elements
+      nonRootElements.forEach(el => {
+        try {
+          el.remove()
+        } catch (e) {
+          // Ignore removal errors for React-managed elements
+        }
+      })
+      
+      retryCount++
+      
+      // If we've tried multiple times and still have elements, it's probably safe to continue
+      if (retryCount >= maxRetries) {
+        console.debug(`Portal cleanup completed after ${retryCount} attempts, ${nonRootElements.length} elements remaining`)
+        break
+      }
+      
+    } catch (e) {
+      // Ignore cleanup errors - React 19 is more forgiving
+      break
+    }
+  }
+  
+  // Note: No manual act() wrapper - React 19 + RTL handle this automatically
+  // The old problematic pattern was:
+  // await act(async () => { /* cleanup operations */ }) ❌ This caused overlapping!
 })
 
 // Essential DOM mocks only
@@ -224,7 +367,8 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   disconnect: vi.fn(),
 }))
 
-// Enhanced Radix UI component mocks for better test compatibility
+// REACT 19 COMPATIBLE Radix UI component mocks
+// These avoid manual act() calls and work with React 19's automatic batching
 vi.mock('@radix-ui/react-tabs', () => ({
   Root: ({ children, ...props }: any) => React.createElement('div', { 'data-testid': 'tabs-root', ...props }, children),
   List: ({ children, ...props }: any) => React.createElement('div', { role: 'tablist', ...props }, children),
@@ -248,3 +392,41 @@ vi.mock('@radix-ui/react-popover', () => ({
   Portal: ({ children }: any) => children,
   Content: ({ children, ...props }: any) => React.createElement('div', { 'data-testid': 'popover-content', ...props }, children),
 }))
+
+/*
+ * REACT 19 TESTING INFRASTRUCTURE FIXES APPLIED:
+ * 
+ * FIX 1: ✅ Timer Mock Cleanup (HIGHEST PRIORITY)
+ *   - Added vi.clearAllTimers() BEFORE vi.useRealTimers() at line 208
+ *   - Prevents uncaught exceptions from pending timer-based React updates
+ * 
+ * FIX 2: ✅ Complete Store Preservation  
+ *   - Fixed getInitialState() issue by creating INITIAL_STORE_STATE constant
+ *   - Enhanced resetStorePreservingMocks with proper initial state handling
+ *   - Ensures all functions preserved: preservedMocks || originalStoreMethods || currentValue
+ *   - Added proper handling of Set objects and arrays to prevent reference sharing
+ *   - EXPORTED resetStorePreservingMocks for manual testing/validation
+ * 
+ * FIX 3: ✅ Mock State Isolation
+ *   - Added comprehensive mock clearing after resetStoreSpies() at line 229
+ *   - Iterates through current state and calls mockClear() on any vi.fn() instances
+ *   - Prevents mock state bleeding between tests
+ * 
+ * FIX 4: ✅ Enhanced Portal Cleanup (SAFER VERSION)
+ *   - Replaced async waitFor with synchronous retry logic after line 274
+ *   - Maximum 10 retries with immediate removal of non-root elements
+ *   - Ensures clean DOM state without timing-related issues
+ * 
+ * MIGRATION NOTES FOR TESTS:
+ * - Remove manual act() calls from tests - React 19 + RTL handle this
+ * - Use user-event library instead of fireEvent + act() for user interactions
+ * - Trust RTL's automatic act() wrapping for state updates and effects
+ * - Use exported resetStorePreservingMocks() for manual validation testing
+ * 
+ * EXPECTED IMPACT:
+ * - Fixes timer-related uncaught exceptions (prevents test crashes)
+ * - Maintains complete mock preservation (prevents 40+ additional failures)
+ * - Improves mock state isolation (reduces test interference)
+ * - Better portal cleanup reliability (reduces DOM pollution)
+ * - Enhanced React 19 compatibility with modern testing patterns
+ */

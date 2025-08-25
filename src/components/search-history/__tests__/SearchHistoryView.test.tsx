@@ -138,7 +138,7 @@ describe('SearchHistoryView', () => {
     })
   })
 
-  it.skip('should display folder structure - times out', async () => {
+  it('should display folder structure - times out', async () => {
     render(<SearchHistoryView />)
     
     // Use findBy for async rendering

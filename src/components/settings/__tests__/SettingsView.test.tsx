@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '../../../test/test-utils'
+import { render, screen, waitFor, act } from '../../../test/test-utils'
 import userEvent from '@testing-library/user-event'
 import { SettingsView } from '../SettingsView'
 import { useScratchPadStore } from '../../../lib/store'
@@ -63,7 +63,7 @@ describe('SettingsView', () => {
     })
   })
 
-  it.skip('should load and display settings - times out', async () => {
+  it('should load and display settings - times out', async () => {
     render(<SettingsView />)
     
     await waitFor(() => {
@@ -73,14 +73,32 @@ describe('SettingsView', () => {
     })
   })
 
-  it.skip('should render all settings sections - times out', async () => {
+  it('should render all settings sections', async () => {
     render(<SettingsView />)
     
+    // Wait for component to load first
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Ctrl+Shift+N')).toBeInTheDocument()
+    })
+    
+    // Then check for all settings sections using waitFor for each
     await waitFor(() => {
       expect(screen.getByText('Global Shortcut')).toBeInTheDocument()
+    })
+    
+    await waitFor(() => {
       expect(screen.getByText('Font Preferences')).toBeInTheDocument()
+    })
+    
+    await waitFor(() => {
       expect(screen.getByText('Note Format & Layout')).toBeInTheDocument()
+    })
+    
+    await waitFor(() => {
       expect(screen.getByText('Window Settings')).toBeInTheDocument()
+    })
+    
+    await waitFor(() => {
       expect(screen.getByText('Performance Settings')).toBeInTheDocument()
     })
   })
@@ -130,23 +148,32 @@ describe('SettingsView', () => {
     expect(screen.getByText('Global shortcut cannot be empty')).toBeInTheDocument()
   })
 
-  it.skip('should validate numeric fields - times out', async () => {
+  it('should validate numeric fields', async () => {
     const user = userEvent.setup()
     
     render(<SettingsView />)
     
+    // Wait for component to fully load first
     await waitFor(() => {
       expect(screen.getByDisplayValue('800')).toBeInTheDocument()
     })
     
     // Set invalid window width
     const widthInput = screen.getByDisplayValue('800')
-    await user.clear(widthInput)
-    await user.type(widthInput, '100') // Too small
+    await act(async () => {
+      await user.clear(widthInput)
+      await user.type(widthInput, '100') // Too small
+    })
     
-    await user.click(screen.getByText('Save Settings'))
+    // Trigger validation
+    await act(async () => {
+      await user.click(screen.getByText('Save Settings'))
+    })
     
-    expect(screen.getByText('Window width must be between 400 and 3840 pixels')).toBeInTheDocument()
+    // Wait for validation error to appear
+    await waitFor(() => {
+      expect(screen.getByText('Window width must be between 400 and 3840 pixels')).toBeInTheDocument()
+    })
   })
 
   it.skip('should save settings successfully - times out', async () => {
