@@ -98,29 +98,29 @@ export const tauriHandlers = {
     const lowerQuery = query.toLowerCase()
     return mockNotes.filter(n => 
       !n.is_deleted && 
-      n.content.toLowerCase().includes(lowerQuery)
+      (n.content.toLowerCase().includes(lowerQuery) || 
+       n.title?.toLowerCase().includes(lowerQuery))
     )
   },
   
-  combined_search_notes: async ({ query }: { query: string }) => {
-    return tauriHandlers.search_notes({ query })
-  },
-  
-  search_notes_paginated: async ({ query, page = 0, page_size = 20 }: { 
+  search_notes_paginated: async ({ 
+    query, 
+    page = 0, 
+    page_size = 20 
+  }: { 
     query: string; 
     page?: number; 
     page_size?: number 
   }) => {
-    const results = await tauriHandlers.search_notes({ query })
+    const allResults = await tauriHandlers.search_notes({ query })
     const start = page * page_size
-    const paginatedResults = results.slice(start, start + page_size)
+    const end = start + page_size
+    const paginatedNotes = allResults.slice(start, end)
     
     return {
-      results: paginatedResults,
-      total: results.length,
-      page,
-      page_size,
-      has_more: start + page_size < results.length
+      notes: paginatedNotes,
+      has_more: end < allResults.length,
+      total_count: allResults.length
     }
   },
   
@@ -133,19 +133,22 @@ export const tauriHandlers = {
     page?: number; 
     page_size?: number 
   }) => {
-    // Simple boolean search implementation for tests
+    // For tests, we'll just do simple search regardless of boolean operators
+    return await tauriHandlers.search_notes_paginated({ query, page, page_size })
+  },
+  
+  search_notes_with_content: async ({ 
+    query, 
+    includeContent = false 
+  }: { 
+    query: string; 
+    includeContent?: boolean 
+  }) => {
     const results = await tauriHandlers.search_notes({ query })
-    const start = page * page_size
-    const paginatedResults = results.slice(start, start + page_size)
-    
-    return {
-      results: paginatedResults,
-      total: results.length,
-      page,
-      page_size,
-      has_more: start + page_size < results.length,
-      query_valid: true
-    }
+    return results.map(note => ({
+      ...note,
+      content: includeContent ? note.content : undefined
+    }))
   },
   
   validate_boolean_search_query: async ({ query }: { query: string }) => {
@@ -262,6 +265,119 @@ export const tauriHandlers = {
   
   get_available_note_formats: async () => {
     return ['plaintext', 'markdown', 'html']
+  },
+
+  // Performance monitoring operations
+  get_performance_overview: async () => {
+    return {
+      cpu_usage: 12.5,
+      memory_usage: 156.2,
+      disk_usage: 45.8,
+      network_latency: 8.2,
+      query_time: 15.3,
+      cache_hit_rate: 89.5,
+      active_connections: 3,
+      uptime_seconds: 3600,
+      last_updated: new Date().toISOString()
+    }
+  },
+
+  get_performance_alerts: async ({ severityFilter }: { severityFilter?: string } = {}) => {
+    const allAlerts = [
+      {
+        id: 1,
+        severity: 'warning',
+        message: 'High memory usage detected',
+        timestamp: new Date().toISOString(),
+        resolved: false
+      },
+      {
+        id: 2,
+        severity: 'info',
+        message: 'Cache optimization completed',
+        timestamp: new Date().toISOString(),
+        resolved: true
+      }
+    ]
+    
+    if (severityFilter) {
+      return allAlerts.filter(alert => alert.severity === severityFilter)
+    }
+    return allAlerts
+  },
+
+  get_performance_budget: async () => {
+    return {
+      cpu_limit: 80,
+      memory_limit_mb: 512,
+      query_time_limit_ms: 100,
+      disk_usage_limit_gb: 10,
+      network_timeout_ms: 5000,
+      cache_size_limit_mb: 128,
+      max_connections: 10
+    }
+  },
+
+  get_performance_analytics: async ({ periodHours }: { periodHours?: number } = {}) => {
+    const hours = periodHours || 24
+    const dataPoints = Math.min(hours, 48) // Limit data points
+    
+    return {
+      period_hours: hours,
+      data_points: Array.from({ length: dataPoints }, (_, i) => ({
+        timestamp: new Date(Date.now() - (hours - i) * 60 * 60 * 1000).toISOString(),
+        cpu_usage: Math.random() * 50 + 10,
+        memory_usage: Math.random() * 200 + 100,
+        query_count: Math.floor(Math.random() * 100),
+        avg_query_time: Math.random() * 50 + 5,
+        cache_hit_rate: Math.random() * 20 + 80
+      }))
+    }
+  },
+
+  get_performance_metrics: async ({ request }: { request: any }) => {
+    // Mock performance metrics based on request type
+    return {
+      timestamp: new Date().toISOString(),
+      metrics: {
+        query_performance: {
+          avg_time: 12.5,
+          max_time: 45.2,
+          min_time: 2.1,
+          total_queries: 1250
+        },
+        system_performance: {
+          cpu_usage: 15.3,
+          memory_usage: 178.4,
+          disk_io: 23.7,
+          network_io: 8.9
+        },
+        cache_performance: {
+          hit_rate: 87.3,
+          size_mb: 45.2,
+          evictions: 12
+        }
+      }
+    }
+  },
+
+  // Settings export/import operations
+  export_settings: async () => {
+    return JSON.stringify({
+      global_shortcut: 'Ctrl+Shift+N',
+      ui_font: 'Inter',
+      editor_font: 'SauceCodePro Nerd Font',
+      theme: 'dark'
+    })
+  },
+
+  import_settings: async ({ settings_json }: { settings_json: string }) => {
+    try {
+      const settings = JSON.parse(settings_json)
+      return Object.keys(settings).length // Return count of imported settings
+    } catch (error) {
+      throw new Error('Invalid JSON format')
+    }
   },
 }
 
