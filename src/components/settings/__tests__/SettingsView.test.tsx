@@ -67,9 +67,7 @@ describe('SettingsView', () => {
       setError: vi.fn()
     })
 
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     // Should see loading state immediately
     expect(screen.getByText('Loading settings...')).toBeInTheDocument()
@@ -81,9 +79,7 @@ describe('SettingsView', () => {
   })
 
   it('should load and display settings', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
     
@@ -96,9 +92,7 @@ describe('SettingsView', () => {
   })
 
   it('should render all settings sections', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
     
@@ -123,9 +117,7 @@ describe('SettingsView', () => {
       setError: vi.fn()
     })
 
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
 
@@ -147,9 +139,7 @@ describe('SettingsView', () => {
       importSettings: vi.fn().mockResolvedValue(5)
     })
 
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
 
@@ -186,9 +176,7 @@ describe('SettingsView', () => {
       importSettings: vi.fn().mockResolvedValue(5)
     })
 
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
 
@@ -217,9 +205,7 @@ describe('SettingsView', () => {
   })
 
   it('should validate fuzzy search threshold range', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
 
@@ -242,9 +228,7 @@ describe('SettingsView', () => {
   })
 
   it('should validate auto-save delay range', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
 
@@ -275,9 +259,7 @@ describe('SettingsView', () => {
       importSettings: vi.fn().mockResolvedValue(5)
     })
 
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
 
@@ -322,9 +304,7 @@ describe('SettingsView', () => {
     const mockClick = vi.fn()
     HTMLAnchorElement.prototype.click = mockClick
 
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
 
@@ -349,9 +329,7 @@ describe('SettingsView', () => {
       exportSettings: vi.fn().mockResolvedValue('{"test": "settings"}')
     })
 
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
 
@@ -402,9 +380,7 @@ describe('SettingsView', () => {
       importSettings: vi.fn().mockResolvedValue(5)
     })
 
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
 
@@ -429,9 +405,7 @@ describe('SettingsView', () => {
       importSettings: vi.fn().mockResolvedValue(5)
     })
 
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
 
     // Should eventually show the error state or continue with defaults
     await waitFor(() => {
@@ -443,9 +417,7 @@ describe('SettingsView', () => {
   })
 
   it('should render settings tabs', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
 
@@ -459,9 +431,7 @@ describe('SettingsView', () => {
   })
 
   it('should switch between tabs', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
 
@@ -477,9 +447,7 @@ describe('SettingsView', () => {
   })
 
   it('should handle form validation errors', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
 
@@ -501,9 +469,7 @@ describe('SettingsView', () => {
   })
 
   it('should validate window dimensions', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitForSettingsToLoad()
 
