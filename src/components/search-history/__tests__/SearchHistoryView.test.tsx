@@ -5,7 +5,6 @@ import userEvent from '@testing-library/user-event'
 import { SearchHistoryView } from '../SearchHistoryView'
 import { useScratchPadStore } from '../../../lib/store'
 import type { Note } from '../../../types'
-import { COMPONENT_TIMEOUTS, flushMicrotasks, setupStoreState } from '../../../test/setup'
 import { mockAllIsIntersecting } from 'react-intersection-observer/test-utils'
 
 // Enhanced VirtualList mock with proper intersection observer support
@@ -143,7 +142,7 @@ const mockNotes: Note[] = [
 describe('SearchHistoryView', () => {
   beforeEach(() => {
     // COMPREHENSIVE STORE STATE SETUP - All methods that SearchHistoryView actually uses
-    setupStoreState({
+    useScratchPadStore.setState({
       // Core data
       notes: mockNotes,
       
@@ -181,7 +180,7 @@ describe('SearchHistoryView', () => {
       // Fix: Look for actual text that exists in the component
       expect(screen.getByText('Search & Browse')).toBeInTheDocument()
       expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should display back button', async () => {
@@ -191,12 +190,12 @@ describe('SearchHistoryView', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should handle back button click', async () => {
     const mockSetCurrentView = vi.fn()
-    setupStoreState({
+    useScratchPadStore.setState({
       setCurrentView: mockSetCurrentView,
       notes: mockNotes,
       // CRITICAL: Include all required methods
@@ -231,7 +230,7 @@ describe('SearchHistoryView', () => {
     await waitFor(() => {
       // Should show the virtual list container
       expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should show notes in virtual list', async () => {
@@ -243,13 +242,13 @@ describe('SearchHistoryView', () => {
       expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
       // Virtual list items should be rendered
       expect(screen.getByTestId('virtual-list-item-0')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should handle note selection', async () => {
     const mockSetActiveNote = vi.fn()
     const mockSetCurrentView = vi.fn()
-    setupStoreState({
+    useScratchPadStore.setState({
       setActiveNote: mockSetActiveNote,
       setCurrentView: mockSetCurrentView,
       notes: mockNotes,
@@ -276,12 +275,12 @@ describe('SearchHistoryView', () => {
       // Fix: Expect correct method call with note ID (component calls setActiveNote with note.id)
       expect(mockSetActiveNote).toHaveBeenCalledWith(expect.any(Number))
       expect(mockSetCurrentView).toHaveBeenCalledWith('note')
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should handle folder toggle', async () => {
     const mockToggleFolder = vi.fn()
-    setupStoreState({
+    useScratchPadStore.setState({
       notes: mockNotes,
       expandedFolders: new Set(["recent"]), // Only recent expanded
       toggleFolder: mockToggleFolder,
@@ -300,7 +299,7 @@ describe('SearchHistoryView', () => {
     await waitFor(() => {
       // Should render the virtual list successfully
       expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
     
     // This test passes as long as the component renders without errors
   })
@@ -314,7 +313,7 @@ describe('SearchHistoryView', () => {
   })
 
   it('should display empty state when no notes', async () => {
-    setupStoreState({
+    useScratchPadStore.setState({
       notes: [],
       setCurrentView: vi.fn(),
       setActiveNote: vi.fn(),
@@ -333,11 +332,11 @@ describe('SearchHistoryView', () => {
     await waitFor(() => {
       // Should still render the virtual list, just empty
       expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should show load more button when more notes available', async () => {
-    setupStoreState({
+    useScratchPadStore.setState({
       notes: mockNotes,
       hasMoreNotes: true, // Fix: Use correct boolean flag
       loadMoreNotes: vi.fn(),
@@ -355,13 +354,13 @@ describe('SearchHistoryView', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should handle load more click', async () => {
     const mockLoadMoreNotes = vi.fn()
     
-    setupStoreState({
+    useScratchPadStore.setState({
       notes: mockNotes.slice(0, 1), // Show only first note initially
       hasMoreNotes: true,
       isLoadingMore: false,
@@ -379,7 +378,7 @@ describe('SearchHistoryView', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should render correctly with long content', async () => {
@@ -388,7 +387,7 @@ describe('SearchHistoryView', () => {
       content: 'This is a very long note content that should be handled properly by the virtual list component and not cause any rendering issues or performance problems when displayed in the search history view.'
     }
 
-    setupStoreState({
+    useScratchPadStore.setState({
       notes: [longContentNote],
       setCurrentView: vi.fn(),
       setActiveNote: vi.fn(),
@@ -407,7 +406,7 @@ describe('SearchHistoryView', () => {
     await waitFor(() => {
       expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
       expect(screen.getByTestId('virtual-list-item-0')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should filter notes based on search input', async () => {
@@ -417,7 +416,7 @@ describe('SearchHistoryView', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
 
     // Component should render successfully with all notes
     expect(screen.getAllByTestId(/virtual-list-item-/).length).toBeGreaterThan(0)
@@ -432,13 +431,13 @@ describe('SearchHistoryView', () => {
       expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
       // The virtual list should contain the rendered items
       expect(screen.getByTestId('virtual-list-item-0')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should handle search for notes', async () => {
     const mockSearchNotes = vi.fn().mockResolvedValue(mockNotes)
 
-    setupStoreState({
+    useScratchPadStore.setState({
       notes: mockNotes,
       searchNotes: mockSearchNotes, // Fix: Add the searchNotes method
       setCurrentView: vi.fn(),
@@ -456,7 +455,7 @@ describe('SearchHistoryView', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should render search input', async () => {
@@ -468,6 +467,6 @@ describe('SearchHistoryView', () => {
       // Fix: Look for actual search input that exists
       expect(screen.getByTestId('search-history-input')).toBeInTheDocument()
       expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 })

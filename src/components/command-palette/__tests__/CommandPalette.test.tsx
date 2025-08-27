@@ -3,7 +3,6 @@ import { render, screen, waitFor, act } from '../../../test/test-utils'
 import userEvent from '@testing-library/user-event'
 import { CommandPalette } from '../CommandPalette'
 import { useScratchPadStore } from '../../../lib/store'
-import { COMPONENT_TIMEOUTS, flushMicrotasks, setupStoreState } from '../../../test/setup'
 
 // Mock toast hook
 const mockToast = {
@@ -26,7 +25,7 @@ describe('CommandPalette', () => {
     mockToast.warning.mockClear()
 
     // COMPREHENSIVE STORE STATE SETUP - All methods that CommandPalette actually uses
-    setupStoreState({
+    useScratchPadStore.setState({
       // Core command palette state
       isCommandPaletteOpen: false,
       setCommandPaletteOpen: vi.fn(),
@@ -54,7 +53,7 @@ describe('CommandPalette', () => {
   })
 
   it('should render when open', async () => {
-    setupStoreState({
+    useScratchPadStore.setState({
       isCommandPaletteOpen: true,
       setCommandPaletteOpen: vi.fn(),
       setCurrentView: vi.fn(),
@@ -69,11 +68,11 @@ describe('CommandPalette', () => {
     await waitFor(() => {
       expect(screen.getByTestId('command-search-input')).toBeInTheDocument()
       expect(screen.getByPlaceholderText('Type a command or search...')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.complex })
+    }, { timeout: 5000 })
   })
 
   it('should focus input when opened', async () => {
-    setupStoreState({
+    useScratchPadStore.setState({
       isCommandPaletteOpen: true,
       setCommandPaletteOpen: vi.fn(),
       setCurrentView: vi.fn(),
@@ -89,11 +88,11 @@ describe('CommandPalette', () => {
       const input = screen.getByTestId('command-search-input')
       expect(input).toBeInTheDocument()
       expect(input).toHaveFocus()
-    }, { timeout: COMPONENT_TIMEOUTS.complex })
+    }, { timeout: 5000 })
   })
 
   it('should filter commands based on input', async () => {
-    setupStoreState({
+    useScratchPadStore.setState({
       isCommandPaletteOpen: true,
       setCommandPaletteOpen: vi.fn(),
       setCurrentView: vi.fn(),
@@ -116,11 +115,11 @@ describe('CommandPalette', () => {
       expect(screen.getByTestId('command-item-new-note')).toBeInTheDocument()
       // Should not show unrelated commands
       expect(screen.queryByTestId('command-item-settings')).not.toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should handle keyboard navigation between commands', async () => {
-    setupStoreState({
+    useScratchPadStore.setState({
       isCommandPaletteOpen: true,
       setCommandPaletteOpen: vi.fn(),
       setCurrentView: vi.fn(),
@@ -144,14 +143,14 @@ describe('CommandPalette', () => {
       // Second command should be selected (first is selected by default, arrow down moves to second)
       const secondCommand = screen.getByTestId('command-item-new-note')
       expect(secondCommand).toHaveClass('bg-accent')
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should handle Enter key on selected command', async () => {
     const mockSetCurrentView = vi.fn()
     const mockCreateNote = vi.fn().mockResolvedValue({ id: 1, content: 'New note' })
     
-    setupStoreState({
+    useScratchPadStore.setState({
       isCommandPaletteOpen: true,
       setCommandPaletteOpen: vi.fn(),
       setCurrentView: mockSetCurrentView,
@@ -174,11 +173,11 @@ describe('CommandPalette', () => {
 
     await waitFor(() => {
       expect(mockCreateNote).toHaveBeenCalled()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should not render when closed', async () => {
-    setupStoreState({
+    useScratchPadStore.setState({
       isCommandPaletteOpen: false,
       setCommandPaletteOpen: vi.fn(),
       setCurrentView: vi.fn(),
@@ -195,7 +194,7 @@ describe('CommandPalette', () => {
   })
 
   it('should show all commands initially', async () => {
-    setupStoreState({
+    useScratchPadStore.setState({
       isCommandPaletteOpen: true,
       setCommandPaletteOpen: vi.fn(),
       setCurrentView: vi.fn(),
@@ -212,13 +211,13 @@ describe('CommandPalette', () => {
       expect(screen.getByTestId('command-item-search-history')).toBeInTheDocument()
       expect(screen.getByTestId('command-item-new-note')).toBeInTheDocument()
       expect(screen.getByTestId('command-item-settings')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should handle escape key to close', async () => {
     const mockSetCommandPaletteOpen = vi.fn()
     
-    setupStoreState({
+    useScratchPadStore.setState({
       isCommandPaletteOpen: true,
       setCommandPaletteOpen: mockSetCommandPaletteOpen,
       setCurrentView: vi.fn(),
@@ -239,13 +238,13 @@ describe('CommandPalette', () => {
 
     await waitFor(() => {
       expect(mockSetCommandPaletteOpen).toHaveBeenCalledWith(false)
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should handle command clicks', async () => {
     const mockSetCurrentView = vi.fn()
     
-    setupStoreState({
+    useScratchPadStore.setState({
       isCommandPaletteOpen: true,
       setCommandPaletteOpen: vi.fn(),
       setCurrentView: mockSetCurrentView,
@@ -265,6 +264,6 @@ describe('CommandPalette', () => {
 
     await waitFor(() => {
       expect(mockSetCurrentView).toHaveBeenCalledWith('settings')
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 })

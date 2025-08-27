@@ -3,7 +3,6 @@ import { render, screen, waitFor, act } from '../../../test/test-utils'
 import userEvent from '@testing-library/user-event'
 import { SettingsView } from '../SettingsView'
 import { useScratchPadStore } from '../../../lib/store'
-import { COMPONENT_TIMEOUTS, flushMicrotasks, setupStoreState } from '../../../test/setup'
 
 const mockSettings = {
   global_shortcut: 'Ctrl+Shift+N',
@@ -20,8 +19,9 @@ const mockSettings = {
 
 describe('SettingsView', () => {
   beforeEach(() => {
-    // Set up mocks BEFORE render using setupStoreState (synchronous)
-    setupStoreState({
+    // Set up mocks using direct setState
+    useScratchPadStore.setState({
+      currentView: 'settings',
       setCurrentView: vi.fn(),
       getAllSettings: vi.fn().mockResolvedValue(mockSettings),
       setSetting: vi.fn().mockResolvedValue(undefined),
@@ -36,22 +36,17 @@ describe('SettingsView', () => {
     vi.mocked(window.confirm).mockReturnValue(true)
   })
 
-  // Helper function to wait for settings to fully load with proper timeout
+  // Helper function to wait for settings to fully load
   const waitForSettingsToLoad = async () => {
-    // Wait for loading to complete - be more patient for component initialization
+    // Wait for loading to complete
     await waitFor(() => {
       expect(screen.queryByText('Loading settings...')).not.toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.complex })
+    }, { timeout: 5000 })
     
-    // Then wait for the shortcut field to appear with value - critical for form tests
+    // Then wait for the shortcut field to appear with value
     await waitFor(() => {
       expect(screen.getByDisplayValue('Ctrl+Shift+N')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.complex })
-    
-    // Allow React to complete any remaining updates including performance components
-    await act(async () => {
-      await flushMicrotasks()
-    })
+    }, { timeout: 5000 })
   }
 
   it('should render loading state initially', async () => {
@@ -60,7 +55,8 @@ describe('SettingsView', () => {
       new Promise(resolve => setTimeout(() => resolve(mockSettings), 100))
     )
     
-    setupStoreState({
+    useScratchPadStore.setState({
+      currentView: 'settings',
       getAllSettings: delayedGetAllSettings,
       setCurrentView: vi.fn(),
       setSetting: vi.fn().mockResolvedValue(undefined),
@@ -78,10 +74,10 @@ describe('SettingsView', () => {
     // Should see loading state immediately
     expect(screen.getByText('Loading settings...')).toBeInTheDocument()
     
-    // Wait for settings to load with extended timeout
+    // Wait for settings to load
     await waitFor(() => {
       expect(screen.getByDisplayValue('Ctrl+Shift+N')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.complex * 2 })
+    }, { timeout: 10000 })
   })
 
   it('should load and display settings', async () => {
@@ -96,7 +92,7 @@ describe('SettingsView', () => {
       expect(screen.getByDisplayValue('Ctrl+Shift+N')).toBeInTheDocument()
       expect(screen.getByDisplayValue('Inter')).toBeInTheDocument()
       expect(screen.getByDisplayValue('800')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.complex })
+    }, { timeout: 5000 })
   })
 
   it('should render all settings sections', async () => {
@@ -112,12 +108,12 @@ describe('SettingsView', () => {
       expect(screen.getByText('Font Preferences')).toBeInTheDocument()
       expect(screen.getByText('Note Format & Layout')).toBeInTheDocument()
       expect(screen.getByText('Window Settings')).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.complex })
+    }, { timeout: 5000 })
   })
 
   it('should handle back button click', async () => {
     const mockSetCurrentView = vi.fn()
-    setupStoreState({
+    useScratchPadStore.setState({
       setCurrentView: mockSetCurrentView,
       getAllSettings: vi.fn().mockResolvedValue(mockSettings),
       exportSettings: vi.fn().mockResolvedValue('{"test": "settings"}'),
@@ -144,7 +140,7 @@ describe('SettingsView', () => {
 
   it('should handle setting changes', async () => {
     const mockSetSetting = vi.fn().mockResolvedValue(undefined)
-    setupStoreState({
+    useScratchPadStore.setState({
       getAllSettings: vi.fn().mockResolvedValue(mockSettings),
       setSetting: mockSetSetting,
       exportSettings: vi.fn().mockResolvedValue('{"test": "settings"}'),
@@ -174,7 +170,7 @@ describe('SettingsView', () => {
 
     await waitFor(() => {
       expect(mockSetSetting).toHaveBeenCalledWith('global_shortcut', 'Ctrl+Alt+S')
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should show saving state', async () => {
@@ -183,7 +179,7 @@ describe('SettingsView', () => {
       new Promise(resolve => setTimeout(resolve, 200))
     )
     
-    setupStoreState({
+    useScratchPadStore.setState({
       getAllSettings: vi.fn().mockResolvedValue(mockSettings),
       setSetting: slowSetSetting,
       exportSettings: vi.fn().mockResolvedValue('{"test": "settings"}'),
@@ -212,12 +208,12 @@ describe('SettingsView', () => {
     // Should show saving state
     await waitFor(() => {
       expect(screen.getByText(/saving/i)).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
 
     // Wait for save to complete
     await waitFor(() => {
       expect(screen.queryByText(/saving/i)).not.toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should validate fuzzy search threshold range', async () => {
@@ -242,7 +238,7 @@ describe('SettingsView', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/fuzzy search threshold must be between 0.0 and 1.0/i)).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should validate auto-save delay range', async () => {
@@ -267,12 +263,12 @@ describe('SettingsView', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/auto-save delay must be between 100 and 10000 milliseconds/i)).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should auto-hide success messages', async () => {
     const mockSetSetting = vi.fn().mockResolvedValue(undefined)
-    setupStoreState({
+    useScratchPadStore.setState({
       getAllSettings: vi.fn().mockResolvedValue(mockSettings),
       setSetting: mockSetSetting,
       exportSettings: vi.fn().mockResolvedValue('{"test": "settings"}'),
@@ -301,7 +297,7 @@ describe('SettingsView', () => {
     // Should show success message
     await waitFor(() => {
       expect(screen.getByText(/settings saved successfully/i)).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
 
     // Success message should auto-hide after timeout
     await waitFor(() => {
@@ -311,7 +307,7 @@ describe('SettingsView', () => {
 
   it('should handle export settings', async () => {
     const mockExportSettings = vi.fn().mockResolvedValue('{"exported": "settings"}')
-    setupStoreState({
+    useScratchPadStore.setState({
       getAllSettings: vi.fn().mockResolvedValue(mockSettings),
       exportSettings: mockExportSettings,
       importSettings: vi.fn().mockResolvedValue(5)
@@ -342,12 +338,12 @@ describe('SettingsView', () => {
       expect(mockExportSettings).toHaveBeenCalled()
       expect(mockCreateObjectURL).toHaveBeenCalled()
       expect(mockClick).toHaveBeenCalled()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should handle import settings', async () => {
     const mockImportSettings = vi.fn().mockResolvedValue(5)
-    setupStoreState({
+    useScratchPadStore.setState({
       getAllSettings: vi.fn().mockResolvedValue(mockSettings),
       importSettings: mockImportSettings,
       exportSettings: vi.fn().mockResolvedValue('{"test": "settings"}')
@@ -394,12 +390,12 @@ describe('SettingsView', () => {
 
     await waitFor(() => {
       expect(mockImportSettings).toHaveBeenCalledWith('{"test": "data"}')
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should handle reset to defaults', async () => {
     const mockResetSettings = vi.fn().mockResolvedValue(undefined)
-    setupStoreState({
+    useScratchPadStore.setState({
       getAllSettings: vi.fn().mockResolvedValue(mockSettings),
       resetSettingsToDefaults: mockResetSettings,
       exportSettings: vi.fn().mockResolvedValue('{"test": "settings"}'),
@@ -420,12 +416,12 @@ describe('SettingsView', () => {
 
     await waitFor(() => {
       expect(mockResetSettings).toHaveBeenCalled()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should handle loading errors gracefully', async () => {
     const mockSetError = vi.fn()
-    setupStoreState({
+    useScratchPadStore.setState({
       getAllSettings: vi.fn().mockRejectedValue(new Error('Network error')),
       setError: mockSetError,
       error: 'Failed to load settings',
@@ -443,7 +439,7 @@ describe('SettingsView', () => {
       const hasError = screen.queryByText(/error/i) !== null
       const hasDefaults = screen.queryByDisplayValue('Ctrl+Shift+N') !== null
       expect(hasError || hasDefaults).toBe(true)
-    }, { timeout: COMPONENT_TIMEOUTS.complex })
+    }, { timeout: 5000 })
   })
 
   it('should render settings tabs', async () => {
@@ -459,7 +455,7 @@ describe('SettingsView', () => {
       expect(screen.getByRole('tab', { name: /performance/i })).toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /monitoring/i })).toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /optimization/i })).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should switch between tabs', async () => {
@@ -477,7 +473,7 @@ describe('SettingsView', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/performance dashboard/i)).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should handle form validation errors', async () => {
@@ -501,7 +497,7 @@ describe('SettingsView', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/global shortcut cannot be empty/i)).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 
   it('should validate window dimensions', async () => {
@@ -526,6 +522,6 @@ describe('SettingsView', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/window width must be between 400 and 3840 pixels/i)).toBeInTheDocument()
-    }, { timeout: COMPONENT_TIMEOUTS.standard })
+    }, { timeout: 3000 })
   })
 })
