@@ -39,10 +39,13 @@ const mockNote3: Note = {
 }
 
 describe('TabBar', () => {
-  let user: ReturnType<typeof userEvent.setup>
+  let user: Awaited<ReturnType<typeof userEvent.setup>>
 
-  beforeEach(() => {
-    user = userEvent.setup()
+  beforeEach(async () => {
+    // Configure userEvent with pointerEventsCheck disabled
+    user = await userEvent.setup({
+      pointerEventsCheck: 0
+    })
     
     // Reset store state
     useScratchPadStore.setState({
@@ -84,9 +87,10 @@ describe('TabBar', () => {
   })
 
   it('should show close button for each tab when multiple notes exist', () => {
-    render(<TabBar />)
+    const { container } = render(<TabBar />)
     
-    const closeButtons = screen.getAllByRole('button')
+    // Find close buttons by their class and structure
+    const closeButtons = container.querySelectorAll('button.p-1')
     expect(closeButtons).toHaveLength(3) // One for each note
   })
 
@@ -102,9 +106,9 @@ describe('TabBar', () => {
     const mockDeleteNote = vi.fn()
     useScratchPadStore.setState({ deleteNote: mockDeleteNote })
     
-    render(<TabBar />)
+    const { container } = render(<TabBar />)
     
-    const closeButtons = await screen.findAllByRole('button')
+    const closeButtons = container.querySelectorAll('button.p-1')
     await user.click(closeButtons[1]) // Close second tab
     
     expect(mockDeleteNote).toHaveBeenCalledWith(2)
@@ -119,9 +123,9 @@ describe('TabBar', () => {
       deleteNote: mockDeleteNote
     })
     
-    render(<TabBar />)
+    const { container } = render(<TabBar />)
     
-    const closeButtons = await screen.findAllByRole('button')
+    const closeButtons = container.querySelectorAll('button.p-1')
     await user.click(closeButtons[0]) // Close first tab (active tab)
     
     expect(mockDeleteNote).toHaveBeenCalledWith(1)
@@ -241,9 +245,10 @@ describe('TabBar', () => {
   })
 
   it('should render close button with correct icon', () => {
-    render(<TabBar />)
+    const { container } = render(<TabBar />)
     
-    const closeButtons = screen.getAllByRole('button')
+    const closeButtons = container.querySelectorAll('button.p-1')
+    expect(closeButtons.length).toBeGreaterThan(0)
     closeButtons.forEach(button => {
       expect(button).toHaveClass('p-1', 'hover:bg-muted-foreground/20', 'rounded')
     })

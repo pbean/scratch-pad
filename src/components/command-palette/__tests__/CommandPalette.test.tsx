@@ -11,6 +11,18 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn()
 }))
 
+// Mock lucide-react icons
+vi.mock('lucide-react', () => ({
+  Search: () => <div data-testid="search" />,
+  FileText: () => <div data-testid="file-text" />,
+  Settings: () => <div data-testid="settings" />,
+  Download: () => <div data-testid="download" />,
+  FolderOpen: () => <div data-testid="folder-open" />,
+  Plus: () => <div data-testid="plus" />,
+  Moon: () => <div data-testid="moon" />,
+  Sun: () => <div data-testid="sun" />
+}))
+
 // Mock toast hook
 const mockToast = {
   success: vi.fn(),
@@ -35,10 +47,13 @@ const mockNote: Note = {
 }
 
 describe('CommandPalette', () => {
-  let user: ReturnType<typeof userEvent.setup>
+  let user: Awaited<ReturnType<typeof userEvent.setup>>
 
-  beforeEach(() => {
-    user = userEvent.setup()
+  beforeEach(async () => {
+    // Configure userEvent with pointerEventsCheck disabled
+    user = await userEvent.setup({
+      pointerEventsCheck: 0
+    })
     
     // Complete store initialization with ALL properties for React 19
     useScratchPadStore.setState({
@@ -434,13 +449,14 @@ describe('CommandPalette', () => {
     // Wait for commands to render
     await screen.findByText('Search History')
     
-    // Icons should be present (we can't easily test the actual SVG content)
-    const commandItems = screen.getAllByRole('generic').filter(el => 
-      el.classList.contains('text-muted-foreground') && 
-      el.parentElement?.classList.contains('flex')
-    )
+    // Icons should be present - check for icon test ids from mocked lucide-react
+    const searchIcon = screen.getByTestId('search')
+    const fileTextIcon = screen.getByTestId('file-text')
+    const settingsIcon = screen.getByTestId('settings')
     
-    expect(commandItems.length).toBeGreaterThan(0)
+    expect(searchIcon).toBeInTheDocument()
+    expect(fileTextIcon).toBeInTheDocument()
+    expect(settingsIcon).toBeInTheDocument()
   })
 
   it('should apply correct styling', async () => {

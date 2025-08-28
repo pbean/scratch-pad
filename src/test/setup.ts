@@ -1,35 +1,6 @@
 import '@testing-library/jest-dom'
 import { vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
-import { act } from 'react'
-
-// Global setup to ensure React Testing Library works properly with jsdom
-import { configure } from '@testing-library/react'
-configure({
-  // Use document.body as container by default
-  defaultHidden: true,
-  // Configure React 19 testing environment
-  asyncUtilTimeout: 10000,
-  testIdAttribute: 'data-testid',
-  getElementError: (message, container) => {
-    const prettyDOM = require('@testing-library/dom').prettyDOM
-    const error = new Error(
-      [message, prettyDOM(container)].filter(Boolean).join('\n\n')
-    )
-    error.name = 'TestingLibraryElementError'
-    return error
-  }
-})
-
-// Global act function for React 19 compatibility  
-// In React 19, most act() calls are automatic, so we provide a simpler implementation
-global.act = async (callback) => {
-  const result = callback()
-  if (result && typeof result.then === 'function') {
-    await result
-  }
-  return result
-}
 
 // Clean up after each test
 afterEach(() => {
@@ -41,42 +12,8 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn()
 }))
 
-// Mock CSS variables for Tailwind classes
-vi.mock('react', async () => {
-  const actual = await vi.importActual('react')
-  return {
-    ...actual,
-    useLayoutEffect: vi.fn().mockImplementation(actual.useEffect)
-  }
-})
-
-// Configure React Test Environment globally
-Object.defineProperty(global, 'IS_REACT_ACT_ENVIRONMENT', {
-  value: true,
-  writable: true,
-  configurable: true
-})
-
 // Global window mocks
 beforeAll(() => {
-  // Configure React act environment
-  window.IS_REACT_ACT_ENVIRONMENT = true
-  
-  // Suppress React act() warnings in test environment (React 19 handles this automatically)
-  const originalConsoleError = console.error
-  console.error = (...args) => {
-    if (
-      typeof args[0] === 'string' && 
-      (args[0].includes('The current testing environment is not configured to support act') ||
-       args[0].includes('Warning: ReactDOM.render is no longer supported') ||
-       args[0].includes('act() is not supported') ||
-       args[0].includes('Consider adding'))
-    ) {
-      return // Suppress React testing warnings
-    }
-    originalConsoleError.apply(console, args)
-  }
-  
   // Mock window.confirm
   Object.defineProperty(window, 'confirm', {
     writable: true,
@@ -121,26 +58,7 @@ beforeAll(() => {
   // Mock Element.scrollIntoView
   Element.prototype.scrollIntoView = vi.fn()
   
-  // Mock focus and blur methods for all elements with proper focus tracking
-  let currentFocusedElement: Element | null = null
-  
-  Element.prototype.focus = vi.fn().mockImplementation(function(this: Element) {
-    currentFocusedElement = this
-    this.dispatchEvent(new Event('focus', { bubbles: true }))
-  })
-  
-  Element.prototype.blur = vi.fn().mockImplementation(function(this: Element) {
-    if (currentFocusedElement === this) {
-      currentFocusedElement = null
-    }
-    this.dispatchEvent(new Event('blur', { bubbles: true }))
-  })
-  
-  // Mock document.activeElement to return currently focused element
-  Object.defineProperty(document, 'activeElement', {
-    get: () => currentFocusedElement || document.body,
-    configurable: true
-  })
+  // Let jsdom handle focus/blur naturally - React 19 works better without mocks
   
   // Mock File.text() method
   global.File = class MockFile {
@@ -159,17 +77,25 @@ beforeAll(() => {
     }
   } as any
 
-  // Mock CSS style computations for tests
-  global.getComputedStyle = vi.fn().mockImplementation(() => ({
-    getPropertyValue: vi.fn().mockReturnValue(''),
-    getPropertyPriority: vi.fn().mockReturnValue(''),
-    setProperty: vi.fn(),
-    removeProperty: vi.fn(),
+  // Simple mock for getComputedStyle - always return consistent mock to avoid issues
+  window.getComputedStyle = vi.fn().mockImplementation(() => ({
+    getPropertyValue: (prop: string) => {
+      // Return sensible defaults for common properties
+      if (prop === 'pointer-events') return 'auto'
+      if (prop === 'display') return 'block'
+      if (prop === 'visibility') return 'visible'
+      return ''
+    },
+    pointerEvents: 'auto',
+    display: 'block',
+    visibility: 'visible',
     cssText: '',
     length: 0,
     parentRule: null,
-    item: vi.fn().mockReturnValue(''),
   }))
+  
+  // Set on global as well
+  global.getComputedStyle = window.getComputedStyle
 
   // Mock requestAnimationFrame and cancelAnimationFrame
   global.requestAnimationFrame = vi.fn().mockImplementation((cb) => setTimeout(cb, 16))
@@ -216,27 +142,5 @@ beforeEach(() => {
     global.performance.measure = vi.fn()
   }
   
-  // Mock document.createElement for each test
-  const originalCreateElement = document.createElement.bind(document)
-  document.createElement = vi.fn((tagName: string) => {
-    if (tagName === 'a') {
-      const element = originalCreateElement('a')
-      element.click = vi.fn()
-      return element
-    }
-    if (tagName === 'input') {
-      const element = originalCreateElement('input')
-      element.click = vi.fn()
-      return element
-    }
-    if (tagName === 'textarea') {
-      const element = originalCreateElement('textarea')
-      element.focus = vi.fn()
-      element.blur = vi.fn()
-      element.select = vi.fn()
-      element.setSelectionRange = vi.fn()
-      return element
-    }
-    return originalCreateElement(tagName)
-  })
+  // Let jsdom handle createElement naturally - don't mock element methods
 })

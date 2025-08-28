@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act, fireEvent, waitFor } from '../../../test/test-utils'
-// import userEvent from '@testing-library/user-event'
+import { render, screen, act, waitFor } from '../../../test/test-utils'
+import userEvent from '@testing-library/user-event'
 import { NoteView } from '../NoteView'
 import { useScratchPadStore } from '../../../lib/store'
 import type { Note } from '../../../types'
@@ -55,10 +55,16 @@ const mockNote: Note = {
 }
 
 describe('NoteView', () => {
-  // const _user = userEvent.setup()
+  let user: Awaited<ReturnType<typeof userEvent.setup>>
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.useFakeTimers()
+    
+    // Configure userEvent with advanceTimers for fake timer compatibility
+    user = await userEvent.setup({
+      pointerEventsCheck: 0,
+      advanceTimers: vi.advanceTimersByTime // CRITICAL for fake timers!
+    })
     
     // Reset store state
     act(() => {
@@ -80,6 +86,7 @@ describe('NoteView', () => {
   })
 
   afterEach(() => {
+    vi.runOnlyPendingTimers() // Flush pending timers before cleanup
     vi.useRealTimers()
     vi.clearAllMocks()
   })
@@ -143,10 +150,8 @@ describe('NoteView', () => {
     
     const textarea = screen.getByRole('textbox')
     
-    // Use fireEvent for more reliable testing
-    act(() => {
-      fireEvent.change(textarea, { target: { value: 'New content' } })
-    })
+    await user.clear(textarea)
+    await user.type(textarea, 'New content')
     
     expect(textarea).toHaveValue('New content')
   })
@@ -163,9 +168,8 @@ describe('NoteView', () => {
     const textarea = screen.getByRole('textbox')
     
     // Change content
-    act(() => {
-      fireEvent.change(textarea, { target: { value: 'Modified content' } })
-    })
+    await user.clear(textarea)
+    await user.type(textarea, 'Modified content')
     
     // Fast-forward time by 2 seconds to trigger auto-save
     await act(async () => {
@@ -203,9 +207,7 @@ describe('NoteView', () => {
     
     render(<NoteView />)
     
-    act(() => {
-      fireEvent.keyDown(document, { key: 'p', ctrlKey: true })
-    })
+    await user.keyboard('{Control>}p{/Control}')
     
     expect(mockSetCommandPaletteOpen).toHaveBeenCalledWith(true)
   })
@@ -219,9 +221,7 @@ describe('NoteView', () => {
     
     render(<NoteView />)
     
-    act(() => {
-      fireEvent.keyDown(document, { key: 'F', ctrlKey: true, shiftKey: true })
-    })
+    await user.keyboard('{Control>}{Shift>}F{/Shift}{/Control}')
     
     expect(mockSetCurrentView).toHaveBeenCalledWith('search-history')
   })
@@ -235,9 +235,7 @@ describe('NoteView', () => {
     
     render(<NoteView />)
     
-    act(() => {
-      fireEvent.keyDown(document, { key: 'n', ctrlKey: true })
-    })
+    await user.keyboard('{Control>}n{/Control}')
     
     expect(mockCreateNote).toHaveBeenCalled()
   })
@@ -253,15 +251,10 @@ describe('NoteView', () => {
     
     const textarea = screen.getByRole('textbox')
     
-    await act(async () => {
-      fireEvent.change(textarea, { target: { value: 'Content to save' } })
-      // Allow any async state updates to complete
-      await new Promise(resolve => setTimeout(resolve, 0))
-    })
+    await user.clear(textarea)
+    await user.type(textarea, 'Content to save')
     
-    act(() => {
-      fireEvent.keyDown(document, { key: 's', ctrlKey: true })
-    })
+    await user.keyboard('{Control>}s{/Control}')
     
     expect(mockSaveNote).toHaveBeenCalledWith('Content to save')
   })
@@ -280,9 +273,7 @@ describe('NoteView', () => {
     
     render(<NoteView />)
     
-    act(() => {
-      fireEvent.keyDown(document, { key: 'w', ctrlKey: true })
-    })
+    await user.keyboard('{Control>}w{/Control}')
     
     expect(mockDeleteNote).toHaveBeenCalledWith(1)
   })
@@ -299,9 +290,7 @@ describe('NoteView', () => {
     
     render(<NoteView />)
     
-    act(() => {
-      fireEvent.keyDown(document, { key: 'w', ctrlKey: true })
-    })
+    await user.keyboard('{Control>}w{/Control}')
     
     expect(mockDeleteNote).not.toHaveBeenCalled()
   })
@@ -321,9 +310,7 @@ describe('NoteView', () => {
     
     render(<NoteView />)
     
-    act(() => {
-      fireEvent.keyDown(document, { key: 'Tab', ctrlKey: true })
-    })
+    await user.keyboard('{Control>}{Tab}{/Control}')
     
     expect(mockSetActiveNote).toHaveBeenCalledWith(2) // Next tab
   })
@@ -343,9 +330,7 @@ describe('NoteView', () => {
     
     render(<NoteView />)
     
-    act(() => {
-      fireEvent.keyDown(document, { key: 'Tab', ctrlKey: true, shiftKey: true })
-    })
+    await user.keyboard('{Control>}{Shift>}{Tab}{/Shift}{/Control}')
     
     expect(mockSetActiveNote).toHaveBeenCalledWith(1) // Previous tab
   })
@@ -364,9 +349,7 @@ describe('NoteView', () => {
     
     render(<NoteView />)
     
-    act(() => {
-      fireEvent.keyDown(document, { key: '2', ctrlKey: true })
-    })
+    await user.keyboard('{Control>}2{/Control}')
     
     expect(mockSetActiveNote).toHaveBeenCalledWith(2) // Second tab (index 1)
   })
@@ -380,21 +363,15 @@ describe('NoteView', () => {
     mockInvoke.mockClear()
     
     // Test Ctrl+Alt+1 for default layout
-    await act(async () => {
-      fireEvent.keyDown(document, { key: '1', ctrlKey: true, altKey: true })
-    })
+    await user.keyboard('{Control>}{Alt>}1{/Alt}{/Control}')
     expect(mockInvoke).toHaveBeenNthCalledWith(1, 'set_layout_mode', { mode: 'default' })
     
     // Test Ctrl+Alt+2 for half layout
-    await act(async () => {
-      fireEvent.keyDown(document, { key: '2', ctrlKey: true, altKey: true })
-    })
+    await user.keyboard('{Control>}{Alt>}2{/Alt}{/Control}')
     expect(mockInvoke).toHaveBeenNthCalledWith(2, 'set_layout_mode', { mode: 'half' })
     
     // Test Ctrl+Alt+3 for full layout
-    await act(async () => {
-      fireEvent.keyDown(document, { key: '3', ctrlKey: true, altKey: true })
-    })
+    await user.keyboard('{Control>}{Alt>}3{/Alt}{/Control}')
     expect(mockInvoke).toHaveBeenNthCalledWith(3, 'set_layout_mode', { mode: 'full' })
   })
 
@@ -462,9 +439,8 @@ describe('NoteView', () => {
     const textarea = screen.getByRole('textbox')
     
     // Change content
-    act(() => {
-      fireEvent.change(textarea, { target: { value: 'Content that will fail to save' } })
-    })
+    await user.clear(textarea)
+    await user.type(textarea, 'Content that will fail to save')
     
     // Trigger auto-save
     await act(async () => {
@@ -483,9 +459,8 @@ describe('NoteView', () => {
     
     const textarea = screen.getByRole('textbox')
     
-    act(() => {
-      fireEvent.change(textarea, { target: { value: 'One two three four five' } })
-    })
+    await user.clear(textarea)
+    await user.type(textarea, 'One two three four five')
     
     expect(screen.getByTestId('word-count')).toHaveTextContent('5')
   })
@@ -495,9 +470,7 @@ describe('NoteView', () => {
     
     const textarea = screen.getByRole('textbox')
     
-    act(() => {
-      fireEvent.change(textarea, { target: { value: '' } })
-    })
+    await user.clear(textarea)
     
     expect(screen.getByTestId('word-count')).toHaveTextContent('0')
   })

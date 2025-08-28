@@ -79,12 +79,17 @@ const mockNote3: Note = {
 }
 
 describe('SearchHistoryView', () => {
-  let user: ReturnType<typeof userEvent.setup>
+  let user: Awaited<ReturnType<typeof userEvent.setup>>
 
-  beforeEach(() => {
-    user = userEvent.setup()
+  beforeEach(async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2024-01-04T12:00:00Z'))
+    
+    // Configure userEvent with advanceTimers for fake timer compatibility
+    user = await userEvent.setup({
+      pointerEventsCheck: 0,
+      advanceTimers: vi.advanceTimersByTime // CRITICAL for fake timers!
+    })
     
     // Complete store state initialization - include ALL required properties
     useScratchPadStore.setState({
@@ -165,6 +170,7 @@ describe('SearchHistoryView', () => {
   })
 
   afterEach(() => {
+    vi.runOnlyPendingTimers() // Flush pending timers before cleanup
     vi.useRealTimers()
     vi.clearAllMocks()
   })
