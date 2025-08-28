@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, act } from '../../../test/test-utils'
+import { render, screen, waitFor } from '../../../test/test-utils'
 import userEvent from '@testing-library/user-event'
 import { SettingsView } from '../SettingsView'
 import { useScratchPadStore } from '../../../lib/store'
@@ -18,19 +18,55 @@ const mockSettings = {
 }
 
 describe('SettingsView', () => {
-  const user = userEvent.setup()
+  let user: ReturnType<typeof userEvent.setup>
 
   beforeEach(() => {
-    // Reset store state
+    user = userEvent.setup()
+    
+    // Complete store initialization with ALL properties for React 19
     useScratchPadStore.setState({
+      // UI State
+      currentView: 'settings',
+      isCommandPaletteOpen: false,
+      expandedFolders: new Set(),
+      theme: 'light',
+      
+      // Notes State
+      notes: [],
+      activeNoteId: null,
+      noteContents: {},
+      isLoading: false,
+      
+      // Search State
+      searchQuery: '',
+      searchResults: [],
+      searchHistory: [],
+      
+      // System State
+      error: null,
+      
+      // Actions - Settings specific
       setCurrentView: vi.fn(),
       getAllSettings: vi.fn().mockResolvedValue(mockSettings),
       setSetting: vi.fn().mockResolvedValue(undefined),
       exportSettings: vi.fn().mockResolvedValue('{"test": "settings"}'),
       importSettings: vi.fn().mockResolvedValue(5),
       resetSettingsToDefaults: vi.fn().mockResolvedValue(undefined),
-      error: null,
-      setError: vi.fn()
+      setError: vi.fn(),
+      
+      // Other required actions
+      setCommandPaletteOpen: vi.fn(),
+      loadNotes: vi.fn(),
+      createNote: vi.fn(),
+      updateNote: vi.fn(),
+      deleteNote: vi.fn(),
+      getActiveNote: vi.fn(),
+      setActiveNoteId: vi.fn(),
+      updateNoteContent: vi.fn(),
+      searchNotes: vi.fn(),
+      addToSearchHistory: vi.fn(),
+      clearSearchHistory: vi.fn(),
+      toggleFolder: vi.fn()
     })
     
     // Reset window mocks (already set up in test setup)
@@ -48,137 +84,110 @@ describe('SettingsView', () => {
     )
     useScratchPadStore.setState({ getAllSettings: delayedGetAllSettings })
 
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     // Should see loading state immediately
     expect(screen.getByText('Loading settings...')).toBeInTheDocument()
     
-    // Wait for settings to load
+    // Wait for settings to load using React 19 async pattern
     await waitFor(() => {
       expect(screen.getByDisplayValue('Ctrl+Shift+N')).toBeInTheDocument()
-    })
+    }, { timeout: 2000 })
   })
 
   it('should load and display settings', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
+    // Use React 19 async pattern for form fields
     await waitFor(() => {
       expect(screen.getByDisplayValue('Ctrl+Shift+N')).toBeInTheDocument()
       expect(screen.getByDisplayValue('Inter')).toBeInTheDocument()
       expect(screen.getByDisplayValue('800')).toBeInTheDocument()
-    })
+    }, { timeout: 2000 })
   })
 
   it('should render all settings sections', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
+    // Wait for async font loading and section rendering
     await waitFor(() => {
       expect(screen.getByText('Global Shortcut')).toBeInTheDocument()
       expect(screen.getByText('Font Preferences')).toBeInTheDocument()
       expect(screen.getByText('Note Format & Layout')).toBeInTheDocument()
       expect(screen.getByText('Window Settings')).toBeInTheDocument()
       expect(screen.getByText('Performance Settings')).toBeInTheDocument()
-    })
+    }, { timeout: 2000 })
   })
 
   it('should handle back button click', async () => {
     const mockSetCurrentView = vi.fn()
     useScratchPadStore.setState({ setCurrentView: mockSetCurrentView })
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
-    await waitFor(() => {
-      expect(screen.getByText('Back to Notes')).toBeInTheDocument()
-    })
-    
-    await act(async () => {
-      await user.click(screen.getByText('Back to Notes'))
-    })
+    // Use findBy for async element discovery
+    const backButton = await screen.findByText('Back to Notes')
+    await user.click(backButton)
     
     expect(mockSetCurrentView).toHaveBeenCalledWith('note')
   })
 
   it('should validate form inputs', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('800')).toBeInTheDocument()
-    })
+    // Wait for form to load with React 19 pattern
+    const shortcutInput = await screen.findByDisplayValue('Ctrl+Shift+N')
     
     // Clear global shortcut (required field)
-    const shortcutInput = screen.getByDisplayValue('Ctrl+Shift+N')
-    await act(async () => {
-      await user.clear(shortcutInput)
-    })
+    await user.clear(shortcutInput)
     
     // Try to save
-    await act(async () => {
-      await user.click(screen.getByText('Save Settings'))
-    })
+    const saveButton = await screen.findByText('Save Settings')
+    await user.click(saveButton)
     
-    expect(screen.getByText('Global shortcut cannot be empty')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Global shortcut cannot be empty')).toBeInTheDocument()
+    }, { timeout: 2000 })
   })
 
   it('should validate numeric fields', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('800')).toBeInTheDocument()
-    })
+    // Wait for form to load using React 19 async pattern
+    const widthInput = await screen.findByDisplayValue('800')
     
     // Set invalid window width
-    const widthInput = screen.getByDisplayValue('800')
-    await act(async () => {
-      await user.clear(widthInput)
-      await user.type(widthInput, '100') // Too small
-    })
+    await user.clear(widthInput)
+    await user.type(widthInput, '100') // Too small
     
-    await act(async () => {
-      await user.click(screen.getByText('Save Settings'))
-    })
+    const saveButton = await screen.findByText('Save Settings')
+    await user.click(saveButton)
     
-    expect(screen.getByText('Window width must be between 400 and 3840 pixels')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Window width must be between 400 and 3840 pixels')).toBeInTheDocument()
+    }, { timeout: 2000 })
   })
 
   it('should save settings successfully', async () => {
     const mockSetSetting = vi.fn().mockResolvedValue(undefined)
     useScratchPadStore.setState({ setSetting: mockSetSetting })
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Ctrl+Shift+N')).toBeInTheDocument()
-    })
+    // Wait for async form loading
+    const shortcutInput = await screen.findByDisplayValue('Ctrl+Shift+N')
     
     // Modify a setting
-    const shortcutInput = screen.getByDisplayValue('Ctrl+Shift+N')
-    await act(async () => {
-      await user.clear(shortcutInput)
-      await user.type(shortcutInput, 'Ctrl+Alt+S')
-    })
+    await user.clear(shortcutInput)
+    await user.type(shortcutInput, 'Ctrl+Alt+S')
     
-    await act(async () => {
-      await user.click(screen.getByText('Save Settings'))
-    })
+    const saveButton = await screen.findByText('Save Settings')
+    await user.click(saveButton)
     
     await waitFor(() => {
       expect(mockSetSetting).toHaveBeenCalledWith('global_shortcut', 'Ctrl+Alt+S')
       expect(screen.getByText('Settings saved successfully!')).toBeInTheDocument()
-    })
+    }, { timeout: 2000 })
   })
 
   it('should handle save errors', async () => {
@@ -187,21 +196,17 @@ describe('SettingsView', () => {
     
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Ctrl+Shift+N')).toBeInTheDocument()
-    })
+    // Wait for form to load
+    await screen.findByDisplayValue('Ctrl+Shift+N')
     
-    await act(async () => {
-      await user.click(screen.getByText('Save Settings'))
-    })
+    const saveButton = await screen.findByText('Save Settings')
+    await user.click(saveButton)
     
     await waitFor(() => {
       expect(consoleSpy).toHaveBeenCalledWith('Failed to save settings:', expect.any(Error))
-    })
+    }, { timeout: 2000 })
     
     consoleSpy.mockRestore()
   })
@@ -210,22 +215,15 @@ describe('SettingsView', () => {
     const mockExportSettings = vi.fn().mockResolvedValue('{"test": "data"}')
     useScratchPadStore.setState({ exportSettings: mockExportSettings })
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
-    await waitFor(() => {
-      expect(screen.getByText('Export Settings')).toBeInTheDocument()
-    })
-    
-    await act(async () => {
-      await user.click(screen.getByText('Export Settings'))
-    })
+    const exportButton = await screen.findByText('Export Settings')
+    await user.click(exportButton)
     
     await waitFor(() => {
       expect(mockExportSettings).toHaveBeenCalled()
       expect(screen.getByText('Settings exported successfully!')).toBeInTheDocument()
-    })
+    }, { timeout: 2000 })
   })
 
   it('should import settings', async () => {
@@ -237,20 +235,15 @@ describe('SettingsView', () => {
       getAllSettings: mockGetAllSettings
     })
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
-    await waitFor(() => {
-      expect(screen.getByText('Import Settings')).toBeInTheDocument()
-    })
-    
-    await act(async () => {
-      await user.click(screen.getByText('Import Settings'))
-    })
+    const importButton = await screen.findByText('Import Settings')
+    await user.click(importButton)
     
     // The file input interaction is complex in tests, so we'll verify the setup
-    expect(document.createElement).toHaveBeenCalledWith('input')
+    await waitFor(() => {
+      expect(document.createElement).toHaveBeenCalledWith('input')
+    }, { timeout: 2000 })
   })
 
   it('should reset settings to defaults', async () => {
@@ -262,17 +255,10 @@ describe('SettingsView', () => {
       getAllSettings: mockGetAllSettings
     })
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
-    await waitFor(() => {
-      expect(screen.getByText('Reset to Defaults')).toBeInTheDocument()
-    })
-    
-    await act(async () => {
-      await user.click(screen.getByText('Reset to Defaults'))
-    })
+    const resetButton = await screen.findByText('Reset to Defaults')
+    await user.click(resetButton)
     
     await waitFor(() => {
       expect(window.confirm).toHaveBeenCalledWith(
@@ -280,7 +266,7 @@ describe('SettingsView', () => {
       )
       expect(mockResetSettings).toHaveBeenCalled()
       expect(screen.getByText('Settings reset to defaults successfully!')).toBeInTheDocument()
-    })
+    }, { timeout: 2000 })
   })
 
   it('should not reset settings if user cancels', async () => {
@@ -289,62 +275,48 @@ describe('SettingsView', () => {
     
     vi.mocked(window.confirm).mockReturnValue(false)
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
-    await waitFor(() => {
-      expect(screen.getByText('Reset to Defaults')).toBeInTheDocument()
-    })
-    
-    await act(async () => {
-      await user.click(screen.getByText('Reset to Defaults'))
-    })
+    const resetButton = await screen.findByText('Reset to Defaults')
+    await user.click(resetButton)
     
     expect(mockResetSettings).not.toHaveBeenCalled()
   })
 
   it('should clear validation errors when input changes', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('800')).toBeInTheDocument()
-    })
+    // Wait for form to load
+    const widthInput = await screen.findByDisplayValue('800')
     
     // Create validation error
-    const widthInput = screen.getByDisplayValue('800')
-    await act(async () => {
-      await user.clear(widthInput)
-      await user.type(widthInput, '100')
-    })
+    await user.clear(widthInput)
+    await user.type(widthInput, '100')
     
-    await act(async () => {
-      await user.click(screen.getByText('Save Settings'))
-    })
+    const saveButton = await screen.findByText('Save Settings')
+    await user.click(saveButton)
     
-    expect(screen.getByText('Window width must be between 400 and 3840 pixels')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Window width must be between 400 and 3840 pixels')).toBeInTheDocument()
+    }, { timeout: 2000 })
     
     // Fix the error
-    await act(async () => {
-      await user.clear(widthInput)
-      await user.type(widthInput, '800')
-    })
+    await user.clear(widthInput)
+    await user.type(widthInput, '800')
     
-    expect(screen.queryByText('Window width must be between 400 and 3840 pixels')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByText('Window width must be between 400 and 3840 pixels')).not.toBeInTheDocument()
+    }, { timeout: 2000 })
   })
 
   it('should display error messages', async () => {
     useScratchPadStore.setState({ error: 'Test error message' })
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitFor(() => {
       expect(screen.getByText('Test error message')).toBeInTheDocument()
-    })
+    }, { timeout: 2000 })
   })
 
   it('should handle loading errors gracefully', async () => {
@@ -353,13 +325,11 @@ describe('SettingsView', () => {
     
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
     
     await waitFor(() => {
       expect(consoleSpy).toHaveBeenCalledWith('Failed to load settings:', expect.any(Error))
-    })
+    }, { timeout: 2000 })
     
     consoleSpy.mockRestore()
   })
@@ -368,101 +338,69 @@ describe('SettingsView', () => {
     const mockSetSetting = vi.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)))
     useScratchPadStore.setState({ setSetting: mockSetSetting })
     
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
+    
+    const saveButton = await screen.findByText('Save Settings')
+    await user.click(saveButton)
     
     await waitFor(() => {
-      expect(screen.getByText('Save Settings')).toBeInTheDocument()
-    })
-    
-    await act(async () => {
-      await user.click(screen.getByText('Save Settings'))
-    })
-    
-    expect(screen.getByText('Saving...')).toBeInTheDocument()
+      expect(screen.getByText('Saving...')).toBeInTheDocument()
+    }, { timeout: 2000 })
   })
 
   it('should validate fuzzy search threshold range', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
+    
+    // Wait for form load with React 19 async pattern
+    const thresholdInput = await screen.findByDisplayValue('0.6')
+    
+    await user.clear(thresholdInput)
+    await user.type(thresholdInput, '1.5') // Out of range
+    
+    const saveButton = await screen.findByText('Save Settings')
+    await user.click(saveButton)
     
     await waitFor(() => {
-      expect(screen.getByDisplayValue('0.6')).toBeInTheDocument()
-    })
-    
-    const thresholdInput = screen.getByDisplayValue('0.6')
-    await act(async () => {
-      await user.clear(thresholdInput)
-      await user.type(thresholdInput, '1.5') // Out of range
-    })
-    
-    await act(async () => {
-      await user.click(screen.getByText('Save Settings'))
-    })
-    
-    expect(screen.getByText('Fuzzy search threshold must be between 0.0 and 1.0')).toBeInTheDocument()
+      expect(screen.getByText('Fuzzy search threshold must be between 0.0 and 1.0')).toBeInTheDocument()
+    }, { timeout: 2000 })
   })
 
   it('should validate auto-save delay range', async () => {
-    await act(async () => {
-      render(<SettingsView />)
-    })
+    render(<SettingsView />)
+    
+    // Use React 19 async pattern for form field discovery
+    const delayInput = await screen.findByDisplayValue('500')
+    
+    await user.clear(delayInput)
+    await user.type(delayInput, '50') // Too small
+    
+    const saveButton = await screen.findByText('Save Settings')
+    await user.click(saveButton)
     
     await waitFor(() => {
-      expect(screen.getByDisplayValue('500')).toBeInTheDocument()
-    })
-    
-    const delayInput = screen.getByDisplayValue('500')
-    await act(async () => {
-      await user.clear(delayInput)
-      await user.type(delayInput, '50') // Too small
-    })
-    
-    await act(async () => {
-      await user.click(screen.getByText('Save Settings'))
-    })
-    
-    expect(screen.getByText('Auto-save delay must be between 100 and 10000 milliseconds')).toBeInTheDocument()
+      expect(screen.getByText('Auto-save delay must be between 100 and 10000 milliseconds')).toBeInTheDocument()
+    }, { timeout: 2000 })
   })
 
   it('should auto-hide success messages', async () => {
-    vi.useFakeTimers()
+    // Use real timers for React 19 - trust component's setTimeout behavior
+    const mockSetSetting = vi.fn().mockResolvedValue(undefined)
+    useScratchPadStore.setState({ setSetting: mockSetSetting })
     
-    try {
-      const mockSetSetting = vi.fn().mockResolvedValue(undefined)
-      useScratchPadStore.setState({ setSetting: mockSetSetting })
-      
-      await act(async () => {
-        render(<SettingsView />)
-      })
-      
-      await waitFor(() => {
-        expect(screen.getByText('Save Settings')).toBeInTheDocument()
-      })
-      
-      // Click save settings button
-      await act(async () => {
-        await user.click(screen.getByText('Save Settings'))
-      })
-      
-      // Wait for success message to appear
-      await waitFor(() => {
-        expect(screen.getByText('Settings saved successfully!')).toBeInTheDocument()
-      })
-      
-      // Fast-forward time to trigger auto-hide (component uses 3000ms timeout)
-      await act(async () => {
-        vi.advanceTimersByTime(3100) // Slightly more than 3000ms
-      })
-      
-      // Wait for message to disappear
-      await waitFor(() => {
-        expect(screen.queryByText('Settings saved successfully!')).not.toBeInTheDocument()
-      })
-    } finally {
-      vi.useRealTimers()
-    }
+    render(<SettingsView />)
+    
+    const saveButton = await screen.findByText('Save Settings')
+    await user.click(saveButton)
+    
+    // Wait for success message to appear
+    await waitFor(() => {
+      expect(screen.getByText('Settings saved successfully!')).toBeInTheDocument()
+    }, { timeout: 2000 })
+    
+    // Trust React 19 and component's internal setTimeout (3000ms)
+    // Wait for message to disappear - giving extra time for React 19's async behavior
+    await waitFor(() => {
+      expect(screen.queryByText('Settings saved successfully!')).not.toBeInTheDocument()
+    }, { timeout: 4000 }) // Extended timeout for auto-hide
   })
 })

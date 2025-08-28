@@ -39,9 +39,11 @@ const mockNote3: Note = {
 }
 
 describe('TabBar', () => {
-  const user = userEvent.setup()
+  let user: ReturnType<typeof userEvent.setup>
 
   beforeEach(() => {
+    user = userEvent.setup()
+    
     // Reset store state
     useScratchPadStore.setState({
       notes: [mockNote1, mockNote2, mockNote3],
@@ -75,7 +77,8 @@ describe('TabBar', () => {
     
     render(<TabBar />)
     
-    await user.click(screen.getByText('Second note content'))
+    const secondTab = await screen.findByText('Second note content')
+    await user.click(secondTab)
     
     expect(mockSetActiveNote).toHaveBeenCalledWith(2)
   })
@@ -101,7 +104,7 @@ describe('TabBar', () => {
     
     render(<TabBar />)
     
-    const closeButtons = screen.getAllByRole('button')
+    const closeButtons = await screen.findAllByRole('button')
     await user.click(closeButtons[1]) // Close second tab
     
     expect(mockDeleteNote).toHaveBeenCalledWith(2)
@@ -118,7 +121,7 @@ describe('TabBar', () => {
     
     render(<TabBar />)
     
-    const closeButtons = screen.getAllByRole('button')
+    const closeButtons = await screen.findAllByRole('button')
     await user.click(closeButtons[0]) // Close first tab (active tab)
     
     expect(mockDeleteNote).toHaveBeenCalledWith(1)
@@ -194,11 +197,12 @@ describe('TabBar', () => {
   it('should handle hover states', async () => {
     render(<TabBar />)
     
-    const inactiveTab = screen.getByText('Second note content').closest('div')
+    const inactiveTab = await screen.findByText('Second note content')
+    const tabElement = inactiveTab.closest('div')
     
-    await user.hover(inactiveTab!)
+    await user.hover(tabElement!)
     
-    expect(inactiveTab).toHaveClass('hover:bg-muted')
+    expect(tabElement).toHaveClass('hover:bg-muted')
   })
 
   it('should maintain tab order', () => {

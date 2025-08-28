@@ -53,7 +53,7 @@ const mockNote1: Note = {
   path: '/test/path1',
   is_favorite: true,
   created_at: '2024-01-01T00:00:00Z',
-  updated_at: '2024-01-01T12:00:00Z'
+  updated_at: '2024-01-03T12:00:00Z' // Fixed: 1 day ago from test time (2024-01-04T12:00:00Z)
 }
 
 const mockNote2: Note = {
@@ -64,7 +64,7 @@ const mockNote2: Note = {
   path: '/test/path2',
   is_favorite: false,
   created_at: '2024-01-02T00:00:00Z',
-  updated_at: '2024-01-02T08:00:00Z'
+  updated_at: '2024-01-02T12:00:00Z' // Fixed: 2 days ago from test time
 }
 
 const mockNote3: Note = {
@@ -79,25 +79,88 @@ const mockNote3: Note = {
 }
 
 describe('SearchHistoryView', () => {
-  const user = userEvent.setup()
+  let user: ReturnType<typeof userEvent.setup>
 
   beforeEach(() => {
+    user = userEvent.setup()
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2024-01-04T12:00:00Z'))
     
-    // Reset store state with all required properties
-    act(() => {
-      useScratchPadStore.setState({
-        notes: [mockNote1, mockNote2, mockNote3],
-        setActiveNote: vi.fn(),
-        setCurrentView: vi.fn(),
-        expandedFolders: new Set(['recent', 'all-notes']),
-        toggleFolder: vi.fn(),
-        searchNotes: vi.fn().mockResolvedValue([]),
-        loadMoreNotes: vi.fn(),
-        hasMoreNotes: false,
-        isLoadingMore: false
-      })
+    // Complete store state initialization - include ALL required properties
+    useScratchPadStore.setState({
+      // Core state
+      notes: [mockNote1, mockNote2, mockNote3],
+      activeNoteId: null,
+      currentView: 'search-history',
+      isCommandPaletteOpen: false,
+      isLoading: false,
+      error: null,
+
+      // UI state
+      expandedFolders: new Set(['recent', 'all-notes']),
+      selectedSearchIndex: 0,
+      searchQuery: '',
+
+      // Advanced search state
+      searchResults: [],
+      searchTotalCount: 0,
+      currentSearchPage: 0,
+      searchPageSize: 20,
+      hasMoreSearchResults: false,
+      searchQueryTime: 0,
+      lastQueryComplexity: null,
+      recentSearches: [],
+      searchHistory: [],
+
+      // Performance state
+      notesCount: 3,
+      hasMoreNotes: false,
+      isLoadingMore: false,
+
+      // Actions - mock all required functions
+      setCurrentView: vi.fn(),
+      setCommandPaletteOpen: vi.fn(),
+      setActiveNote: vi.fn(),
+      setError: vi.fn(),
+      loadNotes: vi.fn().mockResolvedValue(undefined),
+      loadMoreNotes: vi.fn(),
+      saveNote: vi.fn().mockResolvedValue(undefined),
+      saveNoteDebounced: vi.fn(),
+      createNote: vi.fn().mockResolvedValue(undefined),
+      deleteNote: vi.fn().mockResolvedValue(undefined),
+      updateNote: vi.fn().mockResolvedValue(undefined),
+      setSearchQuery: vi.fn(),
+      searchNotes: vi.fn().mockResolvedValue([]),
+      setSelectedSearchIndex: vi.fn(),
+      searchNotesBoolean: vi.fn().mockResolvedValue({ notes: [], total_count: 0, query_time: 0 }),
+      searchNotesPaginated: vi.fn().mockResolvedValue({ notes: [], total_count: 0, query_time: 0 }),
+      validateBooleanQuery: vi.fn().mockResolvedValue({ type: 'simple' }),
+      getBooleanSearchExamples: vi.fn().mockResolvedValue([]),
+      addToSearchHistory: vi.fn(),
+      getRecentSearchSuggestions: vi.fn(),
+      clearSearchHistory: vi.fn(),
+      toggleFolder: vi.fn(),
+      getActiveNote: vi.fn(),
+      getCurrentGlobalShortcut: vi.fn().mockResolvedValue(null),
+      registerGlobalShortcut: vi.fn().mockResolvedValue(undefined),
+      unregisterGlobalShortcut: vi.fn().mockResolvedValue(undefined),
+      updateGlobalShortcut: vi.fn().mockResolvedValue(undefined),
+      testGlobalShortcut: vi.fn().mockResolvedValue(false),
+      getSuggestedGlobalShortcuts: vi.fn().mockResolvedValue([]),
+      isGlobalShortcutRegistered: vi.fn().mockResolvedValue(false),
+      showWindow: vi.fn().mockResolvedValue(undefined),
+      hideWindow: vi.fn().mockResolvedValue(undefined),
+      toggleWindow: vi.fn().mockResolvedValue(undefined),
+      setLayoutMode: vi.fn().mockResolvedValue(undefined),
+      getLayoutMode: vi.fn().mockResolvedValue('floating'),
+      centerWindow: vi.fn().mockResolvedValue(undefined),
+      setAlwaysOnTop: vi.fn().mockResolvedValue(undefined),
+      isWindowVisible: vi.fn().mockResolvedValue(true),
+      isWindowFocused: vi.fn().mockResolvedValue(true),
+      initializeSettings: vi.fn().mockResolvedValue(undefined),
+      getSettings: vi.fn().mockResolvedValue({}),
+      updateSettings: vi.fn().mockResolvedValue(undefined),
+      resetSettings: vi.fn().mockResolvedValue(undefined)
     })
   })
 
@@ -107,39 +170,32 @@ describe('SearchHistoryView', () => {
   })
 
   it('should render header with back button', async () => {
-    await act(async () => {
-      render(<SearchHistoryView />)
-    })
+    render(<SearchHistoryView />)
     
     expect(screen.getByText('Search & Browse')).toBeInTheDocument()
     expect(screen.getByRole('button')).toBeInTheDocument()
   })
 
   it('should render search input', async () => {
-    await act(async () => {
-      render(<SearchHistoryView />)
-    })
+    render(<SearchHistoryView />)
     
     expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
   })
 
   it('should auto-focus search input on mount', async () => {
-    await act(async () => {
-      render(<SearchHistoryView />)
-    })
+    render(<SearchHistoryView />)
     
+    // React 19 fix: Use waitFor for async focus behavior
     await waitFor(
       () => {
         expect(screen.getByPlaceholderText('Search notes...')).toHaveFocus()
       },
-      { timeout: 1000 }
+      { timeout: 2000 } // Increased timeout for React 19
     )
-  }, 3000)
+  }, 5000)
 
   it('should display folder structure in browser mode', async () => {
-    await act(async () => {
-      render(<SearchHistoryView />)
-    })
+    render(<SearchHistoryView />)
     
     expect(screen.getByText('Recent')).toBeInTheDocument()
     expect(screen.getByText('All Notes')).toBeInTheDocument()
@@ -147,9 +203,7 @@ describe('SearchHistoryView', () => {
   })
 
   it('should display notes in folders', async () => {
-    await act(async () => {
-      render(<SearchHistoryView />)
-    })
+    render(<SearchHistoryView />)
     
     // Use getAllByText to handle multiple instances properly
     const firstNoteElements = screen.getAllByText('First Note')
@@ -163,13 +217,16 @@ describe('SearchHistoryView', () => {
   })
 
   it('should show last modified times', async () => {
-    await act(async () => {
-      render(<SearchHistoryView />)
-    })
+    render(<SearchHistoryView />)
     
-    // Should show relative times
-    expect(screen.getByText('1d ago')).toBeInTheDocument() // mockNote1 updated yesterday
-    expect(screen.getByText('2d ago')).toBeInTheDocument() // mockNote2 updated 2 days ago
+    // Should show relative times with corrected calculation
+    await waitFor(() => {
+      expect(screen.getByText('1d ago')).toBeInTheDocument() // mockNote1 updated 1 day ago
+    }, { timeout: 2000 })
+    
+    await waitFor(() => {
+      expect(screen.getByText('2d ago')).toBeInTheDocument() // mockNote2 updated 2 days ago  
+    }, { timeout: 2000 })
   })
 
   it('should switch to search mode when typing', async () => {
@@ -186,9 +243,7 @@ describe('SearchHistoryView', () => {
     })
     
     // Fast-forward past debounce delay
-    await act(async () => {
-      vi.advanceTimersByTime(300)
-    })
+    vi.advanceTimersByTime(300)
     
     await waitFor(() => {
       expect(mockSearchNotes).toHaveBeenCalledWith('searchable')
@@ -204,13 +259,9 @@ describe('SearchHistoryView', () => {
     })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
-    await act(async () => {
-      await user.type(searchInput, 'first')
-    })
+    await user.type(searchInput, 'first')
     
-    await act(async () => {
-      vi.advanceTimersByTime(300)
-    })
+    vi.advanceTimersByTime(300)
     
     await waitFor(() => {
       expect(screen.getByText('First Note')).toBeInTheDocument()
@@ -238,9 +289,7 @@ describe('SearchHistoryView', () => {
     expect(mockSearchNotes).not.toHaveBeenCalled()
     
     // Fast-forward past debounce delay
-    await act(async () => {
-      vi.advanceTimersByTime(300)
-    })
+    vi.advanceTimersByTime(300)
     
     await waitFor(() => {
       expect(mockSearchNotes).toHaveBeenCalledWith('test')
@@ -249,9 +298,7 @@ describe('SearchHistoryView', () => {
   })
 
   it('should handle keyboard navigation', async () => {
-    await act(async () => {
-      render(<SearchHistoryView />)
-    })
+    render(<SearchHistoryView />)
     
     // First item should be selected by default
     const virtualList = screen.getByTestId('virtual-list')
@@ -280,8 +327,8 @@ describe('SearchHistoryView', () => {
     
     await waitFor(() => {
       expect(mockToggleFolder).toHaveBeenCalledWith('recent')
-    }, { timeout: 2000 })
-  }, 5000)
+    }, { timeout: 3000 }) // Increased timeout for React 19
+  }, 8000) // Increased overall test timeout
 
   it('should open note with Enter key', async () => {
     const mockSetActiveNote = vi.fn()
@@ -310,8 +357,8 @@ describe('SearchHistoryView', () => {
     await waitFor(() => {
       expect(mockSetActiveNote).toHaveBeenCalledWith(1)
       expect(mockSetCurrentView).toHaveBeenCalledWith('note')
-    }, { timeout: 2000 })
-  }, 5000)
+    }, { timeout: 3000 }) // Increased timeout for React 19
+  }, 8000) // Increased overall test timeout
 
   it('should handle Escape key to go back to note view', async () => {
     const mockSetCurrentView = vi.fn()
@@ -325,28 +372,30 @@ describe('SearchHistoryView', () => {
     const container = screen.getByTestId('virtual-list')
     container.focus()
     
-    await act(async () => {
-      await user.keyboard('{Escape}')
-    })
+    await user.keyboard('{Escape}')
     
     await waitFor(() => {
       expect(mockSetCurrentView).toHaveBeenCalledWith('note')
-    }, { timeout: 2000 })
-  }, 5000)
+    }, { timeout: 3000 }) // Increased timeout for React 19
+  }, 8000) // Increased overall test timeout
 
   it('should clear search query with Escape when searching', async () => {
-    await act(async () => {
-      render(<SearchHistoryView />)
-    })
+    render(<SearchHistoryView />)
     
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
-    }, { timeout: 1000 })
+    }, { timeout: 2000 })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
     
-    // Focus the search input first
-    searchInput.focus()
+    // Focus the search input first - React 19 fix: wait for focus
+    await act(async () => {
+      searchInput.focus()
+    })
+    
+    await waitFor(() => {
+      expect(searchInput).toHaveFocus()
+    }, { timeout: 2000 })
     
     await act(async () => {
       await user.type(searchInput, 'test query')
@@ -354,13 +403,11 @@ describe('SearchHistoryView', () => {
     
     expect(searchInput).toHaveValue('test query')
     
-    await act(async () => {
-      await user.keyboard('{Escape}')
-    })
+    await user.keyboard('{Escape}')
     
     await waitFor(() => {
       expect(searchInput).toHaveValue('')
-    }, { timeout: 2000 })
+    }, { timeout: 3000 }) // Increased timeout for React 19
   })
 
   it('should handle back button click', async () => {
@@ -373,15 +420,13 @@ describe('SearchHistoryView', () => {
     
     await waitFor(() => {
       expect(screen.getByRole('button')).toBeInTheDocument()
-    }, { timeout: 1000 })
+    }, { timeout: 2000 })
     
-    await act(async () => {
-      await user.click(screen.getByRole('button'))
-    })
+    await user.click(screen.getByRole('button'))
     
     await waitFor(() => {
       expect(mockSetCurrentView).toHaveBeenCalledWith('note')
-    }, { timeout: 2000 })
+    }, { timeout: 3000 }) // Increased timeout for React 19
   })
 
   it('should show "No notes available" when no notes', async () => {
@@ -392,7 +437,7 @@ describe('SearchHistoryView', () => {
     
     await waitFor(() => {
       expect(screen.getByText('No notes available')).toBeInTheDocument()
-    }, { timeout: 2000 })
+    }, { timeout: 3000 }) // Increased timeout for React 19
   })
 
   it('should show "No notes found" in search mode with no results', async () => {
@@ -405,16 +450,14 @@ describe('SearchHistoryView', () => {
     
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
-    }, { timeout: 1000 })
+    }, { timeout: 2000 })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
     await act(async () => {
       await user.type(searchInput, 'nonexistent')
     })
     
-    await act(async () => {
-      vi.advanceTimersByTime(300)
-    })
+    vi.advanceTimersByTime(300)
     
     await waitFor(() => {
       expect(screen.getByText('No notes found')).toBeInTheDocument()
@@ -422,13 +465,11 @@ describe('SearchHistoryView', () => {
   })
 
   it('should display correct footer information', async () => {
-    await act(async () => {
-      render(<SearchHistoryView />)
-    })
+    render(<SearchHistoryView />)
     
     await waitFor(() => {
       expect(screen.getByText('Use ↑↓ to navigate, Enter to open, ← → to expand/collapse')).toBeInTheDocument()
-    }, { timeout: 1000 })
+    }, { timeout: 2000 })
   })
 
   it('should handle search errors gracefully', async () => {
@@ -441,16 +482,14 @@ describe('SearchHistoryView', () => {
     
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
-    }, { timeout: 1000 })
+    }, { timeout: 2000 })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
     await act(async () => {
       await user.type(searchInput, 'test')
     })
     
-    await act(async () => {
-      vi.advanceTimersByTime(300)
-    })
+    vi.advanceTimersByTime(300)
     
     // Should not crash and should show no results
     await waitFor(() => {
@@ -473,16 +512,14 @@ describe('SearchHistoryView', () => {
     
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
-    }, { timeout: 1000 })
+    }, { timeout: 2000 })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
     await act(async () => {
       await user.type(searchInput, 'A')
     })
     
-    await act(async () => {
-      vi.advanceTimersByTime(300)
-    })
+    vi.advanceTimersByTime(300)
     
     await waitFor(() => {
       const preview = screen.getByText(/A{100}\.\.\./)
@@ -500,16 +537,14 @@ describe('SearchHistoryView', () => {
     
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Search notes...')).toBeInTheDocument()
-    }, { timeout: 1000 })
+    }, { timeout: 2000 })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
     await act(async () => {
       await user.type(searchInput, 'test')
     })
     
-    await act(async () => {
-      vi.advanceTimersByTime(300)
-    })
+    vi.advanceTimersByTime(300)
     
     // Should show loading spinner
     expect(screen.getByTestId('loading-spinner')).toBeInTheDocument()
@@ -534,12 +569,10 @@ describe('SearchHistoryView', () => {
     
     await waitFor(() => {
       expect(screen.getByText('Load More Notes')).toBeInTheDocument()
-    }, { timeout: 1000 })
+    }, { timeout: 2000 })
     
     const loadMoreButton = screen.getByText('Load More Notes')
-    await act(async () => {
-      await user.click(loadMoreButton)
-    })
+    await user.click(loadMoreButton)
     
     expect(mockLoadMoreNotes).toHaveBeenCalled()
   })

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act, fireEvent } from '../../../test/test-utils'
+import { render, screen, act, fireEvent, waitFor } from '../../../test/test-utils'
 // import userEvent from '@testing-library/user-event'
 import { NoteView } from '../NoteView'
 import { useScratchPadStore } from '../../../lib/store'
@@ -128,8 +128,15 @@ describe('NoteView', () => {
     render(<NoteView />)
     
     const textarea = screen.getByRole('textbox')
-    expect(textarea).toHaveFocus()
-  })
+    
+    // React 19 fix: Focus happens asynchronously, use waitFor
+    await waitFor(
+      () => {
+        expect(textarea).toHaveFocus()
+      },
+      { timeout: 2000 }
+    )
+  }, 5000)
 
   it('should update content when typing', async () => {
     render(<NoteView />)
