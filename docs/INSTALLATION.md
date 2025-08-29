@@ -106,10 +106,10 @@ Visit the [Releases page](https://github.com/pinkydprojects/scratch-pad/releases
 
 ```bash
 # Download the DEB package
-wget https://github.com/pinkydprojects/scratch-pad/releases/latest/download/scratch-pad_0.1.0_amd64.deb
+wget https://github.com/pinkydprojects/scratch-pad/releases/latest/download/scratch-pad_0.3.0_amd64.deb
 
 # Install the package
-sudo dpkg -i scratch-pad_0.1.0_amd64.deb
+sudo dpkg -i scratch-pad_0.3.0_amd64.deb
 
 # Install any missing dependencies
 sudo apt-get install -f
@@ -122,16 +122,16 @@ scratch-pad
 
 ```bash
 # Download the AppImage
-wget https://github.com/pinkydprojects/scratch-pad/releases/latest/download/scratch-pad_0.1.0_amd64.AppImage
+wget https://github.com/pinkydprojects/scratch-pad/releases/latest/download/scratch-pad_0.3.0_amd64.AppImage
 
 # Make it executable
-chmod +x scratch-pad_0.1.0_amd64.AppImage
+chmod +x scratch-pad_0.3.0_amd64.AppImage
 
 # Run the application
-./scratch-pad_0.1.0_amd64.AppImage
+./scratch-pad_0.3.0_amd64.AppImage
 
 # Optional: Move to a directory in your PATH
-sudo mv scratch-pad_0.1.0_amd64.AppImage /usr/local/bin/scratch-pad
+sudo mv scratch-pad_0.3.0_amd64.AppImage /usr/local/bin/scratch-pad
 ```
 
 #### Option 3: Arch Linux (AUR)

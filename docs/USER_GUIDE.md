@@ -45,10 +45,10 @@ Welcome to Scratch Pad - a floating, keyboard-driven notepad designed specifical
 
 ```bash
 # Download the .deb file from releases
-wget https://github.com/pinkydprojects/scratch-pad/releases/latest/download/scratch-pad_0.1.0_amd64.deb
+wget https://github.com/pinkydprojects/scratch-pad/releases/latest/download/scratch-pad_0.3.0_amd64.deb
 
 # Install the package
-sudo dpkg -i scratch-pad_0.1.0_amd64.deb
+sudo dpkg -i scratch-pad_0.3.0_amd64.deb
 
 # Install dependencies if needed
 sudo apt-get install -f
@@ -58,13 +58,13 @@ sudo apt-get install -f
 
 ```bash
 # Download the AppImage
-wget https://github.com/pinkydprojects/scratch-pad/releases/latest/download/scratch-pad_0.1.0_amd64.AppImage
+wget https://github.com/pinkydprojects/scratch-pad/releases/latest/download/scratch-pad_0.3.0_amd64.AppImage
 
 # Make it executable
-chmod +x scratch-pad_0.1.0_amd64.AppImage
+chmod +x scratch-pad_0.3.0_amd64.AppImage
 
 # Run the application
-./scratch-pad_0.1.0_amd64.AppImage
+./scratch-pad_0.3.0_amd64.AppImage
 ```
 
 #### Arch Linux (AUR)
@@ -347,5 +347,5 @@ A: Yes, uninstalling the application will remove all data, or you can manually d
 
 For additional support, please visit our [GitHub repository](https://github.com/pinkydprojects/scratch-pad) or check the [documentation](https://github.com/pinkydprojects/scratch-pad/tree/main/docs).
 
-**Version**: 0.1.0  
-**Last Updated**: January 2025
+**Version**: 0.3.0  
+**Last Updated**: August 2025

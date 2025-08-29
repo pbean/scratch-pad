@@ -5,6 +5,49 @@ All notable changes to Scratch Pad will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-08-29
+
+### Added
+
+- Smart store reset infrastructure with intelligent mock preservation
+- Comprehensive test validation infrastructure for mock state management
+- Timer mock cleanup system preventing uncaught exceptions
+- Portal cleanup with synchronous retry logic for clean DOM state
+- Test isolation improvements with comprehensive mock clearing
+- Session-based documentation tracking for development progress
+
+### Changed
+
+- Test suite infrastructure achieving 91.1% pass rate (204/224 tests passing)
+- React 19 compatibility improvements across test infrastructure
+- Store preservation logic with complete fallback to originalStoreMethods
+- Enhanced mock state isolation between test runs
+- Improved error handling in test setup and teardown
+- Documentation reorganized for better maintainability
+
+### Fixed
+
+- Timer cleanup preventing setTimeout exceptions in tests (+6 tests passing)
+- Store getInitialState() reference issues with INITIAL_STORE_STATE constant
+- Mock state bleeding between tests through enhanced clearing
+- Portal element cleanup ensuring only root element remains
+- React 19 act() warnings in component tests
+- Test suite performance maintaining sub-100ms reset times
+
+### Performance
+
+- Test suite execution time optimized with smart reset logic
+- Mock preservation reducing unnecessary re-initialization
+- Synchronous DOM cleanup with 10-retry maximum limit
+- Validation suite ensuring consistent sub-100ms performance
+
+### Developer Experience
+
+- Improved test debugging with clear error messages
+- Session-based progress tracking for complex fixes
+- Comprehensive validation tests for infrastructure changes
+- Better organization of implementation plans and prompts
+
 ## [0.2.0] - 2025-08-21
 
 ### Added

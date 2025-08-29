@@ -4,7 +4,7 @@
 
 Comprehensive API documentation for the Scratch Pad desktop application, covering all IPC commands, service interfaces, and TypeScript APIs implemented through Week 2b enterprise architecture evolution.
 
-**Last Updated:** January 20, 2025  
+**Last Updated:** August 20, 2025  
 **API Version:** 2.1.0  
 **Architecture:** Enterprise Service-Oriented (9.2/10 quality rating)
 
@@ -962,20 +962,20 @@ const categorizeError = (error: string): TauriErrorCategory => {
 
 ## Version History
 
-### v2.1.0 (Week 2b - January 2025)
+### v2.1.0 (Week 2b - August 2025)
 - **Service-Oriented Architecture:** Trait-based service decoupling
 - **Enterprise TypeScript:** 99.8% type coverage, zero `any` usage
 - **Performance Monitoring:** Real-time metrics and AI-powered optimization
 - **Enhanced Testing:** Professional-grade mock framework
 - **Boolean Search:** Advanced search with AND, OR, NOT operators
 
-### v2.0.0 (Week 2 - January 2025)  
+### v2.0.0 (Week 2 - August 2025)  
 - **Advanced Search:** Paginated search with performance analytics
 - **Smart Auto-save:** Intelligent delay calculation
 - **Virtual Scrolling:** Memory-efficient large result sets
 - **Accessibility:** WCAG 2.1 Level AA compliance
 
-### v1.0.0 (Week 1 - January 2025)
+### v1.0.0 (Week 1 - August 2025)
 - **Security Framework:** Comprehensive validation and threat prevention
 - **Core Features:** Note management, FTS5 search, settings
 - **Desktop Integration:** Global shortcuts, floating window
