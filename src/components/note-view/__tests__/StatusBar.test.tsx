@@ -3,13 +3,8 @@ import { render, screen } from '../../../test/test-utils'
 import { StatusBar } from '../StatusBar'
 
 describe('StatusBar', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-  })
+  // Note: Fake timers are only used in specific tests that test time display logic
+  // Most tests don't need fake timers
 
   const defaultProps = {
     lastSaved: null,
@@ -48,30 +43,39 @@ describe('StatusBar', () => {
   })
 
   it('should show "Just now" for recent saves (less than 1 minute)', () => {
+    vi.useFakeTimers()
     const recentSave = new Date()
     vi.setSystemTime(recentSave.getTime() + 30000) // 30 seconds later
     
     render(<StatusBar {...defaultProps} lastSaved={recentSave} saveStatus="idle" />)
     
     expect(screen.getByText('Saved Just now')).toBeInTheDocument()
+    
+    vi.useRealTimers()
   })
 
   it('should show minutes ago for saves within an hour', () => {
+    vi.useFakeTimers()
     const saveTime = new Date()
     vi.setSystemTime(saveTime.getTime() + 5 * 60 * 1000) // 5 minutes later
     
     render(<StatusBar {...defaultProps} lastSaved={saveTime} saveStatus="idle" />)
     
     expect(screen.getByText('Saved 5m ago')).toBeInTheDocument()
+    
+    vi.useRealTimers()
   })
 
   it('should show time for saves older than an hour', () => {
+    vi.useFakeTimers()
     const saveTime = new Date('2024-01-01T14:30:00')
     vi.setSystemTime(new Date('2024-01-01T16:00:00').getTime()) // 1.5 hours later
     
     render(<StatusBar {...defaultProps} lastSaved={saveTime} saveStatus="idle" />)
     
     expect(screen.getByText(/Saved.*2:30 PM/)).toBeInTheDocument()
+    
+    vi.useRealTimers()
   })
 
   it('should truncate long note titles', () => {
@@ -129,6 +133,8 @@ describe('StatusBar', () => {
   })
 
   it('should format time correctly for different hours', () => {
+    vi.useFakeTimers()
+    
     const testCases = [
       { time: '2024-01-01T09:15:00', expected: /9:15 AM/ },
       { time: '2024-01-01T13:30:00', expected: /1:30 PM/ },
@@ -147,24 +153,32 @@ describe('StatusBar', () => {
       
       unmount()
     })
+    
+    vi.useRealTimers()
   })
 
   it('should handle edge case of exactly 1 minute', () => {
+    vi.useFakeTimers()
     const saveTime = new Date()
     vi.setSystemTime(saveTime.getTime() + 60 * 1000) // Exactly 1 minute later
     
     render(<StatusBar {...defaultProps} lastSaved={saveTime} saveStatus="idle" />)
     
     expect(screen.getByText('Saved 1m ago')).toBeInTheDocument()
+    
+    vi.useRealTimers()
   })
 
   it('should handle edge case of exactly 1 hour', () => {
+    vi.useFakeTimers()
     const saveTime = new Date('2024-01-01T14:00:00')
     vi.setSystemTime(new Date('2024-01-01T15:00:00').getTime()) // Exactly 1 hour later
     
     render(<StatusBar {...defaultProps} lastSaved={saveTime} saveStatus="idle" />)
     
     expect(screen.getByText(/Saved.*2:00 PM/)).toBeInTheDocument()
+    
+    vi.useRealTimers()
   })
 
   it('should prioritize auto-saving status over last saved', () => {

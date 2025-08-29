@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '../../../test/userEvent-utils'
 import { TabBar } from '../TabBar'
 import { useScratchPadStore } from '../../../lib/store'
 import type { Note } from '../../../types'
@@ -39,13 +39,11 @@ const mockNote3: Note = {
 }
 
 describe('TabBar', () => {
-  let user: Awaited<ReturnType<typeof userEvent.setup>>
+  let user: Awaited<ReturnType<typeof setupUser>>
 
   beforeEach(async () => {
-    // Configure userEvent with pointerEventsCheck disabled
-    user = await userEvent.setup({
-      pointerEventsCheck: 0
-    })
+    // Configure userEvent without fake timers
+    user = await setupUser()
     
     // Reset store state
     useScratchPadStore.setState({

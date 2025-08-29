@@ -77,22 +77,57 @@ beforeAll(() => {
     }
   } as any
 
-  // Simple mock for getComputedStyle - always return consistent mock to avoid issues
-  window.getComputedStyle = vi.fn().mockImplementation(() => ({
-    getPropertyValue: (prop: string) => {
-      // Return sensible defaults for common properties
-      if (prop === 'pointer-events') return 'auto'
-      if (prop === 'display') return 'block'
-      if (prop === 'visibility') return 'visible'
-      return ''
-    },
-    pointerEvents: 'auto',
-    display: 'block',
-    visibility: 'visible',
-    cssText: '',
-    length: 0,
-    parentRule: null,
-  }))
+  // Enhanced getComputedStyle mock for better React Testing Library compatibility
+  const originalGetComputedStyle = window.getComputedStyle
+  window.getComputedStyle = vi.fn().mockImplementation((element) => {
+    // Check if element is valid
+    if (!element) {
+      return {
+        getPropertyValue: () => '',
+        visibility: 'visible',
+        display: 'block',
+        pointerEvents: 'auto',
+      }
+    }
+    
+    // For textarea elements, ensure they're visible
+    if (element.tagName === 'TEXTAREA' || element.role === 'textbox') {
+      return {
+        getPropertyValue: (prop: string) => {
+          if (prop === 'pointer-events') return 'auto'
+          if (prop === 'display') return 'block'
+          if (prop === 'visibility') return 'visible'
+          if (prop === 'opacity') return '1'
+          return ''
+        },
+        pointerEvents: 'auto',
+        display: 'block',
+        visibility: 'visible',
+        opacity: '1',
+        cssText: '',
+        length: 0,
+        parentRule: null,
+      }
+    }
+    
+    // Default return for other elements
+    return {
+      getPropertyValue: (prop: string) => {
+        if (prop === 'pointer-events') return 'auto'
+        if (prop === 'display') return 'block'
+        if (prop === 'visibility') return 'visible'
+        if (prop === 'opacity') return '1'
+        return ''
+      },
+      pointerEvents: 'auto',
+      display: 'block',
+      visibility: 'visible',
+      opacity: '1',
+      cssText: '',
+      length: 0,
+      parentRule: null,
+    }
+  })
   
   // Set on global as well
   global.getComputedStyle = window.getComputedStyle

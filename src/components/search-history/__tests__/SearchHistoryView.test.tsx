@@ -82,13 +82,9 @@ describe('SearchHistoryView', () => {
   let user: Awaited<ReturnType<typeof userEvent.setup>>
 
   beforeEach(async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2024-01-04T12:00:00Z'))
-    
-    // Configure userEvent with advanceTimers for fake timer compatibility
+    // Set up userEvent without fake timers (React 19 best practice)
     user = await userEvent.setup({
-      pointerEventsCheck: 0,
-      advanceTimers: vi.advanceTimersByTime // CRITICAL for fake timers!
+      pointerEventsCheck: 0
     })
     
     // Complete store state initialization - include ALL required properties
@@ -170,8 +166,6 @@ describe('SearchHistoryView', () => {
   })
 
   afterEach(() => {
-    vi.runOnlyPendingTimers() // Flush pending timers before cleanup
-    vi.useRealTimers()
     vi.clearAllMocks()
   })
 
@@ -244,16 +238,12 @@ describe('SearchHistoryView', () => {
     })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
-    await act(async () => {
-      await user.type(searchInput, 'searchable')
-    })
+    await user.type(searchInput, 'searchable')
     
-    // Fast-forward past debounce delay
-    vi.advanceTimersByTime(300)
-    
+    // Wait for debounced search to execute (300ms debounce)
     await waitFor(() => {
       expect(mockSearchNotes).toHaveBeenCalledWith('searchable')
-    })
+    }, { timeout: 1000 })
   })
 
   it('should display search results', async () => {
@@ -267,13 +257,12 @@ describe('SearchHistoryView', () => {
     const searchInput = screen.getByPlaceholderText('Search notes...')
     await user.type(searchInput, 'first')
     
-    vi.advanceTimersByTime(300)
-    
+    // Wait for debounced search to execute and results to display
     await waitFor(() => {
       expect(screen.getByText('First Note')).toBeInTheDocument()
       // Should show content preview in search mode
       expect(screen.getByText(/First note content with searchable text/)).toBeInTheDocument()
-    })
+    }, { timeout: 1000 })
   })
 
   it('should debounce search queries', async () => {
@@ -287,20 +276,16 @@ describe('SearchHistoryView', () => {
     const searchInput = screen.getByPlaceholderText('Search notes...')
     
     // Type multiple characters quickly
-    await act(async () => {
-      await user.type(searchInput, 'test')
-    })
+    await user.type(searchInput, 'test')
     
     // Should not call search immediately
     expect(mockSearchNotes).not.toHaveBeenCalled()
     
-    // Fast-forward past debounce delay
-    vi.advanceTimersByTime(300)
-    
+    // Wait for debounce delay to pass (300ms)
     await waitFor(() => {
       expect(mockSearchNotes).toHaveBeenCalledWith('test')
       expect(mockSearchNotes).toHaveBeenCalledTimes(1)
-    })
+    }, { timeout: 1000 })
   })
 
   it('should handle keyboard navigation', async () => {
@@ -459,15 +444,12 @@ describe('SearchHistoryView', () => {
     }, { timeout: 2000 })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
-    await act(async () => {
-      await user.type(searchInput, 'nonexistent')
-    })
+    await user.type(searchInput, 'nonexistent')
     
-    vi.advanceTimersByTime(300)
-    
+    // Wait for debounced search to execute and show no results
     await waitFor(() => {
       expect(screen.getByText('No notes found')).toBeInTheDocument()
-    })
+    }, { timeout: 1000 })
   })
 
   it('should display correct footer information', async () => {
@@ -491,16 +473,13 @@ describe('SearchHistoryView', () => {
     }, { timeout: 2000 })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
-    await act(async () => {
-      await user.type(searchInput, 'test')
-    })
+    await user.type(searchInput, 'test')
     
-    vi.advanceTimersByTime(300)
-    
+    // Wait for debounced search to execute
     // Should not crash and should show no results
     await waitFor(() => {
       expect(screen.getByText('No notes found')).toBeInTheDocument()
-    })
+    }, { timeout: 1000 })
   })
 
   it('should truncate long content previews in search mode', async () => {
@@ -521,16 +500,13 @@ describe('SearchHistoryView', () => {
     }, { timeout: 2000 })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
-    await act(async () => {
-      await user.type(searchInput, 'A')
-    })
+    await user.type(searchInput, 'A')
     
-    vi.advanceTimersByTime(300)
-    
+    // Wait for debounced search to execute and show truncated preview
     await waitFor(() => {
       const preview = screen.getByText(/A{100}\.\.\./)
       expect(preview).toBeInTheDocument()
-    })
+    }, { timeout: 1000 })
   })
 
   it('should show loading state during search', async () => {
@@ -546,19 +522,17 @@ describe('SearchHistoryView', () => {
     }, { timeout: 2000 })
     
     const searchInput = screen.getByPlaceholderText('Search notes...')
-    await act(async () => {
-      await user.type(searchInput, 'test')
-    })
+    await user.type(searchInput, 'test')
     
-    vi.advanceTimersByTime(300)
+    // Wait for debounce, then check for loading spinner
+    await waitFor(() => {
+      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument()
+    }, { timeout: 1000 })
     
-    // Should show loading spinner
-    expect(screen.getByTestId('loading-spinner')).toBeInTheDocument()
-    
-    // Complete the search
-    await act(async () => {
-      vi.advanceTimersByTime(100)
-    })
+    // Wait for search to complete
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument()
+    }, { timeout: 1000 })
   })
 
   it('should handle load more notes', async () => {

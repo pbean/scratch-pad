@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '../../../test/test-utils'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '../../../test/userEvent-utils'
 import { SettingsView } from '../SettingsView'
 import { useScratchPadStore } from '../../../lib/store'
 
@@ -18,7 +18,7 @@ const mockSettings = {
 }
 
 describe('SettingsView', () => {
-  let user: Awaited<ReturnType<typeof userEvent.setup>>
+  let user: Awaited<ReturnType<typeof setupUser>>
 
   // Helper functions for input operations with userEvent
   const clearInput = async (element: HTMLElement) => {
@@ -38,10 +38,8 @@ describe('SettingsView', () => {
     URL.createObjectURL = vi.fn(() => 'blob:mock-url')
     URL.revokeObjectURL = vi.fn()
     
-    // Configure userEvent with pointerEventsCheck disabled to avoid errors
-    user = await userEvent.setup({
-      pointerEventsCheck: 0
-    })
+    // Configure userEvent without fake timers
+    user = await setupUser()
     
     // Complete store initialization with ALL properties for React 19
     useScratchPadStore.setState({

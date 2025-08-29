@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, act } from '../../test/test-utils'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '../../test/userEvent-utils'
 import { ScratchPadApp } from '../ScratchPadApp'
 import { useScratchPadStore } from '../../lib/store'
 import { invoke } from '@tauri-apps/api/core'
@@ -67,13 +67,11 @@ vi.mock('../ui/loading', () => ({
 }))
 
 describe('ScratchPadApp', () => {
-  let user: Awaited<ReturnType<typeof userEvent.setup>>
+  let user: Awaited<ReturnType<typeof setupUser>>
 
   beforeEach(async () => {
-    // Configure userEvent with pointerEventsCheck disabled
-    user = await userEvent.setup({
-      pointerEventsCheck: 0
-    })
+    // Configure userEvent without fake timers
+    user = await setupUser()
     
     // Reset store state
     useScratchPadStore.setState({
