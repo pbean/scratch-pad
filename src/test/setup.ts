@@ -80,14 +80,27 @@ beforeAll(() => {
   // Enhanced getComputedStyle mock for better React Testing Library compatibility
   const originalGetComputedStyle = window.getComputedStyle
   window.getComputedStyle = vi.fn().mockImplementation((element) => {
+    // Create a default result object
+    const defaultResult = {
+      getPropertyValue: (prop: string) => {
+        if (prop === 'pointer-events') return 'auto'
+        if (prop === 'display') return 'block'
+        if (prop === 'visibility') return 'visible'
+        if (prop === 'opacity') return '1'
+        return ''
+      },
+      visibility: 'visible',
+      display: 'block',
+      pointerEvents: 'auto',
+      opacity: '1',
+      cssText: '',
+      length: 0,
+      parentRule: null,
+    }
+    
     // Check if element is valid
     if (!element) {
-      return {
-        getPropertyValue: () => '',
-        visibility: 'visible',
-        display: 'block',
-        pointerEvents: 'auto',
-      }
+      return defaultResult
     }
     
     // For textarea elements, ensure they're visible
@@ -110,23 +123,8 @@ beforeAll(() => {
       }
     }
     
-    // Default return for other elements
-    return {
-      getPropertyValue: (prop: string) => {
-        if (prop === 'pointer-events') return 'auto'
-        if (prop === 'display') return 'block'
-        if (prop === 'visibility') return 'visible'
-        if (prop === 'opacity') return '1'
-        return ''
-      },
-      pointerEvents: 'auto',
-      display: 'block',
-      visibility: 'visible',
-      opacity: '1',
-      cssText: '',
-      length: 0,
-      parentRule: null,
-    }
+    // Default return for other elements - use defaultResult to ensure consistency
+    return defaultResult
   })
   
   // Set on global as well

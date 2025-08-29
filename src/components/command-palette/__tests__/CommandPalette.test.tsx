@@ -447,14 +447,15 @@ describe('CommandPalette', () => {
     // Wait for commands to render
     await screen.findByText('Search History')
     
-    // Icons should be present - check for icon test ids from mocked lucide-react
-    const searchIcon = screen.getByTestId('search')
-    const fileTextIcon = screen.getByTestId('file-text')
-    const settingsIcon = screen.getByTestId('settings')
+    // Icons should be present - use getAllBy since multiple of same icon may exist
+    const searchIcons = screen.getAllByTestId('search')
+    const fileTextIcons = screen.getAllByTestId('file-text')
+    const settingsIcons = screen.getAllByTestId('settings')
     
-    expect(searchIcon).toBeInTheDocument()
-    expect(fileTextIcon).toBeInTheDocument()
-    expect(settingsIcon).toBeInTheDocument()
+    // At least one of each icon should be present
+    expect(searchIcons.length).toBeGreaterThan(0)
+    expect(fileTextIcons.length).toBeGreaterThan(0)
+    expect(settingsIcons.length).toBeGreaterThan(0)
   })
 
   it('should apply correct styling', async () => {
