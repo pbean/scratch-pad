@@ -4,7 +4,7 @@
 
 use crate::database::DbService;
 use crate::error::AppError;
-use crate::models::{Note, NoteFormat};
+use crate::models::NoteFormat;
 use std::sync::Arc;
 use tempfile::NamedTempFile;
 
@@ -304,7 +304,7 @@ async fn test_special_characters_and_escaping() -> Result<(), AppError> {
     ];
     
     let mut created_notes = Vec::new();
-    for (i, content) in special_chars.iter().enumerate() {
+    for (_i, content) in special_chars.iter().enumerate() {
         let note = db_service.create_note(content.to_string()).await?;
         created_notes.push(note);
     }

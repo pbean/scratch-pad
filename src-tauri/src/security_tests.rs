@@ -83,7 +83,7 @@ mod security_tests {
             ];
 
             for win_path in &windows_paths {
-                let result = SecurityValidator::validate_export_path(win_path, Some(base_path));
+                let _result = SecurityValidator::validate_export_path(win_path, Some(base_path));
                 // This should fail on Windows, may succeed on Unix (which is fine)
                 #[cfg(windows)]
                 assert!(result.is_err(), "Should reject Windows dangerous path: {}", win_path);

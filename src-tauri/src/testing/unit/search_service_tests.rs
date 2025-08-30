@@ -5,7 +5,6 @@
 /// of search functionality while maintaining all security validation.
 
 use crate::error::AppError;
-use crate::models::NoteFormat;
 use crate::search::SearchService;
 use std::sync::Arc;
 use tokio;

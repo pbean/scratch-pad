@@ -1,6 +1,6 @@
 use scratch_pad_lib::{
     database::DbService,
-    models::{Note, NoteFormat},
+    models::NoteFormat,
     search::SearchService,
     settings::SettingsService,
 };
@@ -103,7 +103,7 @@ async fn test_fts5_search_integration() {
     assert_eq!(total_count, 2);
     
     // Test Boolean search
-    let (boolean_results, _total_count, complexity) = search_service
+    let (_boolean_results, _total_count, complexity) = search_service
         .search_notes_boolean_paginated("programming AND Rust", 0, 10).await.unwrap();
     assert!(complexity.operator_count > 0);
     

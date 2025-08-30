@@ -10,7 +10,6 @@ use scratch_pad_lib::{
     error::AppError,
     validation::SecurityValidator,
 };
-use std::path::PathBuf;
 use tempfile::tempdir;
 
 #[cfg(test)]

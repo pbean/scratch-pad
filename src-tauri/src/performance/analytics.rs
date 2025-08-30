@@ -2136,7 +2136,7 @@ mod tests {
 
     #[test]
     fn test_analytics_engine_creation() {
-        let engine = PerformanceAnalyticsEngine::new();
+        let _engine = PerformanceAnalyticsEngine::new();
         // Basic test to ensure engine can be created
         assert!(true);
     }

@@ -136,7 +136,7 @@ fn test_cross_platform_cli_parsing() {
         (vec!["scratch-pad", "Content\nwith\nnewlines"], Some("Content\nwith\nnewlines".to_string())),
     ];
     
-    for (args, expected_content) in test_cases {
+    for (_args, expected_content) in test_cases {
         // Simulate command line arguments
         let cli_args = CliArgs {
             content: expected_content.clone(),

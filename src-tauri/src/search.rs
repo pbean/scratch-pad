@@ -613,7 +613,7 @@ mod tests {
         ];
 
         for (content, _path) in test_notes {
-            let _ = search_service.db_service.create_note(content.to_string()).await?;
+            let _ = db_service.create_note(content.to_string()).await?;
         }
 
         // Test 1: Basic search
@@ -626,7 +626,7 @@ mod tests {
         assert!(total_count > 0, "Should have results");
 
         // Test 3: Boolean search
-        let (notes, total_count, complexity) = search_service.search_notes_boolean_paginated("programming AND rust", 0, 10).await?;
+        let (notes, _total_count, complexity) = search_service.search_notes_boolean_paginated("programming AND rust", 0, 10).await?;
         assert!(notes.len() <= 10, "Should respect page size");
         assert!(complexity.operator_count > 0, "Should detect operators");
 
@@ -650,10 +650,10 @@ mod tests {
         let search_service = SearchService::new(db_service.clone());
 
         // Create test data with rich metadata
-        let _ = search_service.db_service.create_note("Advanced Rust programming techniques".to_string()).await?;
-        let _ = search_service.db_service.create_note("JavaScript ES6 features and async patterns".to_string()).await?;
-        let _ = search_service.db_service.create_note("Database design patterns".to_string()).await?;
-        let _ = search_service.db_service.create_note("Python and machine learning tutorial".to_string()).await?;
+        let _ = db_service.create_note("Advanced Rust programming techniques".to_string()).await?;
+        let _ = db_service.create_note("JavaScript ES6 features and async patterns".to_string()).await?;
+        let _ = db_service.create_note("Database design patterns".to_string()).await?;
+        let _ = db_service.create_note("Python and machine learning tutorial".to_string()).await?;
 
         // Test complex Boolean queries
         let complex_query = "(rust OR javascript) AND programming";
@@ -736,7 +736,7 @@ mod integration_tests {
         let temp_dir = TempDir::new()?;
         let db_path = temp_dir.path().join("memory_test.db");
         let db_service = Arc::new(DbService::new(db_path)?);
-        let search_service = SearchService::new(db_service.clone());
+        let _search_service = SearchService::new(db_service.clone());
 
         // Create notes with varying content sizes
         for i in 1..=100 {

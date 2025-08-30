@@ -6,10 +6,9 @@
 
 use crate::AppState;
 use crate::database::DbService;
-use crate::error::{AppError, ApiError};
-use crate::models::{Note, NoteFormat};
+use crate::error::AppError;
+use crate::models::NoteFormat;
 use crate::validation::SecurityValidator;
-use crate::commands::{create_note, get_note, update_note, delete_note, get_all_notes, get_notes_paginated};
 use std::sync::Arc;
 use tempfile::NamedTempFile;
 use tokio;
@@ -119,7 +118,7 @@ mod note_command_tests {
         assert!(result.is_none());
         
         // Test deleting non-existent note (should not error)
-        let result = env.db_service.delete_note(99999).await;
+        let _result = env.db_service.delete_note(99999).await;
         // Note: depending on implementation, this might be Ok(()) or Err
         // The service layer should handle this gracefully
         
@@ -308,7 +307,7 @@ mod search_service_tests {
         env.db_service.create_note("Python programming basics".to_string()).await?;
         
         // Test Boolean search with AND
-        let (results, _total_count, complexity) = env.app_state.search
+        let (_results, _total_count, complexity) = env.app_state.search
             .search_notes_boolean_paginated("programming AND Rust", 0, 10).await?;
         
         // Should find the Rust programming note

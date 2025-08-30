@@ -1,6 +1,6 @@
 use scratch_pad_lib::{
     database::DbService,
-    models::{Note, NoteFormat},
+    models::NoteFormat,
     search::SearchService,
     settings::SettingsService,
 };
@@ -84,7 +84,7 @@ async fn test_search_ipc_commands_integration() {
     assert!(search_results.len() >= 2); // Should find "test" in multiple notes
     
     // Test basic search with fuzzy matching - Fixed: use search_notes instead of fuzzy_search
-    let fuzzy_results = state.search.search_notes("testin").await.unwrap(); // Partial match
+    let _fuzzy_results = state.search.search_notes("testin").await.unwrap(); // Partial match
     // Note: basic search may or may not find partial matches depending on implementation
     
     // Test paginated search - Fixed: use search_notes_paginated instead of combined_search
@@ -162,7 +162,7 @@ async fn test_settings_validation_integration() {
     let result = state.settings.set_setting("global_shortcut", "").await;
     assert!(result.is_err()); // Empty shortcut should fail validation
     
-    let result = state.settings.set_setting("layout_mode", "invalid_mode").await;
+    let _result = state.settings.set_setting("layout_mode", "invalid_mode").await;
     // Note: This might pass or fail depending on validation rules
     
     // Test very long setting value (should fail validation)
@@ -185,7 +185,7 @@ async fn test_error_handling_integration() {
     assert!(result.is_err());
     
     // Test deleting non-existent note (should not error)
-    let result = state.db.delete_note(99999).await;
+    let _result = state.db.delete_note(99999).await;
     // Note: This might be Ok(()) or Err depending on implementation
     
     // Test empty search query

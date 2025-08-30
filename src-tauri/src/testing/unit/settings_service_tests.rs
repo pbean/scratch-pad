@@ -5,7 +5,7 @@
 /// of settings functionality while maintaining all security validation.
 
 use crate::error::AppError;
-use crate::settings::{SettingsService, get_default_settings};
+use crate::settings::SettingsService;
 use std::sync::Arc;
 use tokio;
 
