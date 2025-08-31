@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, act } from '../../test/test-utils'
+import { render, screen, waitFor } from '../../test/test-utils'
 import { setupUser } from '../../test/userEvent-utils'
 import { ScratchPadApp } from '../ScratchPadApp'
 import { useScratchPadStore } from '../../lib/store'

@@ -18,6 +18,8 @@ function render(
 
 // Re-export everything from testing-library/react
 export * from '@testing-library/react'
+// Re-export expect from vitest for convenience
+export { expect } from 'vitest'
 
 // Export our custom render function
 export { render }

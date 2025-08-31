@@ -11,8 +11,8 @@ import React, { useState, useEffect, useCallback, useMemo } from "react"
 import {
   Lightbulb,
   Zap,
-  TrendingUp,
-  Clock,
+  // TrendingUp,
+  // Clock,
   MemoryStick,
   Database,
   MonitorSpeaker,
@@ -22,12 +22,12 @@ import {
   CheckCircle,
   AlertTriangle,
   Info,
-  Play,
-  Pause,
+  // Play,
+  // Pause,
   RotateCcw,
   Download,
   Filter,
-  Star,
+  // Star,
   Target
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
@@ -36,7 +36,7 @@ import { Button } from "../ui/button"
 import { Switch } from "../ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Progress } from "../ui/progress"
-import { Separator } from "../ui/separator"
+// import { Separator } from "../ui/separator"
 import { LoadingSpinner } from "../ui/loading"
 import { useToast } from "../ui/toast"
 import {
@@ -89,6 +89,21 @@ interface OptimizationFilters {
   hideImplemented: boolean
 }
 
+interface DatabasePerformanceMetrics {
+  avg_query_time: number
+  total_queries: number
+  slow_queries: number
+  cache_hit_rate: number
+}
+
+interface PerformanceAnalyticsReport {
+  database_performance?: DatabasePerformanceMetrics
+  memory_usage?: number
+  cpu_usage?: number
+  response_times?: number[]
+  error_rate?: number
+}
+
 // ============================================================================
 // OPTIMIZATION RECOMMENDATIONS COMPONENT
 // ============================================================================
@@ -119,7 +134,7 @@ export function OptimizationRecommendations() {
   const generateRecommendations = useCallback(async (): Promise<OptimizationRecommendation[]> => {
     try {
       const [analyticsReport, detailedMetrics] = await Promise.all([
-        fetchReport(1).catch(() => null), // Last hour
+        fetchReport(1).catch(() => null as PerformanceAnalyticsReport | null), // Last hour
         fetchMetrics({ periodHours: 1, includeDetails: true }).catch(() => null)
       ])
 
