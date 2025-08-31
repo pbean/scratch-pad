@@ -69,4 +69,4 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: `${emoji} Build ${status}. Check the [Actions tab](https://github.com/${context.repo.owner}/${context.repo.repo}/actions) for details.`
-            });
+            })

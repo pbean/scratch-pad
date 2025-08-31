@@ -539,8 +539,8 @@ mod tests {
         let note1 = Note {
             id: 1,
             content: "Rust programming tutorial".to_string(),
-            created_at: "2025-01-01 00:00:00".to_string(),
-            updated_at: "2025-01-01 00:00:00".to_string(),
+            created_at: "2025-08-01 00:00:00".to_string(),
+            updated_at: "2025-08-01 00:00:00".to_string(),
             is_favorite: false,
             format: crate::models::NoteFormat::PlainText,
             nickname: Some("Rust Guide".to_string()),
@@ -550,8 +550,8 @@ mod tests {
         let note2 = Note {
             id: 2,
             content: "JavaScript basics".to_string(),
-            created_at: "2025-01-01 00:00:00".to_string(),
-            updated_at: "2025-01-01 00:00:00".to_string(),
+            created_at: "2025-08-01 00:00:00".to_string(),
+            updated_at: "2025-08-01 00:00:00".to_string(),
             is_favorite: false,
             format: crate::models::NoteFormat::PlainText,
             nickname: Some("JS Guide".to_string()),

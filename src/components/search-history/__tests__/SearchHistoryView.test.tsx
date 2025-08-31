@@ -184,7 +184,7 @@ describe('SearchHistoryView', () => {
    * 
    * Re-enable when: @testing-library/user-event is updated with React 19 compatibility fix
    * 
-   * Disabled: 2025-01-29 during React 19 migration
+   * Disabled: 2025-08-29 during React 19 migration
    * Tracking: See docs/todos/react-19-testing-library-compatibility.md for details
    */
   it.skip('should render header with back button', async () => {
@@ -250,7 +250,7 @@ describe('SearchHistoryView', () => {
    * 
    * Re-enable when: @testing-library/user-event is updated with React 19 compatibility fix
    * 
-   * Disabled: 2025-01-29 during React 19 migration
+   * Disabled: 2025-08-29 during React 19 migration
    * Tracking: See docs/todos/react-19-testing-library-compatibility.md for details
    */
   it.skip('should show last modified times', async () => {
@@ -369,7 +369,7 @@ describe('SearchHistoryView', () => {
    * 
    * Re-enable when: @testing-library/user-event is updated with React 19 compatibility fix
    * 
-   * Disabled: 2025-01-29 during React 19 migration
+   * Disabled: 2025-08-29 during React 19 migration
    * Tracking: See docs/todos/react-19-testing-library-compatibility.md for details
    */
   it.skip('should open note with Enter key', async () => {
@@ -464,7 +464,7 @@ describe('SearchHistoryView', () => {
    * 
    * Re-enable when: @testing-library/user-event is updated with React 19 compatibility fix
    * 
-   * Disabled: 2025-01-29 during React 19 migration
+   * Disabled: 2025-08-29 during React 19 migration
    * Tracking: See docs/todos/react-19-testing-library-compatibility.md for details
    */
   it.skip('should handle back button click', async () => {
@@ -497,7 +497,7 @@ describe('SearchHistoryView', () => {
    * 
    * Re-enable when: @testing-library/user-event is updated with React 19 compatibility fix
    * 
-   * Disabled: 2025-01-29 during React 19 migration
+   * Disabled: 2025-08-29 during React 19 migration
    * Tracking: See docs/todos/react-19-testing-library-compatibility.md for details
    */
   it.skip('should show "No notes available" when no notes', async () => {

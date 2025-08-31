@@ -112,8 +112,8 @@ const updatedNote = await invoke('update_note', {
   note: {
     id: 1,
     content: 'Updated content',
-    created_at: '2025-01-20T10:00:00Z',
-    updated_at: '2025-01-20T11:00:00Z',
+    created_at: '2025-08-20T10:00:00Z',
+    updated_at: '2025-08-20T11:00:00Z',
     is_pinned: false
   }
 });

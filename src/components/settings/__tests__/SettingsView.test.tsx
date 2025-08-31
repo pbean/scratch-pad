@@ -148,7 +148,7 @@ describe('SettingsView', () => {
    * Re-enable when: @testing-library/user-event is updated with React 19 compatibility fix
    * or the isVisible.js loop condition bug is patched
    * 
-   * Disabled: 2025-01-29 during React 19 migration
+   * Disabled: 2025-08-29 during React 19 migration
    * Tracking: See docs/todos/react-19-testing-library-compatibility.md for details
    */
   it.skip('should render all settings sections', async () => {
