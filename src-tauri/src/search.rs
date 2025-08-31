@@ -3,6 +3,7 @@
 use crate::database::DbService;
 use crate::error::AppError;
 use crate::models::Note;
+use crate::validation::SecurityValidator;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -70,9 +71,12 @@ impl QueryParser {
     }
 
     pub fn parse(&self, query: &str) -> Result<ParsedQuery, AppError> {
+        // SECURITY FIX: Sanitize input to prevent null byte injection and memory corruption
+        let sanitized_query = SecurityValidator::sanitize_for_database(query);
+        
         let mut parsed = ParsedQuery {
-            original: query.to_string(),
-            fts_query: query.to_string(),
+            original: sanitized_query.clone(),
+            fts_query: sanitized_query.clone(),
             has_boolean: false,
             complexity: 0,
             field_filters: HashMap::new(),
@@ -84,33 +88,33 @@ impl QueryParser {
         };
 
         // Count terms - Fixed: collect the iterator to get length
-        parsed.term_count = query.split_whitespace().collect::<Vec<_>>().len() as u32;
+        parsed.term_count = sanitized_query.split_whitespace().collect::<Vec<_>>().len() as u32;
 
         // Check for Boolean operators
-        if self.and_pattern.is_match(query) {
+        if self.and_pattern.is_match(&sanitized_query) {
             parsed.has_boolean = true;
             parsed.complexity += 2;
-            parsed.operator_count += query.matches("AND").count() as u32;
+            parsed.operator_count += sanitized_query.matches("AND").count() as u32;
         }
-        if self.or_pattern.is_match(query) {
+        if self.or_pattern.is_match(&sanitized_query) {
             parsed.has_boolean = true;
             parsed.complexity += 2;
-            parsed.operator_count += query.matches("OR").count() as u32;
+            parsed.operator_count += sanitized_query.matches("OR").count() as u32;
         }
-        if self.not_pattern.is_match(query) {
+        if self.not_pattern.is_match(&sanitized_query) {
             parsed.has_boolean = true;
             parsed.complexity += 2;
-            parsed.operator_count += query.matches("NOT").count() as u32;
+            parsed.operator_count += sanitized_query.matches("NOT").count() as u32;
         }
 
         // Check for phrase queries
-        if self.phrase_pattern.is_match(query) {
+        if self.phrase_pattern.is_match(&sanitized_query) {
             parsed.complexity += 1;
             parsed.has_phrase_searches = true;
         }
 
         // Check for field queries
-        for cap in self.field_pattern.captures_iter(query) {
+        for cap in self.field_pattern.captures_iter(&sanitized_query) {
             if let (Some(field), Some(value)) = (cap.get(1), cap.get(2)) {
                 parsed.field_filters.insert(field.as_str().to_string(), value.as_str().to_string());
                 parsed.complexity += 1;
@@ -119,16 +123,18 @@ impl QueryParser {
         }
 
         // Count nesting depth
-        parsed.nesting_depth = self.calculate_nesting_depth(query);
+        parsed.nesting_depth = self.calculate_nesting_depth(&sanitized_query);
 
         // Convert to FTS5-compatible query
-        parsed.fts_query = self.convert_to_fts5(query)?;
+        parsed.fts_query = self.convert_to_fts5(&sanitized_query)?;
 
         Ok(parsed)
     }
 
     fn convert_to_fts5(&self, query: &str) -> Result<String, AppError> {
-        let mut fts_query = query.to_string();
+        // SECURITY FIX: Input is already sanitized by caller, but double-check for safety
+        let sanitized_query = SecurityValidator::sanitize_for_database(query);
+        let mut fts_query = sanitized_query;
         
         // Convert Boolean operators to FTS5 format
         fts_query = self.and_pattern.replace_all(&fts_query, "AND").to_string();
@@ -194,18 +200,21 @@ impl SearchService {
 
     /// Basic fuzzy search across all notes
     pub async fn search_notes(&self, query: &str) -> Result<Vec<Note>, AppError> {
-        if query.trim().is_empty() {
+        // SECURITY FIX: Sanitize input to prevent null byte injection and memory corruption
+        let sanitized_query = SecurityValidator::sanitize_for_database(query);
+        
+        if sanitized_query.trim().is_empty() {
             return Ok(Vec::new());
         }
 
         // Get all notes from database
         let all_notes = self.db_service.get_all_notes().await?;
 
-        // Perform fuzzy matching
+        // Perform fuzzy matching using sanitized query
         let mut scored_notes: Vec<(Note, i64)> = all_notes
             .into_iter()
             .filter_map(|note| {
-                if let Some(score) = fuzzy_matcher::FuzzyMatcher::fuzzy_match(&self.fuzzy_matcher, &note.content, query) {
+                if let Some(score) = fuzzy_matcher::FuzzyMatcher::fuzzy_match(&self.fuzzy_matcher, &note.content, &sanitized_query) {
                     Some((note, score))
                 } else {
                     None
@@ -228,13 +237,16 @@ impl SearchService {
         page: usize,
         page_size: usize,
     ) -> Result<(Vec<Note>, usize), AppError> {
-        if query.trim().is_empty() {
+        // SECURITY FIX: Sanitize input to prevent null byte injection and memory corruption
+        let sanitized_query = SecurityValidator::sanitize_for_database(query);
+        
+        if sanitized_query.trim().is_empty() {
             return Ok((Vec::new(), 0));
         }
 
-        // Use FTS5 for fast full-text search
+        // Use FTS5 for fast full-text search with sanitized query
         let offset = page * page_size;
-        let (notes, total_count_i64) = self.db_service.search_notes_paginated(query, offset as i64, page_size as i64).await?;
+        let (notes, total_count_i64) = self.db_service.search_notes_paginated(&sanitized_query, offset as i64, page_size as i64).await?;
         
         // Fix: Convert i64 to usize safely
         let total_count = total_count_i64.max(0) as usize;
@@ -250,7 +262,10 @@ impl SearchService {
         page: usize,
         page_size: usize,
     ) -> Result<(Vec<Note>, usize, QueryValidation), AppError> {
-        if query.trim().is_empty() {
+        // SECURITY FIX: Sanitize input to prevent null byte injection and memory corruption
+        let sanitized_query = SecurityValidator::sanitize_for_database(query);
+        
+        if sanitized_query.trim().is_empty() {
             let empty_complexity = QueryValidation {
                 is_valid: true,
                 error_message: None,
@@ -265,8 +280,8 @@ impl SearchService {
             return Ok((Vec::new(), 0, empty_complexity));
         }
 
-        // Parse the Boolean query
-        let parsed_query = self.query_parser.parse(query)?;
+        // Parse the Boolean query (parser will handle sanitization internally)
+        let parsed_query = self.query_parser.parse(&sanitized_query)?;
         
         // Use the FTS5-compatible query for database search
         let offset = page * page_size;
@@ -298,7 +313,10 @@ impl SearchService {
 
     /// Validate Boolean search query complexity
     pub fn validate_boolean_search_query(&self, query: &str) -> Result<QueryValidation, AppError> {
-        if query.trim().is_empty() {
+        // SECURITY FIX: Sanitize input to prevent null byte injection and memory corruption
+        let sanitized_query = SecurityValidator::sanitize_for_database(query);
+        
+        if sanitized_query.trim().is_empty() {
             return Ok(QueryValidation {
                 is_valid: false,
                 error_message: Some("Query cannot be empty".to_string()),
@@ -312,8 +330,8 @@ impl SearchService {
             });
         }
 
-        // Parse query to check for validity
-        match self.query_parser.parse(query) {
+        // Parse query to check for validity (parser will handle sanitization internally)
+        match self.query_parser.parse(&sanitized_query) {
             Ok(parsed) => {
                 let mut is_valid = true;
                 let mut error_message = None;
@@ -323,12 +341,12 @@ impl SearchService {
                 if parsed.complexity > 10 {
                     is_valid = false;
                     error_message = Some("Query too complex. Please simplify your search.".to_string());
-                    suggested_query = Some(self.simplify_query(query));
+                    suggested_query = Some(self.simplify_query(&sanitized_query));
                 }
 
                 // Check for balanced parentheses
-                let open_count = query.matches('(').count();
-                let close_count = query.matches(')').count();
+                let open_count = sanitized_query.matches('(').count();
+                let close_count = sanitized_query.matches(')').count();
                 if open_count != close_count {
                     is_valid = false;
                     error_message = Some("Unbalanced parentheses in query".to_string());
@@ -350,7 +368,7 @@ impl SearchService {
                 is_valid: false,
                 error_message: Some(e.to_string()),
                 complexity_score: 0,
-                suggested_query: Some(self.simplify_query(query)),
+                suggested_query: Some(self.simplify_query(&sanitized_query)),
                 term_count: 0,
                 operator_count: 0,
                 nesting_depth: 0,
@@ -451,6 +469,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_null_byte_sanitization() {
+        let db_service = create_test_db();
+        let search_service = SearchService::new(db_service.clone());
+        
+        // Create test note
+        let _ = db_service.create_note("Test content for search".to_string()).await.unwrap();
+        
+        // Test queries with null bytes - should not cause SIGBUS
+        let null_byte_queries = vec![
+            "test\0query",
+            "search\0\0content", 
+            "\0malicious\0query\0",
+            "normal AND \0injection",
+            "\0\0\0\0",
+        ];
+        
+        for query in null_byte_queries {
+            // These should not panic or cause SIGBUS due to sanitization
+            let result = search_service.search_notes_paginated(query, 0, 10).await;
+            assert!(result.is_ok(), "Search with null bytes should not fail: {:?}", query.as_bytes());
+            
+            let boolean_result = search_service.search_notes_boolean_paginated(query, 0, 10).await;
+            assert!(boolean_result.is_ok(), "Boolean search with null bytes should not fail: {:?}", query.as_bytes());
+            
+            let validation = search_service.validate_boolean_search_query(query);
+            assert!(validation.is_ok(), "Query validation with null bytes should not fail: {:?}", query.as_bytes());
+        }
+    }
+
+    #[tokio::test]
     async fn test_query_parser() {
         let parser = QueryParser::new();
         
@@ -484,6 +532,13 @@ mod tests {
         assert_eq!(parsed.complexity, 1);
         assert!(parsed.field_filters.contains_key("content"));
         assert!(parsed.has_field_searches);
+        
+        // Test query with null bytes - should be sanitized
+        let result = parser.parse("rust\0AND\0programming");
+        assert!(result.is_ok());
+        let parsed = result.unwrap();
+        assert!(!parsed.original.contains('\0'), "Sanitized query should not contain null bytes");
+        assert!(!parsed.fts_query.contains('\0'), "FTS5 query should not contain null bytes");
     }
 
     #[tokio::test]
@@ -510,6 +565,12 @@ mod tests {
         let validation = result.unwrap();
         assert!(!validation.is_valid);
         assert!(validation.error_message.is_some());
+        
+        // Test query with null bytes - should be sanitized but still validated
+        let result = search_service.validate_boolean_search_query("rust\0AND\0programming");
+        assert!(result.is_ok());
+        let validation = result.unwrap();
+        assert!(validation.is_valid, "Sanitized null byte query should be valid");
     }
 
     #[tokio::test]
