@@ -85,7 +85,7 @@ describe('CommandPalette', () => {
       loadNotes: vi.fn(),
       updateNote: vi.fn(),
       deleteNote: vi.fn(),
-      setActiveNoteId: vi.fn(),
+      setActiveNote: vi.fn(),
       updateNoteContent: vi.fn(),
       searchNotes: vi.fn(),
       addToSearchHistory: vi.fn(),

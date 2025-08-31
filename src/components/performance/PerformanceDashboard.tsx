@@ -6,7 +6,7 @@
  * Week 3 Day 9 Implementation: Performance Monitoring Dashboard
  */
 
-// import React, { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import {
   Activity,
   AlertTriangle,

@@ -7,7 +7,7 @@
  * Week 3 Day 9 Implementation: Alert System Component
  */
 
-// import React, { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import {
   AlertTriangle,
   AlertCircle,

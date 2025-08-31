@@ -42,7 +42,7 @@ import { useToast } from "../ui/toast"
 import {
   usePerformanceAnalytics,
   useRealTimePerformanceMonitoring,
-  type AdvancedPerformanceMetrics
+  // type AdvancedPerformanceMetrics
 } from "../../hooks/useAdvancedPerformanceMonitor"
 
 // ============================================================================
@@ -133,7 +133,7 @@ export function OptimizationRecommendations() {
 
   const generateRecommendations = useCallback(async (): Promise<OptimizationRecommendation[]> => {
     try {
-      const [analyticsReport, detailedMetrics] = await Promise.all([
+      const [analyticsReport] = await Promise.all([
         fetchReport(1).catch(() => null as PerformanceAnalyticsReport | null), // Last hour
         fetchMetrics({ periodHours: 1, includeDetails: true }).catch(() => null)
       ])
@@ -470,14 +470,14 @@ export function OptimizationRecommendations() {
   // UTILITY FUNCTIONS
   // ============================================================================
 
-  const getPriorityColor = (priority: string): string => {
+  /* const getPriorityColor = (priority: string): string => {
     switch (priority) {
       case 'high': return 'text-red-600'
       case 'medium': return 'text-yellow-600'
       case 'low': return 'text-green-600'
       default: return 'text-muted-foreground'
     }
-  }
+  } */
 
   const getPriorityBadgeVariant = (priority: string): "default" | "secondary" | "destructive" => {
     switch (priority) {
