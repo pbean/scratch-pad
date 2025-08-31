@@ -59,12 +59,11 @@ describe('CommandPalette', () => {
       currentView: 'note',
       isCommandPaletteOpen: false,
       expandedFolders: new Set(),
-      theme: 'light',
       
       // Notes State
       notes: [mockNote],
       activeNoteId: 1,
-      noteContents: { 1: 'Test note content' },
+      // noteContents: { 1: 'Test note content' },
       isLoading: false,
       
       // Search State
@@ -86,7 +85,7 @@ describe('CommandPalette', () => {
       loadNotes: vi.fn(),
       updateNote: vi.fn(),
       deleteNote: vi.fn(),
-      setActiveNoteId: vi.fn(),
+      setActiveNote: vi.fn(),
       updateNoteContent: vi.fn(),
       searchNotes: vi.fn(),
       addToSearchHistory: vi.fn(),

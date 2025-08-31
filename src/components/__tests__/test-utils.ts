@@ -8,7 +8,7 @@
  * - Async operation testing
  */
 
-import { vi } from 'vitest'
+import { vi, expect } from 'vitest';
 
 // Toast mock utilities
 export const createMockToast = () => ({

@@ -6,7 +6,7 @@
  * Week 3 Day 9 Implementation: Performance Monitoring Dashboard
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import {
   Activity,
   AlertTriangle,
@@ -36,7 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert"
 import { Progress } from "../ui/progress"
-import { Separator } from "../ui/separator"
+// import { Separator } from "../ui/separator"
 import { LoadingSpinner } from "../ui/loading"
 import { useToast } from "../ui/toast"
 import {

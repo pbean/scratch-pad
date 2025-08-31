@@ -7,7 +7,7 @@
  * Week 3 Day 9 Implementation: Alert System Component
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import {
   AlertTriangle,
   AlertCircle,
@@ -15,7 +15,7 @@ import {
   XCircle,
   CheckCircle,
   Bell,
-  BellOff,
+  // BellOff,
   Settings,
   X,
   Clock,
@@ -32,7 +32,7 @@ import { Switch } from "../ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert"
 import { Progress } from "../ui/progress"
-import { Separator } from "../ui/separator"
+// import { Separator } from "../ui/separator"
 import { LoadingSpinner } from "../ui/loading"
 import { useToast } from "../ui/toast"
 import {

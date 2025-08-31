@@ -159,9 +159,12 @@ describe('SearchHistoryView', () => {
       isWindowVisible: vi.fn().mockResolvedValue(true),
       isWindowFocused: vi.fn().mockResolvedValue(true),
       initializeSettings: vi.fn().mockResolvedValue(undefined),
-      getSettings: vi.fn().mockResolvedValue({}),
-      updateSettings: vi.fn().mockResolvedValue(undefined),
-      resetSettings: vi.fn().mockResolvedValue(undefined)
+      getAllSettings: vi.fn().mockResolvedValue({}),
+      getSetting: vi.fn().mockResolvedValue(null),
+      setSetting: vi.fn().mockResolvedValue(undefined),
+      exportSettings: vi.fn().mockResolvedValue('{}'),
+      importSettings: vi.fn().mockResolvedValue(0),
+      resetSettingsToDefaults: vi.fn().mockResolvedValue(undefined)
     })
   })
 

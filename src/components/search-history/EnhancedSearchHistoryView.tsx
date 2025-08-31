@@ -5,7 +5,7 @@
  * Integrates VirtualizedSearchResults for optimal performance and UX.
  */
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
+import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { 
   ChevronRight, 
   ChevronDown, 
