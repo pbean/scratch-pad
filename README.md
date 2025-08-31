@@ -6,6 +6,7 @@
 
 **A floating, keyboard-driven notepad designed for developers**
 
+![CI](https://github.com/paulb/scratch-pad/actions/workflows/ci.yml/badge.svg)
 [![GitHub release](https://img.shields.io/github/v/release/pinkydprojects/scratch-pad)](https://github.com/pinkydprojects/scratch-pad/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform Support](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](https://github.com/pinkydprojects/scratch-pad/releases)
