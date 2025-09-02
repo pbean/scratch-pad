@@ -151,7 +151,7 @@ Consider setting up automation for binary package updates:
 #!/bin/bash
 # update-aur.sh - Script to update AUR packages
 
-LATEST_VERSION=$(curl -s https://api.github.com/repos/pinkydprojects/scratch-pad/releases/latest | jq -r .tag_name | sed 's/v//')
+LATEST_VERSION=$(curl -s https://api.github.com/repos/paulb/scratch-pad/releases/latest | jq -r .tag_name | sed 's/v//')
 CURRENT_VERSION=$(grep pkgver PKGBUILD | cut -d'=' -f2)
 
 if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then

@@ -29,7 +29,7 @@ This guide provides detailed installation instructions for Scratch Pad across al
 
 ## Download
 
-Visit the [Releases page](https://github.com/pinkydprojects/scratch-pad/releases) to download the latest version for your platform.
+Visit the [Releases page](https://github.com/paulb/scratch-pad/releases) to download the latest version for your platform.
 
 ### Available Downloads
 
@@ -106,7 +106,7 @@ Visit the [Releases page](https://github.com/pinkydprojects/scratch-pad/releases
 
 ```bash
 # Download the DEB package
-wget https://github.com/pinkydprojects/scratch-pad/releases/latest/download/scratch-pad_0.3.0_amd64.deb
+wget https://github.com/paulb/scratch-pad/releases/latest/download/scratch-pad_0.3.0_amd64.deb
 
 # Install the package
 sudo dpkg -i scratch-pad_0.3.0_amd64.deb
@@ -122,7 +122,7 @@ scratch-pad
 
 ```bash
 # Download the AppImage
-wget https://github.com/pinkydprojects/scratch-pad/releases/latest/download/scratch-pad_0.3.0_amd64.AppImage
+wget https://github.com/paulb/scratch-pad/releases/latest/download/scratch-pad_0.3.0_amd64.AppImage
 
 # Make it executable
 chmod +x scratch-pad_0.3.0_amd64.AppImage
@@ -323,7 +323,7 @@ yay -R scratch-pad
 If you encounter installation issues:
 
 1. Check the [Troubleshooting section](#troubleshooting-installation) above
-2. Visit our [GitHub Issues](https://github.com/pinkydprojects/scratch-pad/issues) page
+2. Visit our [GitHub Issues](https://github.com/paulb/scratch-pad/issues) page
 3. Create a new issue with:
    - Your operating system and version
    - Installation method attempted
@@ -332,4 +332,4 @@ If you encounter installation issues:
 
 ---
 
-**Need Help?** Visit our [GitHub repository](https://github.com/pinkydprojects/scratch-pad) for support and documentation.
+**Need Help?** Visit our [GitHub repository](https://github.com/paulb/scratch-pad) for support and documentation.

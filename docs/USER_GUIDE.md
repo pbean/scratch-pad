@@ -19,7 +19,7 @@ Welcome to Scratch Pad - a floating, keyboard-driven notepad designed specifical
 
 ### Windows
 
-1. Download the latest `.msi` installer from the [Releases page](https://github.com/pinkydprojects/scratch-pad/releases)
+1. Download the latest `.msi` installer from the [Releases page](https://github.com/paulb/scratch-pad/releases)
 2. Run the installer and follow the setup wizard
 3. Launch Scratch Pad from the Start Menu or desktop shortcut
 
@@ -30,7 +30,7 @@ Welcome to Scratch Pad - a floating, keyboard-driven notepad designed specifical
 
 ### macOS
 
-1. Download the latest `.dmg` file from the [Releases page](https://github.com/pinkydprojects/scratch-pad/releases)
+1. Download the latest `.dmg` file from the [Releases page](https://github.com/paulb/scratch-pad/releases)
 2. Open the DMG file and drag Scratch Pad to your Applications folder
 3. Launch from Applications or Spotlight search
 
@@ -45,7 +45,7 @@ Welcome to Scratch Pad - a floating, keyboard-driven notepad designed specifical
 
 ```bash
 # Download the .deb file from releases
-wget https://github.com/pinkydprojects/scratch-pad/releases/latest/download/scratch-pad_0.3.0_amd64.deb
+wget https://github.com/paulb/scratch-pad/releases/latest/download/scratch-pad_0.3.0_amd64.deb
 
 # Install the package
 sudo dpkg -i scratch-pad_0.3.0_amd64.deb
@@ -58,7 +58,7 @@ sudo apt-get install -f
 
 ```bash
 # Download the AppImage
-wget https://github.com/pinkydprojects/scratch-pad/releases/latest/download/scratch-pad_0.3.0_amd64.AppImage
+wget https://github.com/paulb/scratch-pad/releases/latest/download/scratch-pad_0.3.0_amd64.AppImage
 
 # Make it executable
 chmod +x scratch-pad_0.3.0_amd64.AppImage
@@ -295,7 +295,7 @@ The terminal integration works consistently across all platforms:
 
 If you encounter issues not covered here:
 
-1. **Check the Issues**: Visit our [GitHub Issues](https://github.com/pinkydprojects/scratch-pad/issues) page
+1. **Check the Issues**: Visit our [GitHub Issues](https://github.com/paulb/scratch-pad/issues) page
 2. **Create a Bug Report**: Use our issue template to report bugs
 3. **Feature Requests**: Suggest new features through GitHub Issues
 4. **Community Support**: Join discussions in our GitHub repository
@@ -345,7 +345,7 @@ A: Yes, uninstalling the application will remove all data, or you can manually d
 
 ## Support
 
-For additional support, please visit our [GitHub repository](https://github.com/pinkydprojects/scratch-pad) or check the [documentation](https://github.com/pinkydprojects/scratch-pad/tree/main/docs).
+For additional support, please visit our [GitHub repository](https://github.com/paulb/scratch-pad) or check the [documentation](https://github.com/paulb/scratch-pad/tree/main/docs).
 
 **Version**: 0.3.0  
 **Last Updated**: August 2025

@@ -73,7 +73,7 @@ Scratch Pad is a **floating, keyboard-driven notepad** desktop application desig
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/your-org/scratch-pad.git
+git clone https://github.com/paulb/scratch-pad.git
 cd scratch-pad
 
 # 2. Install dependencies

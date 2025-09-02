@@ -34,10 +34,11 @@ This project adheres to a code of conduct that we expect all contributors to fol
 Before contributing, ensure you have:
 
 - **Node.js** (v18 or later)
-- **pnpm** package manager
+- **pnpm** package manager (v9 or later)
 - **Rust** (latest stable)
 - **Git** for version control
 - **Code editor** (VS Code recommended)
+- **Claude Code** (optional, for agent-based development)
 
 ### Development Environment
 
@@ -72,12 +73,18 @@ scratch-pad/
 │   ├── hooks/             # Custom React hooks
 │   ├── lib/               # Utility libraries and store
 │   └── types/             # TypeScript type definitions
-├── src-tauri/             # Rust backend
-│   ├── src/               # Rust source code
-│   └── tests/             # Rust tests
-├── docs/                  # Documentation
-├── .github/workflows/     # CI/CD workflows
-└── .kiro/specs/          # Feature specifications
+├── src-tauri/             # Build output directory
+├── src/                   # Backend Rust source code
+│   ├── commands/          # Tauri IPC commands
+│   ├── db/                # Database operations
+│   ├── search/            # Search functionality
+│   └── services/          # Service layer
+├── docs/                  # User documentation
+├── internal-docs/         # Development documentation
+├── .claude/               # Claude Code configuration
+│   ├── agents/            # Agent definitions
+│   └── workflows/         # Development workflows
+└── .github/workflows/     # CI/CD workflows
 ```
 
 ### Available Scripts
@@ -92,14 +99,15 @@ pnpm build              # Build frontend
 pnpm tauri:build        # Build complete application
 
 # Testing
-pnpm test               # Run frontend tests
+pnpm test               # Run frontend tests (96.9% pass rate)
 pnpm test:watch         # Run tests in watch mode
-cd src-tauri && cargo test  # Run backend tests
+cargo test              # Run backend tests
 
 # Code Quality
 pnpm lint               # Run ESLint
 pnpm type-check         # TypeScript type checking
-pnpm format             # Format code with Prettier
+cargo fmt               # Format Rust code
+cargo clippy            # Run Rust linter
 ```
 
 ### Environment Configuration
@@ -110,6 +118,28 @@ Create a `.env.local` file for local development settings:
 # Optional: Custom development settings
 VITE_DEV_MODE=true
 ```
+
+## Contributing Guidelines
+
+### Agent-Based Development (Claude Code Users)
+
+If you're using Claude Code for development, the project uses an agent-based workflow system:
+
+1. **No direct code edits** - All modifications go through agent workflows
+2. **Available workflows**:
+   - `feature-development.yaml` - Complete feature implementation
+   - `bug-fix.yaml` - Rapid bug resolution
+   - `performance-optimization.yaml` - Performance improvements
+   - `test-driven-development.yaml` - TDD approach
+   - `security-audit.yaml` - Security assessment
+
+3. **Workflow execution**:
+   - Analyze tasks to identify subtasks
+   - Select appropriate specialized agents
+   - Use Git checkpoints for version control
+   - Consolidate findings with Synthesis Agent
+
+Refer to `CLAUDE.md` for detailed agent workflow instructions.
 
 ## Contributing Guidelines
 
@@ -296,7 +326,6 @@ pnpm test:coverage
 
 ```bash
 # Run Rust tests
-cd src-tauri
 cargo test
 
 # Run with output
@@ -316,8 +345,7 @@ cargo test test_name
 ### Integration Testing
 
 ```bash
-# Run integration tests
-cd src-tauri
+# Run integration tests (if available)
 ./test_integration.sh    # Unix/Linux/macOS
 ./test_integration.ps1   # Windows
 ```
@@ -381,8 +409,8 @@ Before major releases:
 ### Resources
 
 - 📖 **Documentation**: [docs/](docs/) directory
-- 🐛 **Issues**: [GitHub Issues](https://github.com/pinkydprojects/scratch-pad/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/pinkydprojects/scratch-pad/discussions)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/paulb/scratch-pad/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/paulb/scratch-pad/discussions)
 - 📧 **Contact**: Create an issue for questions
 
 ### Community
