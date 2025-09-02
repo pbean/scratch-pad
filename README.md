@@ -7,11 +7,11 @@
 **A floating, keyboard-driven notepad designed for developers**
 
 ![CI](https://github.com/paulb/scratch-pad/actions/workflows/ci.yml/badge.svg)
-[![GitHub release](https://img.shields.io/github/v/release/pinkydprojects/scratch-pad)](https://github.com/pinkydprojects/scratch-pad/releases)
+[![GitHub release](https://img.shields.io/github/v/release/paulb/scratch-pad)](https://github.com/paulb/scratch-pad/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Platform Support](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](https://github.com/pinkydprojects/scratch-pad/releases)
+[![Platform Support](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](https://github.com/paulb/scratch-pad/releases)
 
-[Download](https://github.com/pinkydprojects/scratch-pad/releases) • [User Guide](docs/USER_GUIDE.md) • [Installation](docs/INSTALLATION.md) • [Security](SECURITY.md) • [API Docs](docs/API.md) • [Report Bug](https://github.com/pinkydprojects/scratch-pad/issues)
+[Download](https://github.com/paulb/scratch-pad/releases) • [User Guide](docs/USER_GUIDE.md) • [Installation](docs/INSTALLATION.md) • [Security](SECURITY.md) • [API Docs](docs/API.md) • [Report Bug](https://github.com/paulb/scratch-pad/issues)
 
 </div>
 
@@ -68,7 +68,7 @@
 
 ### 🧪 **Robust Testing Infrastructure**
 
-- **91.1% test pass rate** (204/224 tests) with React 19 compatibility
+- **96.9% test pass rate** (223/230 tests) with React 19 compatibility
 - **Smart test isolation** with intelligent mock preservation
 - **Comprehensive validation** infrastructure for reliable testing
 - **Sub-100ms test performance** with optimized reset logic
@@ -81,7 +81,7 @@
 **macOS:** Download the `.dmg` and drag to Applications
 **Linux:** Install the `.deb` package or use the `.AppImage`
 
-👉 **[Download the latest release](https://github.com/pinkydprojects/scratch-pad/releases)**
+👉 **[Download the latest release](https://github.com/paulb/scratch-pad/releases)**
 
 ### First Use
 
@@ -136,8 +136,8 @@ cd src-tauri && cargo test validation
 cd src-tauri && cargo test --test security_test_suite -- --nocapture
 ```
 
-**Test Results (v0.3.0):**
-- ✅ **91.1% overall test pass rate** (204/224 tests)
+**Test Results (v0.4.0):**
+- ✅ **96.9% frontend test pass rate** (223/230 tests)
 - ✅ **95.2% security test coverage** (20/21 critical tests)
 - ✅ **Zero critical vulnerabilities** in production code
 - ✅ **Comprehensive attack vector coverage** (path traversal, injection, abuse prevention)
@@ -147,7 +147,7 @@ cd src-tauri && cargo test --test security_test_suite -- --nocapture
 
 ```bash
 # Clone the repository
-git clone https://github.com/pinkydprojects/scratch-pad.git
+git clone https://github.com/paulb/scratch-pad.git
 cd scratch-pad
 
 # Install dependencies
@@ -185,10 +185,12 @@ scratch-pad/
 │   ├── lib/               # Utility libraries and store
 │   ├── test/              # Test infrastructure and setup
 │   └── types/             # TypeScript type definitions
-├── src-tauri/             # Rust backend
-│   ├── src/               # Rust source code
-│   ├── icons/             # Application icons
-│   └── tauri.conf.json    # Tauri configuration
+├── src-tauri/             # Rust backend (build output)
+├── src/                   # Frontend & backend source
+│   ├── commands/          # Tauri IPC commands
+│   ├── db/                # Database operations
+│   ├── search/            # Search functionality
+│   └── services/          # Service layer
 ├── docs/                  # User documentation
 ├── internal-docs/         # Development documentation & plans
 ├── .claude/               # Claude Code configuration
@@ -234,9 +236,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - 📖 **Documentation**: [User Guide](docs/USER_GUIDE.md) | [Installation Guide](docs/INSTALLATION.md) | [API Reference](docs/API.md)
 - 🔒 **Security**: [Security Policy](SECURITY.md) | [Security Testing Guide](docs/SECURITY_TESTING.md)
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/pinkydprojects/scratch-pad/issues)
-- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/pinkydprojects/scratch-pad/discussions)
-- 💬 **Community**: [GitHub Discussions](https://github.com/pinkydprojects/scratch-pad/discussions)
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/paulb/scratch-pad/issues)
+- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/paulb/scratch-pad/discussions)
+- 💬 **Community**: [GitHub Discussions](https://github.com/paulb/scratch-pad/discussions)
 
 ---
 
@@ -244,6 +246,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Made with ❤️ for developers who value their flow state**
 
-[⭐ Star this repo](https://github.com/pinkydprojects/scratch-pad) if you find it useful!
+[⭐ Star this repo](https://github.com/paulb/scratch-pad) if you find it useful!
 
 </div>
