@@ -22,7 +22,7 @@ Use the provided validation scripts for automated testing:
 
 ```bash
 # Download and run validation script
-curl -sSL https://raw.githubusercontent.com/pinkydprojects/scratch-pad/main/scripts/validate-installation.sh | bash
+curl -sSL https://raw.githubusercontent.com/paulb/scratch-pad/main/scripts/validate-installation.sh | bash
 
 # Or if you have the repository cloned
 ./scripts/validate-installation.sh
@@ -32,7 +32,7 @@ curl -sSL https://raw.githubusercontent.com/pinkydprojects/scratch-pad/main/scri
 
 ```powershell
 # Download and run validation script
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/pinkydprojects/scratch-pad/main/scripts/validate-installation.ps1" -OutFile "validate-installation.ps1"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/paulb/scratch-pad/main/scripts/validate-installation.ps1" -OutFile "validate-installation.ps1"
 .\validate-installation.ps1
 
 # Or if you have the repository cloned
@@ -415,7 +415,7 @@ If validation fails, please report issues with:
    - Other security software
    - Virtual machine (if applicable)
 
-Submit issues at: <https://github.com/pinkydprojects/scratch-pad/issues>
+Submit issues at: <https://github.com/paulb/scratch-pad/issues>
 
 ## Automated Testing
 

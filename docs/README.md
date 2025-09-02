@@ -35,15 +35,15 @@ Welcome to the comprehensive documentation for Scratch Pad - a floating, keyboar
 
 ### Installation
 
-- [Download Latest Release](https://github.com/pinkydprojects/scratch-pad/releases/latest)
+- [Download Latest Release](https://github.com/paulb/scratch-pad/releases/latest)
 - [Windows Installation](INSTALLATION.md#windows-installation)
 - [macOS Installation](INSTALLATION.md#macos-installation)
 - [Linux Installation](INSTALLATION.md#linux-installation)
 
 ### Support
 
-- [GitHub Issues](https://github.com/pinkydprojects/scratch-pad/issues) - Bug reports and feature requests
-- [GitHub Discussions](https://github.com/pinkydprojects/scratch-pad/discussions) - Community discussions
+- [GitHub Issues](https://github.com/paulb/scratch-pad/issues) - Bug reports and feature requests
+- [GitHub Discussions](https://github.com/paulb/scratch-pad/discussions) - Community discussions
 - [Validation Scripts](../scripts/) - Automated installation validation
 
 ## 📖 Documentation Structure
@@ -71,7 +71,7 @@ docs/
 
 ### New Users
 
-1. **[Download](https://github.com/pinkydprojects/scratch-pad/releases/latest)** the latest release for your platform
+1. **[Download](https://github.com/paulb/scratch-pad/releases/latest)** the latest release for your platform
 2. **[Install](INSTALLATION.md)** following the platform-specific instructions
 3. **[Validate](VALIDATION_GUIDE.md)** your installation using the provided scripts
 4. **[Learn](USER_GUIDE.md)** how to use all the features
@@ -131,7 +131,7 @@ docs/
 
 ## 📊 Project Status
 
-### Current Version: 0.1.0
+### Current Version: 0.3.0
 
 - ✅ Core functionality complete
 - ✅ Cross-platform builds working
@@ -178,4 +178,4 @@ Scratch Pad is open source software licensed under the [MIT License](../LICENSE)
 
 ---
 
-**Questions?** Check the [User Guide](USER_GUIDE.md) or create an [issue](https://github.com/pinkydprojects/scratch-pad/issues) for support.
+**Questions?** Check the [User Guide](USER_GUIDE.md) or create an [issue](https://github.com/paulb/scratch-pad/issues) for support.
