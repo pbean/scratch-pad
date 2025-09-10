@@ -36,7 +36,7 @@ ctrlc = "3.5"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.18", features = ["v4"] }
 # Security validation dependencies
-regex = "1.10"
+regex = "1.11"
 dirs = "5.0"
 # Trait-based service architecture
 async-trait = "0.1"
