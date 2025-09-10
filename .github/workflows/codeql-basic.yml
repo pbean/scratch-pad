@@ -1,4 +1,4 @@
-name: CodeQL Basic Security Scan
+name: CodeQL Security Scan
 on:
   schedule:
     - cron: '0 6 * * 1'  # Weekly on Monday at 6 AM
@@ -9,10 +9,13 @@ on:
       - '**.jsx'
       - '**.ts'
       - '**.tsx'
+      - '**.rs'
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
-  analyze:
+  analyze-javascript:
     name: CodeQL JavaScript/TypeScript
     runs-on: ubuntu-22.04
     timeout-minutes: 15
@@ -35,3 +38,61 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:javascript-typescript"
+  
+  analyze-rust:
+    name: CodeQL Rust (Experimental)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30  # Rust compilation can be slower
+    # Only run on PRs initially to limit noise
+    if: github.event_name == 'pull_request'
+    continue-on-error: true  # Non-blocking while in beta
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libssl-dev librsvg2-dev
+      
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Initialize CodeQL for Rust
+        uses: github/codeql-action/init@v3
+        with:
+          languages: rust
+          # Rust-specific config if needed
+          setup-python-dependencies: false
+      
+      - name: Build Rust code for analysis
+        run: |
+          cd src-tauri
+          cargo build --release --verbose
+        env:
+          CARGO_TERM_COLOR: always
+      
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:rust-experimental"
+          # Add custom queries path when available
+          # queries: .github/codeql/rust-queries
