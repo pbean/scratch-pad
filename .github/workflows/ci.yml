@@ -21,7 +21,7 @@ jobs:
             libjavascriptcoregtk-4.0-dev libsoup2.4-dev
       
       # Frontend
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
       
