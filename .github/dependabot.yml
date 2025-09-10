@@ -1,47 +1,102 @@
 # Dependabot configuration for Scratch Pad
-# Phase 0/1: Start with security updates only, limited PR count
+# Phase 2: Expanded coverage with version updates and PR grouping
 version: 2
 updates:
   # JavaScript/TypeScript dependencies (Frontend)
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "monday"
       time: "06:00"
       timezone: "America/Los_Angeles"
-    open-pull-requests-limit: 2  # Start small
+    open-pull-requests-limit: 5  # Increased for Phase 2
     labels:
       - "dependencies"
       - "javascript"
     commit-message:
-      prefix: "sec"
+      prefix: "deps"
+      prefix-development: "deps-dev"
       include: "scope"
-    # Phase 1: Focus on security updates
+    # Group development dependencies to reduce PR noise
+    groups:
+      dev-dependencies:
+        patterns:
+          - "@types/*"
+          - "eslint*"
+          - "prettier*"
+          - "@typescript-eslint/*"
+          - "vite*"
+          - "vitest*"
+          - "@vitejs/*"
+          - "tailwindcss*"
+          - "@tailwindcss/*"
+        update-types:
+          - "minor"
+          - "patch"
+      testing:
+        patterns:
+          - "@testing-library/*"
+          - "happy-dom"
+          - "@vitest/*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore problematic major updates
+    ignore:
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        versions: [">5.7.0"]  # Stay on 5.7.x for stability
     
   # Rust dependencies (Backend)  
   - package-ecosystem: "cargo"
     directory: "/src-tauri"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "tuesday"
       time: "06:00"
       timezone: "America/Los_Angeles"
-    open-pull-requests-limit: 2  # Start small
+    open-pull-requests-limit: 3  # Moderate increase for Phase 2
     labels:
       - "dependencies"
       - "rust"
     commit-message:
-      prefix: "sec(rust)"
+      prefix: "deps(rust)"
       include: "scope"
-    # Phase 1: Focus on security updates
+    # Group related Rust dependencies
+    groups:
+      tauri-ecosystem:
+        patterns:
+          - "tauri*"
+          - "@tauri-apps/*"
+        update-types:
+          - "minor"
+          - "patch"
+      async-runtime:
+        patterns:
+          - "tokio*"
+          - "async-*"
+          - "futures*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore major Tauri updates until tested
+    ignore:
+      - dependency-name: "tauri"
+        update-types: ["version-update:semver-major"]
     
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:00"
-    open-pull-requests-limit: 1
+    open-pull-requests-limit: 2  # Slight increase for Phase 2
     labels:
       - "dependencies"
       - "ci"
@@ -49,6 +104,9 @@ updates:
       prefix: "ci(deps)"
       include: "scope"
 
-# Note: This is the Phase 1 configuration focused on security updates only.
-# In Phase 2, we'll expand to include version updates with proper grouping.
-# See internal-docs/CODEQL_DEPENDABOT_INTEGRATION_PLAN.md for the full roadmap.
+# Phase 2 Configuration:
+# - Weekly updates instead of daily to reduce churn
+# - PR grouping for dev dependencies to minimize noise
+# - Careful ignore rules for major version updates
+# - Moderate PR limits: 5 npm, 3 cargo, 2 actions
+# See internal-docs/CODEQL_DEPENDABOT_INTEGRATION_PLAN.md for full roadmap
