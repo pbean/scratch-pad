@@ -21,11 +21,11 @@ jobs:
             libjavascriptcoregtk-4.0-dev libsoup2.4-dev
       
       # Frontend
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
       
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '20.11.0'
           cache: 'pnpm'
