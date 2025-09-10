@@ -12,7 +12,6 @@ updates:
     open-pull-requests-limit: 2  # Start small
     labels:
       - "dependencies"
-      - "security"
       - "javascript"
     commit-message:
       prefix: "sec"
@@ -29,7 +28,6 @@ updates:
     open-pull-requests-limit: 2  # Start small
     labels:
       - "dependencies"
-      - "security"
       - "rust"
     commit-message:
       prefix: "sec(rust)"
@@ -47,7 +45,6 @@ updates:
     labels:
       - "dependencies"
       - "ci"
-      - "security"
     commit-message:
       prefix: "ci(deps)"
       include: "scope"
