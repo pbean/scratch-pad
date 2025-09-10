@@ -17,9 +17,7 @@ updates:
     commit-message:
       prefix: "sec"
       include: "scope"
-    # Phase 1: Security updates only
-    allow:
-      - dependency-type: "security"
+    # Phase 1: Focus on security updates
     
   # Rust dependencies (Backend)  
   - package-ecosystem: "cargo"
@@ -36,9 +34,7 @@ updates:
     commit-message:
       prefix: "sec(rust)"
       include: "scope"
-    # Phase 1: Security updates only
-    allow:
-      - dependency-type: "security"
+    # Phase 1: Focus on security updates
     
   # GitHub Actions
   - package-ecosystem: "github-actions"
