@@ -1,0 +1,35 @@
+name: "Scratch Pad Security Analysis"
+disable-default-queries: false
+
+queries:
+  - uses: security-extended
+  - uses: security-and-quality
+
+query-filters:
+  - exclude:
+      problem.severity: recommendation
+      tags: 
+        - "maintainability"
+        - "readability"
+
+paths-ignore:
+  - "node_modules"
+  - "dist"
+  - "build"
+  - "target"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "**/test-data/**"
+
+paths:
+  - "src"
+  - "src-tauri/src"
+
+languages:
+  javascript:
+    trap:
+      cache: true
+    index:
+      exclude:
+        - "**/vendor/**"
