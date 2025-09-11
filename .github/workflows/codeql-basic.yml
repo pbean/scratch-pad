@@ -42,7 +42,7 @@ jobs:
   analyze-rust:
     name: CodeQL Rust (Experimental)
     runs-on: ubuntu-22.04
-    timeout-minutes: 30  # Rust compilation can be slower
+    timeout-minutes: 20  # Reduced from 30 - fail faster if stuck
     # Only run on PRs initially to limit noise
     if: github.event_name == 'pull_request'
     continue-on-error: true  # Non-blocking while in beta
@@ -86,6 +86,8 @@ jobs:
       - name: Build Rust code for analysis
         run: |
           cd src-tauri
+          # Using release mode for accurate analysis despite slower build
+          # Consider using debug mode if timeouts persist
           cargo build --release --verbose
         env:
           CARGO_TERM_COLOR: always

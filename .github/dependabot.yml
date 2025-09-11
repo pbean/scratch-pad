@@ -1,5 +1,6 @@
 # Dependabot configuration for Scratch Pad
-# Phase 2: Expanded coverage with version updates and PR grouping
+# Phase 2.1: Fixed grouping and comprehensive patterns
+# NOTE: Configuration changes trigger immediate PR creation, bypassing schedule limits
 version: 2
 updates:
   # JavaScript/TypeScript dependencies (Frontend)
@@ -10,7 +11,7 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "America/Los_Angeles"
-    open-pull-requests-limit: 5  # Increased for Phase 2
+    open-pull-requests-limit: 3  # Reduced to prevent overload
     labels:
       - "dependencies"
       - "javascript"
@@ -18,40 +19,73 @@ updates:
       prefix: "deps"
       prefix-development: "deps-dev"
       include: "scope"
-    # Group development dependencies to reduce PR noise
+    # Comprehensive dependency grouping
     groups:
+      # All development dependencies (minor/patch only)
       dev-dependencies:
-        patterns:
-          - "@types/*"
-          - "eslint*"
-          - "prettier*"
-          - "@typescript-eslint/*"
-          - "vite*"
-          - "vitest*"
-          - "@vitejs/*"
-          - "tailwindcss*"
-          - "@tailwindcss/*"
+        dependency-type: "development"
         update-types:
           - "minor"
           - "patch"
-      testing:
+      # Production dependencies - UI components
+      ui-components:
         patterns:
-          - "@testing-library/*"
-          - "happy-dom"
-          - "@vitest/*"
+          - "@radix-ui/*"
+          - "lucide-react"
+          - "class-variance-authority"
+          - "clsx"
+          - "tailwind-merge"
         update-types:
           - "minor"
           - "patch"
-    # Ignore problematic major updates
+      # Production dependencies - Tauri ecosystem
+      tauri-frontend:
+        patterns:
+          - "@tauri-apps/*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Production dependencies - Other libraries
+      prod-utilities:
+        patterns:
+          - "zustand"
+          - "react-window"
+          - "@types/react-window"
+        exclude-patterns:
+          - "@radix-ui/*"
+          - "@tauri-apps/*"
+          - "react*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Comprehensive ignore rules for stability
     ignore:
+      # Core React ecosystem - no major updates
       - dependency-name: "react"
         update-types: ["version-update:semver-major"]
       - dependency-name: "react-dom"
         update-types: ["version-update:semver-major"]
       - dependency-name: "@types/react"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
+      # Build tools - no major updates without testing
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitejs/plugin-react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      # Other major updates to review manually
+      - dependency-name: "react-window"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@tauri-apps/api"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@tauri-apps/cli"
+        update-types: ["version-update:semver-major"]
+      # TypeScript - stay on 5.7.x
       - dependency-name: "typescript"
-        versions: [">5.7.0"]  # Stay on 5.7.x for stability
+        versions: [">5.7.0"]
     
   # Rust dependencies (Backend)  
   - package-ecosystem: "cargo"
@@ -61,7 +95,7 @@ updates:
       day: "tuesday"
       time: "06:00"
       timezone: "America/Los_Angeles"
-    open-pull-requests-limit: 3  # Moderate increase for Phase 2
+    open-pull-requests-limit: 2  # Reduced to prevent overload
     labels:
       - "dependencies"
       - "rust"
@@ -70,6 +104,7 @@ updates:
       include: "scope"
     # Group related Rust dependencies
     groups:
+      # Tauri and plugins
       tauri-ecosystem:
         patterns:
           - "tauri*"
@@ -77,6 +112,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      # Async runtime dependencies
       async-runtime:
         patterns:
           - "tokio*"
@@ -85,9 +121,26 @@ updates:
         update-types:
           - "minor"
           - "patch"
-    # Ignore major Tauri updates until tested
+      # Testing dependencies
+      rust-testing:
+        patterns:
+          - "mockall*"
+          - "tempfile"
+          - "criterion"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore major updates for stability
     ignore:
       - dependency-name: "tauri"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tauri-plugin-*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tokio"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "serde"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sqlx"
         update-types: ["version-update:semver-major"]
     
   # GitHub Actions
@@ -96,17 +149,25 @@ updates:
     schedule:
       interval: "monthly"
       time: "06:00"
-    open-pull-requests-limit: 2  # Slight increase for Phase 2
+    open-pull-requests-limit: 1  # Minimal to prevent overload
     labels:
       - "dependencies"
       - "ci"
     commit-message:
       prefix: "ci(deps)"
       include: "scope"
+    # Group all actions updates
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
-# Phase 2 Configuration:
-# - Weekly updates instead of daily to reduce churn
-# - PR grouping for dev dependencies to minimize noise
-# - Careful ignore rules for major version updates
-# - Moderate PR limits: 5 npm, 3 cargo, 2 actions
+# Phase 2.1 Configuration:
+# - Reduced PR limits: 3 npm, 2 cargo, 1 actions (was 5/3/2)
+# - Comprehensive grouping for ALL dependency types
+# - Extensive ignore rules for major updates
+# - Note: Config changes trigger immediate PR creation surge
 # See internal-docs/CODEQL_DEPENDABOT_INTEGRATION_PLAN.md for full roadmap
