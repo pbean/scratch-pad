@@ -10,7 +10,7 @@ jobs:
     timeout-minutes: 15
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       # Install system dependencies for Tauri
       - name: Install system dependencies
@@ -67,7 +67,7 @@ jobs:
       # Status comment (optional but nice)
       - name: Comment PR
         if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         continue-on-error: true
         with:
           script: |
