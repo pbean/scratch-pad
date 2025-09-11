@@ -10,7 +10,7 @@ jobs:
     timeout-minutes: 15
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       # Install system dependencies for Tauri
       - name: Install system dependencies
